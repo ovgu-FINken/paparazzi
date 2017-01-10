@@ -8,7 +8,7 @@
    flight_plan="flight_plans/ovgu/free_flight.xml"
    settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_rate.xml settings/control/stabilization_att_int_quat.xml settings/estimation/ahrs_float_cmpl.xml settings/estimation/body_to_imu.xml"
    settings_modules="modules/ws2801.xml modules/logger_sd_spi_direct.xml"
-   gui_color="#fe32ffff0000"
+   gui_color="#ffff0eb50000"
   />
   <aircraft
    name="FINken3_02"
