@@ -57,13 +57,14 @@
                   <define name="LEDS" value="5"/>
                   <define name="ID_COLOR" value="255,255,255"/>
 		</load-->
+    <load name="evaluate_heading.xml"/>
 		<!--<load name="finken_rc_passthrough.xml"/>-->
-		<!--load name="logger_sd_spi_direct.xml">
+		<load name="logger_sd_spi_direct.xml">
 			<configure name="LOGGER_LED" value="5"/>
 			<configure name="SDLOGGER_DIRECT_CONTROL_SWITCH" value="RADIO_AUX2"/>
 			<configure name="SDLOGGER_DIRECT_SPI" value="SPI1"/>
 			<configure name="SDLOGGER_DIRECT_SPI_SLAVE" value="SPI_SLAVE1"/>
-		</load-->
+		</load>
 	</modules>
 
 	<section name="FINKEN_WALL_AVOID" prefix="FINKEN_WALL_AVOID_"/>

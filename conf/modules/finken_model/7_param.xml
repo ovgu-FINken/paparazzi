@@ -1,0 +1,28 @@
+<airframe>
+	<section name="FINKEN" prefix="FINKEN_">
+
+		<define name="THRUST_DEFAULT"             value="0.47" />
+		<define name="THRUST_START"               value="0.52" />
+		<define name="THRUST_LAND"                value="0.40" />
+		<define name="SYSTEM_UPDATE_FREQ"         value="30"   />
+		<!--Hoehenregler 2 -->
+		<!--
+		<define name="HEIGHT_CONTROL_HOLD_TIME"   value="0.9853" />
+		<define name="HEIGHT_CONTROL_GAIN"        value="11.223" />
+		<define name="HEIGHT_CONTROL_DELAY_TIME"  value="0.1102"/>
+		<define name="HEIGHT_CONTROL_FOLLOW_TIME" value="6"     />
+		-->
+		<!-- Hoehenregler 1 -->
+		<define name="HEIGHT_CONTROL_HOLD_TIME"   value="2.186" />
+		<define name="HEIGHT_CONTROL_GAIN"        value="4.741" />
+		<define name="HEIGHT_CONTROL_DELAY_TIME"  value="0.0556"/>
+		<define name="HEIGHT_CONTROL_FOLLOW_TIME" value="6"     />
+		<!-- LS3+Tuning -->
+		<!--
+		<define name="HEIGHT_CONTROL_HOLD_TIME"   value="1.5"  />
+		<define name="HEIGHT_CONTROL_GAIN"        value="8"    />
+		<define name="HEIGHT_CONTROL_DELAY_TIME"  value="0.04" />
+		<define name="HEIGHT_CONTROL_FOLLOW_TIME" value="6"    />
+		-->
+	</section>
+</airframe>
