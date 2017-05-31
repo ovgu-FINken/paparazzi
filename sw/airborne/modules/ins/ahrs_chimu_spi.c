@@ -20,7 +20,7 @@
 
 #if CHIMU_DOWNLINK_IMMEDIATE
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #endif
 
@@ -40,6 +40,13 @@ struct AhrsChimu ahrs_chimu;
 void ahrs_chimu_update_gps(uint8_t gps_fix, uint16_t gps_speed_3d);
 
 #include "subsystems/abi.h"
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef AHRS_CHIMU_GPS_ID
+#define AHRS_CHIMU_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(AHRS_CHIMU_GPS_ID)
 static abi_event gps_ev;
 static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    uint32_t stamp __attribute__((unused)),
@@ -48,7 +55,7 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
   ahrs_chimu_update_gps(gps_s->fix, gps_s->speed_3d);
 }
 
-static bool_t ahrs_chimu_enable_output(bool_t enable)
+static bool ahrs_chimu_enable_output(bool enable)
 {
   ahrs_chimu.is_enabled = enable;
   return ahrs_chimu.is_enabled;
@@ -58,13 +65,13 @@ void ahrs_chimu_register(void)
 {
   ahrs_chimu_init();
   ahrs_register_impl(ahrs_chimu_enable_output);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(AHRS_CHIMU_GPS_ID, &gps_ev, gps_cb);
 }
 
 void ahrs_chimu_init(void)
 {
-  ahrs_chimu.is_enabled = TRUE;
-  ahrs_chimu.is_aligned = FALSE;
+  ahrs_chimu.is_enabled = true;
+  ahrs_chimu.is_aligned = false;
 
   // uint8_t ping[7] = {CHIMU_STX, CHIMU_STX, 0x01, CHIMU_BROADCAST, MSG00_PING, 0x00, 0xE6 };
   uint8_t rate[12] = {CHIMU_STX, CHIMU_STX, 0x06, CHIMU_BROADCAST, MSG10_UARTSETTINGS, 0x05, 0xff, 0x79, 0x00, 0x00, 0x01, 0x76 };  // 50Hz attitude only + SPI
@@ -113,7 +120,7 @@ void parse_ins_msg(void)
         }
 
         //FIXME
-        ahrs_chimu.is_aligned = TRUE;
+        ahrs_chimu.is_aligned = true;
 
         if (ahrs_chimu.is_enabled) {
           struct FloatEulers att = {

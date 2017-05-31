@@ -22,6 +22,13 @@
  *
  *)
 
+(* simple boolean expressions *)
+type bool_expr =
+  | Var of string
+  | Not of bool_expr
+  | And of bool_expr * bool_expr
+  | Or of bool_expr * bool_expr
+
 (* Module configuration:
   * Xml node
   * file (with path)
@@ -30,7 +37,7 @@
   * parameters
   * extrat targets
   *)
-type module_conf = { name : string; xml : Xml.xml; file : string; filename : string; vpath : string option; param : Xml.xml list; targets : string list; }
+type module_conf = { name : string; xml : Xml.xml; file : string; filename : string; vpath : string option; param : Xml.xml list; targets : bool_expr; }
 
 (* Modules directory *)
 val modules_dir : string
@@ -39,25 +46,34 @@ val modules_dir : string
 val singletonize : ?compare: ('a -> 'a -> int) -> 'a list -> 'a list
 
 (** [targets_of_field] Xml node, default
- * Returns the targets of a makefile node in modules
+ * Returns the targets expression of a makefile node in modules
  * Default "ap|sim" *)
-val targets_of_field : Xml.xml -> string -> string list
+val targets_of_field : Xml.xml -> string -> bool_expr
 
 exception Subsystem of string
 val module_name : Xml.xml -> string
-val get_module : Xml.xml -> string list -> module_conf
+val get_module : Xml.xml -> bool_expr -> module_conf
 
 (** [get_modules_of_airframe xml]
  * Returns a list of pair (modules ("load" node), targets) from airframe file *)
 val get_modules_of_airframe : ?target: string -> Xml.xml -> module_conf list
 
+(** [get_modules_of_flight_plan xml]
+ * Returns a list of module configuration from flight plan file *)
+val get_modules_of_flight_plan : Xml.xml -> module_conf list
+
+(** [get_modules_of_config ?target flight_plan airframe]
+ * Returns a list of pair (modules ("load" node), targets) from airframe file and flight plan.
+ * The modules are singletonized and options are merged *)
+val get_modules_of_config : ?target:string -> ?verbose:bool -> Xml.xml -> Xml.xml -> module_conf list
+
 (** [test_targets target targets]
  * Test if [target] is allowed [targets]
  * Return true if target is allowed, false if target is not in list or rejected (prefixed by !) *)
-val test_targets : string -> string list -> bool
+val test_targets : string -> bool_expr -> bool
 
-(** [get_targets_of_module xml] Returns the list of targets of a module *)
-val get_targets_of_module : Xml.xml -> string list
+(** [get_targets_of_module xml] Returns the boolean expression of targets of a module *)
+val get_targets_of_module : Xml.xml -> bool_expr
 
 (** [get_modules_name xml]
  * Returns a list of loaded modules' name *)

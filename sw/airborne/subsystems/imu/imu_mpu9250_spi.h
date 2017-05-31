@@ -77,13 +77,13 @@ struct ImuMpu9250 {
   struct spi_transaction wait_slave4_trans;
   volatile uint8_t wait_slave4_tx_buf[1];
   volatile uint8_t wait_slave4_rx_buf[2];
-  volatile bool_t slave4_ready;
+  volatile bool slave4_ready;
 };
 
 extern struct ImuMpu9250 imu_mpu9250;
 
+extern void imu_mpu9250_init(void);
+extern void imu_mpu9250_periodic(void);
 extern void imu_mpu9250_event(void);
-
-#define ImuEvent imu_mpu9250_event
 
 #endif /* IMU_MPU9250_SPI_H */

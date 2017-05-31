@@ -34,13 +34,13 @@ let set_float_value = fun (a:GData.adjustment) v ->
   a#set_value v
 
 let pprz_float = function
-    Pprz.Int i -> float i
-  | Pprz.Float f -> f
-  | Pprz.Int32 i -> Int32.to_float i
-  | Pprz.Int64 i -> Int64.to_float i
-  | Pprz.String s -> float_of_string s
-  | Pprz.Char c -> float_of_string (String.make 1 c)
-  | Pprz.Array _ -> 0.
+    PprzLink.Int i -> float i
+  | PprzLink.Float f -> f
+  | PprzLink.Int32 i -> Int32.to_float i
+  | PprzLink.Int64 i -> Int64.to_float i
+  | PprzLink.String s -> float_of_string s
+  | PprzLink.Char c -> float_of_string (String.make 1 c)
+  | PprzLink.Array _ -> 0.
 
 
 let dnd_targets = [ { Gtk.target = "STRING"; flags = []; info = 0} ]
@@ -467,23 +467,27 @@ let rec plot_window = fun window ->
     ignore (discrete_item#connect#toggled ~callback);
 
     (* Average *)
-    let average_value = GMisc.label ~text:"N/A" () in
-    let _avg_item = submenu_fact#add_image_item ~image:average_value#coerce ~label:"Average" () in
     (* on Ubuntu 14.04 with Unity: updating the menu often results in high CPU and memory usage of `hud-service`,
        even to the point where the PC becomes unusable, so we disable these updates:
        https://github.com/paparazzi/paparazzi/issues/1446
        Also the images/labels are currently not displayed anymore anyway:
        https://github.com/paparazzi/paparazzi/issues/1445 *)
-    (*let update_avg_item = fun () ->
+    (*
+    (* Average *)
+    let average_value = GMisc.label ~text:"N/A" () in
+    let _avg_item = submenu_fact#add_image_item ~image:average_value#coerce ~label:"Average" () in
+    let update_avg_item = fun () ->
       average_value#set_text (sprintf "%.6f" curve.average#value) in
-    ignore (curve.average#connect#value_changed update_avg_item);*)
+    ignore (curve.average#connect#value_changed update_avg_item);
 
     (* Standard deviation *)
     let stdev_value = GMisc.label ~text:"N/A" () in
     let _item = submenu_fact#add_image_item ~image:stdev_value#coerce ~label:"Stdev" () in
-    (*let update_stdev_value = fun () ->
+    let update_stdev_value = fun () ->
       stdev_value#set_text (sprintf "%.6f" curve.stdev#value) in
-    ignore (curve.stdev#connect#value_changed update_stdev_value)*)
+    ignore (curve.stdev#connect#value_changed update_stdev_value)
+    *)
+
     ()
   in
 
@@ -496,14 +500,14 @@ let rec plot_window = fun window ->
     let cb = fun _sender values ->
       let (field_name, index) = base_and_index field_descr in
       let value =
-        match Pprz.assoc field_name values with
-          Pprz.Array array -> array.(index)
+        match PprzLink.assoc field_name values with
+          PprzLink.Array array -> array.(index)
         | scalar -> scalar in
       let float = pprz_float value in
       let v = float *. a +. b in
       plot#add_value name v in
 
-    let module P = Pprz.Messages (struct let name = class_name end) in
+    let module P = PprzLink.Messages (struct let name = class_name end) in
     let binding =
       if sender = "*" then
         P.message_bind msg_name cb

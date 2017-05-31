@@ -26,28 +26,38 @@
  *
 */
 
-
 #ifndef GPS_NMEA_H
 #define GPS_NMEA_H
 
 #include "mcu_periph/uart.h"
+#include "subsystems/gps.h"
 
-#define GPS_NB_CHANNELS 12
+#define GPS_NMEA_NB_CHANNELS 12
 
 #define NMEA_MAXLEN 255
 
+#ifndef PRIMARY_GPS
+#define PRIMARY_GPS GPS_NMEA
+#endif
+
 struct GpsNmea {
-  bool_t msg_available;
-  bool_t pos_available;
-  bool_t is_configured;       ///< flag set to TRUE if configuration is finished
-  bool_t have_gsv;            ///< flag set to TRUE if GPGSV message received
+  bool msg_available;       ///< flag set to TRUE if a new msg/sentence is available to be parsed
+  bool is_configured;       ///< flag set to TRUE if configuration is finished
+  bool have_gsv;            ///< flag set to TRUE if GPGSV message received
   uint8_t gps_nb_ovrn;        ///< number if incomplete nmea-messages
   char msg_buf[NMEA_MAXLEN];  ///< buffer for storing one nmea-line
   int msg_len;
   uint8_t status;             ///< line parser status
+
+  struct GpsState state;
 };
 
 extern struct GpsNmea gps_nmea;
+
+extern void gps_nmea_init(void);
+extern void gps_nmea_event(void);
+
+#define gps_nmea_periodic_check() gps_periodic_check(&gps_nmea.state)
 
 
 /*
@@ -55,31 +65,15 @@ extern struct GpsNmea gps_nmea;
  */
 
 /** The function to be called when a characted from the device is available */
-#include "mcu_periph/link_device.h"
+#include "pprzlink/pprzlink_device.h"
 
 extern void nmea_configure(void);
 extern void nmea_parse_char(uint8_t c);
-extern void nmea_parse_msg(void);
+extern bool nmea_parse_msg(void);
 extern uint8_t nmea_calc_crc(const char *buff, int buff_sz);
 extern void nmea_parse_prop_init(void);
-extern void nmea_parse_prop_msg(void);
-extern void gps_nmea_msg(void);
-
-static inline void GpsEvent(void)
-{
-  struct link_device *dev = &((GPS_LINK).device);
-
-  if (!gps_nmea.is_configured) {
-    nmea_configure();
-    return;
-  }
-  while (dev->char_available(dev->periph)) {
-    nmea_parse_char(dev->get_byte(dev->periph));
-    if (gps_nmea.msg_available) {
-      gps_nmea_msg();
-    }
-  }
-}
+extern bool nmea_parse_prop_msg(void);
+extern void nmea_gps_msg(void);
 
 /** Read until a certain character, placed here for proprietary includes */
 static inline void nmea_read_until(int *i)

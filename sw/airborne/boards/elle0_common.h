@@ -187,6 +187,22 @@
 #endif
 #define USE_AD_TIM1 1
 
+#elif PPM_CONFIG == 3
+#if USE_SERVOS_7AND8
+#error "You cannot USE_SERVOS_7AND8 and PPM input on PB07 (SERVO8) at the same time"
+#endif
+/* input on PB07 (Servo 8 pin) */
+#define USE_PPM_TIM4 1
+#define PPM_CHANNEL         TIM_IC2
+#define PPM_TIMER_INPUT     TIM_IC_IN_TI2
+#define PPM_IRQ             NVIC_TIM4_IRQ
+// Capture/Compare InteruptEnable and InterruptFlag
+#define PPM_CC_IE           TIM_DIER_CC2IE
+#define PPM_CC_IF           TIM_SR_CC2IF
+#define PPM_GPIO_PORT       GPIOB
+#define PPM_GPIO_PIN        GPIO7
+#define PPM_GPIO_AF         GPIO_AF2
+
 #else
 #error "Unknown PPM config"
 
@@ -262,55 +278,42 @@
  * these directly map to the index number of the 4 adc channels defined above
  * 4th (index 3) is used for bat monitoring by default
  */
+
+#ifndef USE_ADC_1
+#define USE_ADC_1 1
+#endif
+
 #if USE_ADC_1
-#define AD1_1_CHANNEL 13
+#define AD1_1_CHANNEL 14
 #define ADC_1 AD1_1
 #define ADC_1_GPIO_PORT GPIOC
-#define ADC_1_GPIO_PIN GPIO3
+#define ADC_1_GPIO_PIN GPIO4
 #endif
 
 #if USE_ADC_2
-#define AD1_2_CHANNEL 10
+#define AD1_2_CHANNEL 15
 #define ADC_2 AD1_2
 #define ADC_2_GPIO_PORT GPIOC
-#define ADC_2_GPIO_PIN GPIO0
+#define ADC_2_GPIO_PIN GPIO5
 #endif
 
 #if USE_ADC_3
-#define AD1_3_CHANNEL 11
+#define AD1_3_CHANNEL 0
 #define ADC_3 AD1_3
-#define ADC_3_GPIO_PORT GPIOC
-#define ADC_3_GPIO_PIN GPIO1
+#define ADC_3_GPIO_PORT GPIOA
+#define ADC_3_GPIO_PIN GPIO0
 #endif
 
 #if USE_ADC_4
-#define AD2_1_CHANNEL 15
-#define ADC_4 AD2_1
-#define ADC_4_GPIO_PORT GPIOC
-#define ADC_4_GPIO_PIN GPIO5
-#endif
-
-// Internal ADC for battery enabled by default
-#ifndef USE_ADC_5
-#define USE_ADC_5 1
-#endif
-#if USE_ADC_5
-#define AD1_4_CHANNEL 14
-#define ADC_5 AD1_4
-#define ADC_5_GPIO_PORT GPIOC
-#define ADC_5_GPIO_PIN GPIO4
-#endif
-
-#if USE_ADC_6
-#define AD2_2_CHANNEL 12
-#define ADC_6 AD2_2
-#define ADC_6_GPIO_PORT GPIOC
-#define ADC_6_GPIO_PIN GPIO2
+#define AD1_4_CHANNEL 1
+#define ADC_4 AD1_4
+#define ADC_4_GPIO_PORT GPIOA
+#define ADC_4_GPIO_PIN GPIO1
 #endif
 
 /* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
 #ifndef ADC_CHANNEL_VSUPPLY
-#define ADC_CHANNEL_VSUPPLY ADC_5
+#define ADC_CHANNEL_VSUPPLY ADC_1
 #endif
 
 #define DefaultVoltageOfAdc(adc) (0.0045*adc)
@@ -323,12 +326,24 @@
 #define PWM_USE_TIM3 1
 #define PWM_USE_TIM5 1
 
+#ifndef USE_PWM1
 #define USE_PWM1 1
+#endif
+#ifndef USE_PWM2
 #define USE_PWM2 1
+#endif
+#ifndef USE_PWM3
 #define USE_PWM3 1
+#endif
+#ifndef USE_PWM4
 #define USE_PWM4 1
+#endif
+#ifndef USE_PWM5
 #define USE_PWM5 1
+#endif
+#ifndef USE_PWM6
 #define USE_PWM6 1
+#endif
 
 #if USE_SERVOS_7AND8
 #if USE_I2C1

@@ -38,7 +38,7 @@ float test_rmat_of_eulers_312(void);
 float test_quat(void);
 float test_quat2(void);
 
-float test_INT32_QUAT_OF_RMAT(struct FloatEulers *eul, bool_t display);
+float test_INT32_QUAT_OF_RMAT(struct FloatEulers *eul, bool display);
 
 void test_of_axis_angle(void);
 
@@ -841,7 +841,7 @@ float test_quat2(void)
 }
 
 
-float test_INT32_QUAT_OF_RMAT(struct FloatEulers *eul_f, bool_t display)
+float test_INT32_QUAT_OF_RMAT(struct FloatEulers *eul_f, bool display)
 {
   struct Int32Eulers eul321_i;
   EULERS_BFP_OF_REAL(eul321_i, (*eul_f));
@@ -851,7 +851,7 @@ float test_INT32_QUAT_OF_RMAT(struct FloatEulers *eul_f, bool_t display)
   if (display) { DISPLAY_INT32_EULERS("eul312_i", eul312_i); }
 
   struct FloatRMat rmat_f;
-  FLOAT_RMAT_OF_EULERS_321(rmat_f, (*eul_f));
+  float_rmat_of_eulers_321(&rmat_f, eul_f);
   if (display) { DISPLAY_FLOAT_RMAT_AS_EULERS_DEG("rmat float", rmat_f); }
   if (display) { DISPLAY_FLOAT_RMAT("rmat float", rmat_f); }
 

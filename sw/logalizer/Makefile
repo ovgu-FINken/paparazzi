@@ -26,29 +26,29 @@ Q=@
 include ../Makefile.ocaml
 INCLUDES=
 PKG = -package glibivy,pprz
-LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz
+LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz,pprzlink
 XPKG = -package pprz.xlib
-XLINKPKG = $(XPKG) -linkpkg -dllpath-pkg pprz.xlib
+XLINKPKG = $(XPKG) -linkpkg -dllpath-pkg pprz.xlib,pprzlink
 
 all: play plotter logplotter sd2log plotprofile openlog2tlm sdlogger_download
 
-play : log_file.cmo play_core.cmo play.cmo $(LIBPPRZCMA)
+play : log_file.cmo play_core.cmo play.cmo $(LIBPPRZCMA) $(LIBPPRZLINKCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(INCLUDES) -o $@ $(LINKPKG) gtkInit.cmo $^
 
-play-nox : play_core.cmo play-nox.cmo $(LIBPPRZCMA)
+play-nox : play_core.cmo play-nox.cmo $(LIBPPRZCMA) $(LIBPPRZLINKCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(INCLUDES) -o $@ $(LINKPKG) $^
 
-plotter : plotter.cmo $(LIBPPRZCMA) $(XLIBPPRZCMA)
+plotter : plotter.cmo $(LIBPPRZCMA) $(LIBPPRZLINKCMA) $(XLIBPPRZCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(INCLUDES) -o $@ $(XLINKPKG) gtkInit.cmo $^
 
-logplotter : log_file.cmo gtk_export.cmo export.cmo logplotter.cmo $(LIBPPRZCMA) $(XLIBPPRZCMA)
+logplotter : log_file.cmo gtk_export.cmo export.cmo logplotter.cmo $(LIBPPRZCMA) $(LIBPPRZLINKCMA) $(XLIBPPRZCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(INCLUDES) -o $@ $(XLINKPKG) gtkInit.cmo $^
 
-sd2log : sd2log.cmo $(LIBPPRZCMA)
+sd2log : sd2log.cmo $(LIBPPRZCMA) $(LIBPPRZLINKCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(INCLUDES) -o $@ $(LINKPKG) $^
 

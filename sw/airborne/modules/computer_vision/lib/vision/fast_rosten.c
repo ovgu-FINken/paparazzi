@@ -37,22 +37,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static void fast_make_offsets(int32_t *pixel, uint16_t row_stride, uint8_t pixel_size);
 
 /**
- * Do a FAST9 corner detection
+ * Do a FAST9 corner detection. The array *ret_corners can be reallocated in this function every time
+ * it becomes too full, *ret_corners_length is updated appropriately.
  * @param[in] *img The image to do the corner detection on
  * @param[in] threshold The threshold which we use for FAST9
  * @param[in] min_dist The minimum distance in pixels between detections
  * @param[in] x_padding The padding in the x direction to not scan for corners
  * @param[in] y_padding The padding in the y direction to not scan for corners
- * @param[out] *num_corners The amount of corners found
- * @return The corners found
- */
-struct point_t *fast9_detect(struct image_t *img, uint8_t threshold, uint16_t min_dist, uint16_t x_padding, uint16_t y_padding, uint16_t *num_corners) {
+ * @param[in] *num_corners reference to the amount of corners found, set by this function
+ * @param[in] *ret_corners_length the length of the array *ret_corners.
+ * @param[in] *ret_corners array which contains the corners that were detected.
+*/
+void fast9_detect(struct image_t *img, uint8_t threshold, uint16_t min_dist, uint16_t x_padding, uint16_t y_padding, uint16_t *num_corners, uint16_t *ret_corners_length,struct point_t *ret_corners) {
   uint32_t corner_cnt = 0;
-  uint16_t rsize = 512;
-  int pixel[16];
-  uint16_t x, y, i;
-  struct point_t *ret_corners = malloc(sizeof(struct point_t) * rsize);
 
+  int pixel[16];
+  int16_t i;
+  uint16_t x, y, x_min, x_max, y_min;
+  uint8_t need_skip;
   // Set the pixel size
   uint8_t pixel_size = 1;
   if (img->type == IMAGE_YUV422) {
@@ -63,19 +65,35 @@ struct point_t *fast9_detect(struct image_t *img, uint8_t threshold, uint16_t mi
   fast_make_offsets(pixel, img->w, pixel_size);
 
   // Go trough all the pixels (minus the borders)
-  for (y = 3 + y_padding; y < img->h - 3 - y_padding; y++)
+  for (y = 3 + y_padding; y < img->h - 3 - y_padding; y++) {
+
+    if (min_dist > 0) y_min = y - min_dist;
+
     for (x = 3 + x_padding; x < img->w - 3 - x_padding; x++) {
       // First check if we aren't in range vertical (TODO: fix less intensive way)
       if (min_dist > 0) {
-        bool_t need_skip = FALSE;
 
-        // Go trough all the previous corners
-        for (i = 0; i < corner_cnt; i++) {
-          if (x - min_dist < ret_corners[i].x && ret_corners[i].x < x + min_dist
-              && y - min_dist < ret_corners[i].y && ret_corners[i].y < y + min_dist) {
-            need_skip = TRUE;
+        need_skip = 0;
+
+        x_min = x - min_dist;
+        x_max = x + min_dist;
+
+
+        // Go through the previous corners until y goes out of range
+        i = corner_cnt-1;
+        while( i >= 0) {
+
+          // corners are stored with increasing y,
+          // so if we go from the last to the first, then their y-coordinate will go out of range
+          if(ret_corners[i].y < y_min)
+            break;
+
+          if (x_min < ret_corners[i].x && ret_corners[i].x < x_max) {
+            need_skip = 1;
             break;
           }
+
+          i--;
         }
 
         // Skip the box if we found a pixel nearby
@@ -3620,9 +3638,9 @@ struct point_t *fast9_detect(struct image_t *img, uint8_t threshold, uint16_t mi
       }
 
       // When we have more corner than allocted space reallocate
-      if (corner_cnt == rsize) {
-        rsize *= 2;
-        ret_corners = realloc(ret_corners, sizeof(struct point_t) * rsize);
+      if (corner_cnt >= *ret_corners_length) {
+        *ret_corners_length *= 2;
+        ret_corners = realloc(ret_corners, sizeof(struct point_t) * (*ret_corners_length));
       }
 
       ret_corners[corner_cnt].x = x;
@@ -3632,9 +3650,8 @@ struct point_t *fast9_detect(struct image_t *img, uint8_t threshold, uint16_t mi
       // Skip some in the width direction
       x += min_dist;
     }
-
+  }
   *num_corners = corner_cnt;
-  return ret_corners;
 }
 
 /**

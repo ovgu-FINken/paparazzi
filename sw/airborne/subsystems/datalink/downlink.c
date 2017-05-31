@@ -27,10 +27,32 @@
 
 
 #include "subsystems/datalink/downlink.h"
+#include "generated/airframe.h" // AC_ID is required
+
+#if (defined DATALINK) || PERIODIC_TELEMETRY
+#include "subsystems/datalink/datalink.h"
+#endif
+
+#if USE_HARD_FAULT_RECOVERY
+#include "mcu.h"
+#endif
+
+#if defined SITL && !USE_NPS
+struct ivy_transport ivy_tp;
+#endif
+
+#if DATALINK == PPRZ || DATALINK == SUPERBITRF || DATALINK == W5100 || DATALINK == BLUEGIGA
+struct pprz_transport pprz_tp;
+#endif
+#if DATALINK == XBEE
+struct xbee_transport xbee_tp;
+#endif
+#if USE_PPRZLOG
+struct pprzlog_transport pprzlog_tp;
+#endif
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
-#include "subsystems/datalink/datalink.h"
 #include "mcu_periph/sys_time.h"
 
 static uint32_t last_down_nb_bytes = 0;  // previous number of bytes sent
@@ -76,7 +98,19 @@ void downlink_init(void)
   pprz_transport_init(&pprz_tp);
 #endif
 #if DATALINK == XBEE
-  xbee_init();
+#ifndef XBEE_TYPE
+#define XBEE_TYPE XBEE_24
+#endif
+#ifndef XBEE_INIT
+#define XBEE_INIT ""
+#endif
+#if USE_HARD_FAULT_RECOVERY
+  if (recovering_from_hard_fault)
+    // in case of hardfault recovery, we want to skip xbee init which as an active wait
+    xbee_transport_init(&xbee_tp, &((DefaultDevice).device), AC_ID, XBEE_TYPE, XBEE_BAUD, NULL, XBEE_INIT);
+  else
+#endif
+    xbee_transport_init(&xbee_tp, &((DefaultDevice).device), AC_ID, XBEE_TYPE, XBEE_BAUD, sys_time_usleep, XBEE_INIT);
 #endif
 #if DATALINK == W5100
   w5100_init();
@@ -88,11 +122,11 @@ void downlink_init(void)
 #endif
 
 #if USE_PPRZLOG
-  pprzlog_transport_init();
+  pprzlog_transport_init(&pprzlog_tp, get_sys_time_usec);
 #endif
 
 #if SITL && !USE_NPS
-  ivy_transport_init();
+  ivy_transport_init(&ivy_tp);
 #endif
 
 #if PERIODIC_TELEMETRY

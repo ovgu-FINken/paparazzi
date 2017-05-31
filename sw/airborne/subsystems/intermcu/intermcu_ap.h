@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Paparazzi Team
+ * Copyright (C) 2015 Freek van Tienen <freek.v.tienen@gmail.com>
  *
  * This file is part of paparazzi.
  *
@@ -32,24 +32,28 @@
 
 void intermcu_set_actuators(pprz_t *command_values, uint8_t ap_mode);
 void RadioControlEvent(void (*frame_handler)(void));
+void intermcu_send_spektrum_bind(void);
+void intermcu_set_enabled(bool value);
 
 /* We need radio defines for the Autopilot */
 #define RADIO_THROTTLE   0
 #define RADIO_ROLL       1
 #define RADIO_PITCH      2
 #define RADIO_YAW        3
-#define RADIO_GEAR       4
-#define RADIO_FLAP       5
+#define RADIO_MODE       4
+#define RADIO_KILL_SWITCH 5
 #define RADIO_AUX1       5
 #define RADIO_AUX2       6
 #define RADIO_AUX3       7
 #define RADIO_CONTROL_NB_CHANNEL 8
 
-#ifndef RADIO_MODE
-#define RADIO_MODE       RADIO_GEAR
-#endif
-//#ifndef RADIO_KILL_SWITCH
-//#define RADIO_KILL_SWITCH       RADIO_FLAP
-//#endif
+/* Structure for FBW status */
+struct fbw_status_t {
+  uint8_t rc_status;
+  uint8_t frame_rate;
+  uint8_t mode;
+  uint16_t vsupply;
+  int32_t current;
+};
 
 #endif /* INTERMCU_AP_ROTORCRAFT_H */

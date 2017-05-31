@@ -32,10 +32,6 @@
 #include "math/pprz_orientation_conversion.h"
 #include "generated/airframe.h"
 
-/** must be defined by underlying hardware */
-extern void imu_impl_init(void);
-/** optional. If not provided by implementation, empty function is used */
-extern void imu_periodic(void);
 
 /** abstract IMU interface providing fixed point interface  */
 struct Imu {
@@ -44,9 +40,9 @@ struct Imu {
   struct Int32Vect3 mag;              ///< magnetometer measurements scaled to 1 in BFP with #INT32_MAG_FRAC
   struct Int32Rates gyro_prev;        ///< previous gyroscope measurements
   struct Int32Vect3 accel_prev;       ///< previous accelerometer measurements
-  struct Int32Rates gyro_neutral;     ///< gyroscope bias
-  struct Int32Vect3 accel_neutral;    ///< accelerometer bias
-  struct Int32Vect3 mag_neutral;      ///< magnetometer neutral readings (bias)
+  struct Int32Rates gyro_neutral;     ///< static gyroscope bias from calibration in raw/unscaled units
+  struct Int32Vect3 accel_neutral;    ///< static accelerometer bias from calibration in raw/unscaled units
+  struct Int32Vect3 mag_neutral;      ///< magnetometer neutral readings (bias) in raw/unscaled units
   struct Int32Rates gyro_unscaled;    ///< unscaled gyroscope measurements
   struct Int32Vect3 accel_unscaled;   ///< unscaled accelerometer measurements
   struct Int32Vect3 mag_unscaled;     ///< unscaled magnetometer measurements
@@ -55,7 +51,7 @@ struct Imu {
   /** flag for adjusting body_to_imu via settings.
    * if FALSE, reset to airframe values, if TRUE set current roll/pitch
    */
-  bool_t b2i_set_current;
+  bool b2i_set_current;
 };
 
 /** global IMU state */

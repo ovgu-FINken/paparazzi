@@ -8,7 +8,7 @@
 
 #include "firmwares/fixedwing/guidance/guidance_v.h"
 #include "state.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #include "mcu_periph/uart.h"
 #include "generated/airframe.h"
@@ -26,8 +26,8 @@ float SquareSumErr_position;
 float ToleranceAispeed;
 float ToleranceAltitude;
 float TolerancePosition;
-bool_t benchm_reset;
-bool_t benchm_go;
+bool benchm_reset;
+bool benchm_go;
 
 
 //uint8_t numOfCount;

@@ -35,7 +35,7 @@ struct ImuBooz2 imu_b2;
 
 PRINT_CONFIG_VAR(IMU_B2_MAG_TYPE)
 
-void imu_impl_init(void)
+void imu_b2_init(void)
 {
 
   max1168_init();
@@ -54,7 +54,7 @@ void imu_impl_init(void)
 }
 
 #include "led.h"
-void imu_periodic(void)
+void imu_b2_periodic(void)
 {
 
   // read adc
@@ -128,7 +128,7 @@ static inline void ImuMagEvent(void)
     imu.mag_unscaled.z = hmc5843.data.value[IMU_MAG_Z_CHAN];
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_B2_ID, get_sys_time_usec(), &imu.mag);
-    hmc5843.data_available = FALSE;
+    hmc5843.data_available = false;
   }
 }
 #elif defined IMU_B2_MAG_TYPE && IMU_B2_MAG_TYPE == IMU_B2_MAG_HMC58XX
@@ -141,7 +141,7 @@ static inline void ImuMagEvent(void)
     imu.mag_unscaled.z = imu_b2.mag_hmc.data.value[IMU_MAG_Z_CHAN];
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_B2_ID, get_sys_time_usec(), &imu.mag);
-    imu_b2.mag_hmc.data_available = FALSE;
+    imu_b2.mag_hmc.data_available = false;
   }
 }
 #else

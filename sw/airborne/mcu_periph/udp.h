@@ -30,7 +30,7 @@
 
 #include "std.h"
 #include "mcu_periph/udp_arch.h"
-#include "mcu_periph/link_device.h"
+#include "pprzlink/pprzlink_device.h"
 
 #define UDP_RX_BUFFER_SIZE 256
 #define UDP_TX_BUFFER_SIZE 256
@@ -49,15 +49,16 @@ struct udp_periph {
   struct link_device device;
 };
 
-extern void     udp_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool_t broadcast);
-extern bool_t   udp_check_free_space(struct udp_periph *p, uint8_t len);
-extern void     udp_put_byte(struct udp_periph *p, uint8_t data);
+extern void     udp_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool broadcast);
+extern bool     udp_check_free_space(struct udp_periph *p, long *fd, uint16_t len);
+extern void     udp_put_byte(struct udp_periph *p, long fd, uint8_t data);
 extern uint16_t udp_char_available(struct udp_periph *p);
 extern uint8_t  udp_getch(struct udp_periph *p);
-extern void     udp_arch_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool_t broadcast);
-extern void     udp_send_message(struct udp_periph *p);
-extern void     udp_send_raw(struct udp_periph *p, uint8_t *buffer, uint16_t size);
+extern void     udp_arch_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool broadcast);
+extern void     udp_send_message(struct udp_periph *p, long fd);
+extern void     udp_send_raw(struct udp_periph *p, long fd, uint8_t *buffer, uint16_t size);
 extern void     udp_receive(struct udp_periph *p);
+extern void     udp_put_buffer(struct udp_periph *p, long fd, const uint8_t *data, uint16_t len);
 
 #if USE_UDP0
 extern struct udp_periph udp0;

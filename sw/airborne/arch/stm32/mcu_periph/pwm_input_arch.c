@@ -81,27 +81,31 @@ void pwm_input_init(void)
    */
 #if USE_PWM_INPUT_TIM1
   rcc_periph_clock_enable(RCC_TIM1);
-  pwm_input_set_timer(TIM1, PWM_INPUT_TIM1_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM1, TIM1_TICKS_PER_USEC);
 #endif
 #if USE_PWM_INPUT_TIM2
   rcc_periph_clock_enable(RCC_TIM2);
-  pwm_input_set_timer(TIM2, PWM_INPUT_TIM2_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM2, TIM2_TICKS_PER_USEC);
 #endif
 #if USE_PWM_INPUT_TIM3
   rcc_periph_clock_enable(RCC_TIM3);
-  pwm_input_set_timer(TIM3, PWM_INPUT_TIM3_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM3, TIM3_TICKS_PER_USEC);
+#endif
+#if USE_PWM_INPUT_TIM4
+  rcc_periph_clock_enable(RCC_TIM4);
+  pwm_input_set_timer(TIM4, TIM4_TICKS_PER_USEC);
 #endif
 #if USE_PWM_INPUT_TIM5
   rcc_periph_clock_enable(RCC_TIM5);
-  pwm_input_set_timer(TIM5, PWM_INPUT_TIM5_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM5, TIM5_TICKS_PER_USEC);
 #endif
 #if USE_PWM_INPUT_TIM8
   rcc_periph_clock_enable(RCC_TIM8);
-  pwm_input_set_timer(TIM8, PWM_INPUT_TIM8_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM8, TIM8_TICKS_PER_USEC);
 #endif
 #if USE_PWM_INPUT_TIM9
   rcc_periph_clock_enable(RCC_TIM9);
-  pwm_input_set_timer(TIM9, PWM_INPUT_TIM9_TICKS_PER_USEC);
+  pwm_input_set_timer(TIM9, TIM9_TICKS_PER_USEC);
 #endif
 
 #ifdef USE_PWM_INPUT1
@@ -208,12 +212,12 @@ void tim1_cc_isr(void) {
   if ((TIM1_SR & TIM1_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM1, TIM1_CC_IF_PERIOD);
     pwm_input_period_tics[TIM1_PWM_INPUT_IDX] = TIM1_CCR_PERIOD;
-    pwm_input_period_valid[TIM1_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM1_PWM_INPUT_IDX] = true;
   }
   if ((TIM1_SR & TIM1_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM1, TIM1_CC_IF_DUTY);
     pwm_input_duty_tics[TIM1_PWM_INPUT_IDX] = TIM1_CCR_DUTY;
-    pwm_input_duty_valid[TIM1_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM1_PWM_INPUT_IDX] = true;
   }
 }
 
@@ -225,12 +229,12 @@ void tim2_isr(void) {
   if ((TIM2_SR & TIM2_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM2, TIM2_CC_IF_PERIOD);
     pwm_input_period_tics[TIM2_PWM_INPUT_IDX] = TIM2_CCR_PERIOD;
-    pwm_input_period_valid[TIM2_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM2_PWM_INPUT_IDX] = true;
   }
   if ((TIM2_SR & TIM2_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM2, TIM2_CC_IF_DUTY);
     pwm_input_duty_tics[TIM2_PWM_INPUT_IDX] = TIM2_CCR_DUTY;
-    pwm_input_duty_valid[TIM2_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM2_PWM_INPUT_IDX] = true;
   }
   if ((TIM2_SR & TIM_SR_UIF) != 0) {
     timer_clear_flag(TIM2, TIM_SR_UIF);
@@ -246,15 +250,36 @@ void tim3_isr(void) {
   if ((TIM3_SR & TIM3_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM3, TIM3_CC_IF_PERIOD);
     pwm_input_period_tics[TIM3_PWM_INPUT_IDX] = TIM3_CCR_PERIOD;
-    pwm_input_period_valid[TIM3_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM3_PWM_INPUT_IDX] = true;
   }
   if ((TIM3_SR & TIM3_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM3, TIM3_CC_IF_DUTY);
     pwm_input_duty_tics[TIM3_PWM_INPUT_IDX] = TIM3_CCR_DUTY;
-    pwm_input_duty_valid[TIM3_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM3_PWM_INPUT_IDX] = true;
   }
   if ((TIM3_SR & TIM_SR_UIF) != 0) {
     timer_clear_flag(TIM3, TIM_SR_UIF);
+    // FIXME clear overflow interrupt but what else ?
+  }
+}
+
+#endif
+
+#if USE_PWM_INPUT_TIM4
+
+void tim4_isr(void) {
+  if ((TIM4_SR & TIM4_CC_IF_PERIOD) != 0) {
+    timer_clear_flag(TIM4, TIM4_CC_IF_PERIOD);
+    pwm_input_period_tics[TIM4_PWM_INPUT_IDX] = TIM4_CCR_PERIOD;
+    pwm_input_period_valid[TIM4_PWM_INPUT_IDX] = true;
+  }
+  if ((TIM4_SR & TIM4_CC_IF_DUTY) != 0) {
+    timer_clear_flag(TIM4, TIM4_CC_IF_DUTY);
+    pwm_input_duty_tics[TIM4_PWM_INPUT_IDX] = TIM4_CCR_DUTY;
+    pwm_input_duty_valid[TIM4_PWM_INPUT_IDX] = true;
+  }
+  if ((TIM4_SR & TIM_SR_UIF) != 0) {
+    timer_clear_flag(TIM4, TIM_SR_UIF);
     // FIXME clear overflow interrupt but what else ?
   }
 }
@@ -267,12 +292,12 @@ void tim5_isr(void) {
   if ((TIM5_SR & TIM5_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM5, TIM5_CC_IF_PERIOD);
     pwm_input_period_tics[TIM5_PWM_INPUT_IDX] = TIM5_CCR_PERIOD;
-    pwm_input_period_valid[TIM5_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM5_PWM_INPUT_IDX] = true;
   }
   if ((TIM5_SR & TIM5_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM5, TIM5_CC_IF_DUTY);
     pwm_input_duty_tics[TIM5_PWM_INPUT_IDX] = TIM5_CCR_DUTY;
-    pwm_input_duty_valid[TIM5_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM5_PWM_INPUT_IDX] = true;
   }
   if ((TIM5_SR & TIM_SR_UIF) != 0) {
     timer_clear_flag(TIM5, TIM_SR_UIF);
@@ -300,12 +325,12 @@ void tim8_cc_isr(void) {
   if ((TIM8_SR & TIM8_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM8, TIM8_CC_IF_PERIOD);
     pwm_input_period_tics[TIM8_PWM_INPUT_IDX] = TIM8_CCR_PERIOD;
-    pwm_input_period_valid[TIM8_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM8_PWM_INPUT_IDX] = true;
   }
   if ((TIM8_SR & TIM8_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM8, TIM8_CC_IF_DUTY);
     pwm_input_duty_tics[TIM8_PWM_INPUT_IDX] = TIM8_CCR_DUTY;
-    pwm_input_duty_valid[TIM8_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM8_PWM_INPUT_IDX] = true;
   }
 }
 
@@ -318,12 +343,12 @@ void tim1_brk_tim9_isr(void) {
   if ((TIM9_SR & TIM9_CC_IF_PERIOD) != 0) {
     timer_clear_flag(TIM9, TIM9_CC_IF_PERIOD);
     pwm_input_period_tics[TIM9_PWM_INPUT_IDX] = TIM9_CCR_PERIOD;
-    pwm_input_period_valid[TIM9_PWM_INPUT_IDX] = TRUE;
+    pwm_input_period_valid[TIM9_PWM_INPUT_IDX] = true;
   }
   if ((TIM9_SR & TIM9_CC_IF_DUTY) != 0) {
     timer_clear_flag(TIM9, TIM9_CC_IF_DUTY);
     pwm_input_duty_tics[TIM9_PWM_INPUT_IDX] = TIM9_CCR_DUTY;
-    pwm_input_duty_valid[TIM9_PWM_INPUT_IDX] = TRUE;
+    pwm_input_duty_valid[TIM9_PWM_INPUT_IDX] = true;
   }
   if ((TIM9_SR & TIM_SR_UIF) != 0) {
     timer_clear_flag(TIM9, TIM_SR_UIF);

@@ -24,6 +24,7 @@
 
 open Printf
 
+
 exception Error of string
 
 let sep = Str.regexp "\\."
@@ -74,7 +75,7 @@ let attrib_option = fun xml attr ->
   try Some (Xml.attrib xml attr)
   with Xml.No_attribute _ -> None
 
-let tag_is = fun x v -> String.lowercase (Xml.tag x) = String.lowercase v
+let tag_is = fun x v -> Compat.bytes_lowercase (Xml.tag x) = Compat.bytes_lowercase v
 
 let attrib_or_default = fun x a default ->
   try Xml.attrib x a
@@ -88,7 +89,7 @@ let buffer_attr = fun indent tab (n,v) ->
   Buffer.add_char tmp ' ';
   Buffer.add_string tmp n;
   Buffer.add_string tmp "=\"";
-  let l = String.length v in
+  let l = Compat.bytes_length v in
   for p = 0 to l-1 do
     match v.[p] with
       | '\\' -> Buffer.add_string tmp "\\\\"
@@ -147,7 +148,7 @@ let my_to_string_fmt = fun tab_attribs x ->
 
 
 let to_string_fmt = fun ?(tab_attribs = false) xml ->
-  let l = String.lowercase in
+  let l = Compat.bytes_lowercase in
   let rec lower = function
     | Xml.PCData _ as x -> x
     | Xml.Element (t, ats, cs) ->
@@ -158,7 +159,7 @@ let to_string_fmt = fun ?(tab_attribs = false) xml ->
 
 
 let subst_attrib = fun attrib value xml ->
-  let u = String.uppercase in
+  let u = Compat.bytes_uppercase in
   let uattrib = u attrib in
   match xml with
   | Xml.Element (tag, attrs, children) ->
@@ -237,11 +238,12 @@ let my_xml_parse_file =
 let parse_file = fun ?(noprovedtd = false) file ->
   try (if noprovedtd then my_xml_parse_file else Xml.parse_file) file
   with
-  | Xml.Error e -> failwith (sprintf "%s: %s" file (Xml.error e))
+  | Sys_error e -> failwith (sprintf "Error loading xml file %s: %s" file e)
+  | Xml.Error e -> failwith (sprintf "XML error in %s: %s" file (Xml.error e))
   | Xml.File_not_found f -> failwith (sprintf "File not found: %s" f)
-  | Dtd.Prove_error e -> failwith (sprintf "%s: %s" file (Dtd.prove_error e))
-  | Dtd.Check_error e -> failwith (sprintf "%s: %s" file (Dtd.check_error e))
-  | Dtd.Parse_error e -> failwith (sprintf "%s: %s" file (Dtd.parse_error e))
+  | Dtd.Prove_error e -> failwith (sprintf "DTD prove error in %s: %s" file (Dtd.prove_error e))
+  | Dtd.Check_error e -> failwith (sprintf "DTD check error in %s: %s" file (Dtd.check_error e))
+  | Dtd.Parse_error e -> failwith (sprintf "DTD parse error in %s: %s" file (Dtd.parse_error e))
 
 
 

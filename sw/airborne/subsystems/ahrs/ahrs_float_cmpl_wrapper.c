@@ -35,7 +35,7 @@
 PRINT_CONFIG_VAR(AHRS_FC_OUTPUT_ENABLED)
 
 /** if TRUE with push the estimation results to the state interface */
-static bool_t ahrs_fc_output_enabled;
+static bool ahrs_fc_output_enabled;
 static uint32_t ahrs_fc_last_stamp;
 static uint8_t ahrs_fc_id = AHRS_COMP_ID_FC;
 
@@ -120,6 +120,13 @@ PRINT_CONFIG_VAR(AHRS_FC_IMU_ID)
 #define AHRS_FC_MAG_ID AHRS_FC_IMU_ID
 #endif
 PRINT_CONFIG_VAR(AHRS_FC_MAG_ID)
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef AHRS_FC_GPS_ID
+#define AHRS_FC_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(AHRS_FC_GPS_ID)
 static abi_event gyro_ev;
 static abi_event accel_ev;
 static abi_event mag_ev;
@@ -133,6 +140,9 @@ static void gyro_cb(uint8_t __attribute__((unused)) sender_id,
                     uint32_t stamp, struct Int32Rates *gyro)
 {
   ahrs_fc_last_stamp = stamp;
+  struct FloatRates gyro_f;
+  RATES_FLOAT_OF_BFP(gyro_f, *gyro);
+
 #if USE_AUTO_AHRS_FREQ || !defined(AHRS_PROPAGATE_FREQUENCY)
   PRINT_CONFIG_MSG("Calculating dt for AHRS_FC propagation.")
   /* timestamp in usec when last callback was received */
@@ -140,7 +150,7 @@ static void gyro_cb(uint8_t __attribute__((unused)) sender_id,
 
   if (last_stamp > 0 && ahrs_fc.is_aligned) {
     float dt = (float)(stamp - last_stamp) * 1e-6;
-    ahrs_fc_propagate(gyro, dt);
+    ahrs_fc_propagate(&gyro_f, dt);
     compute_body_orientation_and_rates();
   }
   last_stamp = stamp;
@@ -149,7 +159,7 @@ static void gyro_cb(uint8_t __attribute__((unused)) sender_id,
   PRINT_CONFIG_VAR(AHRS_PROPAGATE_FREQUENCY)
   if (ahrs_fc.status == AHRS_FC_RUNNING) {
     const float dt = 1. / (AHRS_PROPAGATE_FREQUENCY);
-    ahrs_fc_propagate(gyro, dt);
+    ahrs_fc_propagate(&gyro_f, dt);
     compute_body_orientation_and_rates();
   }
 #endif
@@ -159,12 +169,15 @@ static void accel_cb(uint8_t __attribute__((unused)) sender_id,
                      uint32_t __attribute__((unused)) stamp,
                      struct Int32Vect3 *accel)
 {
+  struct FloatVect3 accel_f;
+  ACCELS_FLOAT_OF_BFP(accel_f, *accel);
+
 #if USE_AUTO_AHRS_FREQ || !defined(AHRS_CORRECT_FREQUENCY)
   PRINT_CONFIG_MSG("Calculating dt for AHRS float_cmpl accel update.")
   static uint32_t last_stamp = 0;
   if (last_stamp > 0 && ahrs_fc.is_aligned) {
     float dt = (float)(stamp - last_stamp) * 1e-6;
-    ahrs_fc_update_accel((struct Int32Vect3 *)accel, dt);
+    ahrs_fc_update_accel(&accel_f, dt);
   }
   last_stamp = stamp;
 #else
@@ -172,7 +185,7 @@ static void accel_cb(uint8_t __attribute__((unused)) sender_id,
   PRINT_CONFIG_VAR(AHRS_CORRECT_FREQUENCY)
   if (ahrs_fc.is_aligned) {
     const float dt = 1. / (AHRS_CORRECT_FREQUENCY);
-    ahrs_fc_update_accel((struct Int32Vect3 *)accel, dt);
+    ahrs_fc_update_accel(&accel_f, dt);
   }
 #endif
 }
@@ -181,12 +194,15 @@ static void mag_cb(uint8_t __attribute__((unused)) sender_id,
                    uint32_t __attribute__((unused)) stamp,
                    struct Int32Vect3 *mag)
 {
+  struct FloatVect3 mag_f;
+  MAGS_FLOAT_OF_BFP(mag_f, *mag);
+
 #if USE_AUTO_AHRS_FREQ || !defined(AHRS_MAG_CORRECT_FREQUENCY)
   PRINT_CONFIG_MSG("Calculating dt for AHRS float_cmpl mag update.")
   static uint32_t last_stamp = 0;
   if (last_stamp > 0 && ahrs_fc.is_aligned) {
     float dt = (float)(stamp - last_stamp) * 1e-6;
-    ahrs_fc_update_mag(mag, dt);
+    ahrs_fc_update_mag(&mag_f, dt);
   }
   last_stamp = stamp;
 #else
@@ -194,7 +210,7 @@ static void mag_cb(uint8_t __attribute__((unused)) sender_id,
   PRINT_CONFIG_VAR(AHRS_MAG_CORRECT_FREQUENCY)
   if (ahrs_fc.is_aligned) {
     const float dt = 1. / (AHRS_MAG_CORRECT_FREQUENCY);
-    ahrs_fc_update_mag(mag, dt);
+    ahrs_fc_update_mag(&mag_f, dt);
   }
 #endif
 }
@@ -205,7 +221,15 @@ static void aligner_cb(uint8_t __attribute__((unused)) sender_id,
                        struct Int32Vect3 *lp_mag)
 {
   if (!ahrs_fc.is_aligned) {
-    if (ahrs_fc_align(lp_gyro, lp_accel, lp_mag)) {
+    /* convert to float */
+    struct FloatRates gyro_f;
+    RATES_FLOAT_OF_BFP(gyro_f, *lp_gyro);
+    struct FloatVect3 accel_f;
+    ACCELS_FLOAT_OF_BFP(accel_f, *lp_accel);
+    struct FloatVect3 mag_f;
+    MAGS_FLOAT_OF_BFP(mag_f, *lp_mag);
+    /* use low passed values to align */
+    if (ahrs_fc_align(&gyro_f, &accel_f, &mag_f)) {
       compute_body_orientation_and_rates();
     }
   }
@@ -230,7 +254,7 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
   compute_body_orientation_and_rates();
 }
 
-static bool_t ahrs_fc_enable_output(bool_t enable)
+static bool ahrs_fc_enable_output(bool enable)
 {
   ahrs_fc_output_enabled = enable;
   return ahrs_fc_output_enabled;
@@ -271,7 +295,7 @@ void ahrs_fc_register(void)
   AbiBindMsgIMU_LOWPASSED(ABI_BROADCAST, &aligner_ev, aligner_cb);
   AbiBindMsgBODY_TO_IMU_QUAT(ABI_BROADCAST, &body_to_imu_ev, body_to_imu_cb);
   AbiBindMsgGEO_MAG(ABI_BROADCAST, &geo_mag_ev, geo_mag_cb);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(AHRS_FC_GPS_ID, &gps_ev, gps_cb);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_EULER, send_euler);

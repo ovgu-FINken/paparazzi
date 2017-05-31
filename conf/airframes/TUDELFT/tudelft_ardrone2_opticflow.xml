@@ -6,30 +6,45 @@
     <target name="ap" board="ardrone2"/>
 
     <!--target name="nps" board="pc">
-      <subsystem name="fdm" type="jsbsim"/>
+      <module name="fdm" type="jsbsim"/>
     </target-->
 
     <define name="USE_SONAR" value="TRUE"/>
 
 	<!-- Subsystem section -->
-    <subsystem name="telemetry" type="transparent_udp"/>
-    <subsystem name="radio_control" type="datalink"/>
-    <subsystem name="motor_mixing"/>
-    <subsystem name="actuators" type="ardrone2"/>
-    <subsystem name="imu" type="ardrone2"/>
-    <subsystem name="gps" type="ublox"/>
-    <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs" type="int_cmpl_quat"/>
-    <subsystem name="ins" type="extended"/>
+    <module name="telemetry" type="transparent_udp"/>
+    <module name="radio_control" type="datalink"/>
+    <module name="motor_mixing"/>
+    <module name="actuators" type="ardrone2"/>
+    <module name="imu" type="ardrone2"/>
+    <module name="gps" type="ublox"/>
+    <module name="stabilization" type="int_quat"/>
+    <module name="ahrs" type="int_cmpl_quat">
+      <configure name="USE_MAGNETOMETER" value="TRUE"/>
+      <define name="AHRS_USE_GPS_HEADING" value="FALSE"/>
+    </module>
+    <module name="ins" type="extended"/>
   </firmware>
 
   <modules main_freq="512">
-    <load name="bat_voltage_ardrone2.xml"/>
-    <load name="gps_ubx_ucenter.xml"/>
-    <load name="send_imu_mag_current.xml"/>
-    <load name="logger_file.xml"/>
-    <load name="cv_opticflow.xml"/>
-    <load name="opticflow_hover.xml"/>
+    <module name="bat_voltage_ardrone2"/>
+    <module name="gps" type="ubx_ucenter"/>
+    <module name="send_imu_mag_current"/>
+    <module name="logger_file"/>
+
+    <module name="video_thread"/>
+
+    <module name="pose_history"/>
+    <module name="cv_opticflow">
+      <define name="OPTICFLOW_CAMERA" value="bottom_camera"/>
+    </module>
+
+    <module name="video_capture">
+      <define name="VIDEO_CAPTURE_CAMERA" value="bottom_camera"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/data/ftp/internal_000/images"/>
+    </module>
+
+    <!--module name="opticflow_hover"/-->
   </modules>
 
   <commands>
@@ -65,10 +80,10 @@
 
    <section name="VISION" prefix="VISION_">
     <define name="HOVER" value="FALSE"/>
-    <define name="PHI_PGAIN" value="300"/>
-    <define name="PHI_IGAIN" value="5"/>
-    <define name="THETA_PGAIN" value="300"/>
-    <define name="THETA_IGAIN" value="5"/>
+    <define name="PHI_PGAIN" value="1500"/>
+    <define name="PHI_IGAIN" value="800"/>
+    <define name="THETA_PGAIN" value="1500"/>
+    <define name="THETA_IGAIN" value="800"/>
     <define name="DESIRED_VX" value="0"/>
     <define name="DESIRED_VY" value="0"/>
    </section>
@@ -115,24 +130,6 @@
     <define name="SONAR_UPDATE_ON_AGL" value="TRUE"/>
   </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <!-- setpoints -->
-    <define name="SP_MAX_P" value="140" unit="deg/s"/>
-    <define name="SP_MAX_Q" value="140" unit="deg/s"/>
-    <define name="SP_MAX_R" value="140" unit="deg/s"/>
-    <define name="DEADBAND_P" value="20"/>
-    <define name="DEADBAND_Q" value="20"/>
-    <define name="DEADBAND_R" value="200"/>
-
-    <!-- feedback -->
-    <define name="GAIN_P" value="400"/>
-    <define name="GAIN_Q" value="400"/>
-    <define name="GAIN_R" value="350"/>
-
-    <define name="IGAIN_P" value="75"/>
-    <define name="IGAIN_Q" value="75"/>
-    <define name="IGAIN_R" value="50"/>
-  </section>
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
     <!-- setpoints -->
@@ -206,7 +203,8 @@
     <define name="MODE_STARTUP" value="AP_MODE_NAV"/>
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
     <define name="MODE_AUTO1" value="AP_MODE_MODULE"/>
-    <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO2" value="AP_MODE_HOVER_Z_HOLD"/>
+    <define name="NO_RC_THRUST_LIMIT"  value="TRUE"/>
   </section>
 
   <section name="BAT">

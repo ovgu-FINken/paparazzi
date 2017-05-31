@@ -3,11 +3,13 @@
 <module name="ColorFilter" dir="computer_vision">
   <doc>
     <description>ColorFilter</description>
+    <define name="COLORFILTER_CAMERA" value="front_camera|bottom_camera" description="Video device to use"/>
   </doc>
 
   <settings>
     <dl_settings>
       <dl_settings NAME="ColorFilter">
+         <dl_setting var="listener->active" min="0" step="1" max="1" shortname="active" />
          <dl_setting var="color_lum_min" min="0" step="1" max="255" shortname="y_min" />
          <dl_setting var="color_lum_max" min="0" step="1" max="255" shortname="y_max" />
          <dl_setting var="color_cb_min"  min="0" step="1" max="255" shortname="u_min" />
@@ -25,7 +27,7 @@
   </header>
 
   <init fun="colorfilter_init()"/>
-  <makefile>
+  <makefile target="ap">
     <file name="colorfilter.c"/>
   </makefile>
 </module>

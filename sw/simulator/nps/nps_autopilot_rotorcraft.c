@@ -39,15 +39,15 @@
 
 #include "subsystems/abi.h"
 
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 // for datalink_time hack
 #include "subsystems/datalink/datalink.h"
 
 struct NpsAutopilot autopilot;
-bool_t nps_bypass_ahrs;
-bool_t nps_bypass_ins;
+bool nps_bypass_ahrs;
+bool nps_bypass_ins;
 
 #ifndef NPS_BYPASS_AHRS
 #define NPS_BYPASS_AHRS FALSE
@@ -111,6 +111,16 @@ void nps_autopilot_run_step(double time)
     main_event();
   }
 
+  if (nps_sensors_temperature_available()) {
+    AbiSendMsgTEMPERATURE(BARO_SIM_SENDER_ID, (float)sensors.temp.value);
+  }
+
+#if USE_AIRSPEED
+  if (nps_sensors_airspeed_available()) {
+    stateSetAirspeed_f((float)sensors.airspeed.value);
+  }
+#endif
+
 #if USE_SONAR
   if (nps_sensors_sonar_available()) {
     float dist = (float) sensors.sonar.value;
@@ -123,10 +133,12 @@ void nps_autopilot_run_step(double time)
   }
 #endif
 
+#if USE_GPS
   if (nps_sensors_gps_available()) {
     gps_feed_value();
     main_event();
   }
+#endif
 
   if (nps_bypass_ahrs) {
     sim_overwrite_ahrs();

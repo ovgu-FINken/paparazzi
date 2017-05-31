@@ -46,6 +46,9 @@
 #include "lib/encoding/rtp.h"
 #include "udp_socket.h"
 
+#include BOARD_CONFIG
+
+
 // Downsize factor for video stream
 #ifndef VIEWVIDEO_DOWNSIZE_FACTOR
 #define VIEWVIDEO_DOWNSIZE_FACTOR 4
@@ -73,6 +76,18 @@ PRINT_CONFIG_VAR(VIEWVIDEO_RTP_TIME_INC)
 #endif
 #endif
 PRINT_CONFIG_VAR(VIEWVIDEO_SHOT_PATH)
+
+// Define stream framerate
+#ifndef VIEWVIDEO_FPS
+#define VIEWVIDEO_FPS 10
+#endif
+PRINT_CONFIG_VAR(VIEWVIDEO_FPS)
+
+// Define stream priority
+#ifndef VIEWVIDEO_NICE_LEVEL
+#define VIEWVIDEO_NICE_LEVEL 5
+#endif
+PRINT_CONFIG_VAR(VIEWVIDEO_FPS)
 
 // Check if we are using netcat instead of RTP/UDP
 #ifndef VIEWVIDEO_USE_NETCAT
@@ -110,8 +125,8 @@ struct viewvideo_t viewvideo = {
  * Handles all the video streaming and saving of the image shots
  * This is a sepereate thread, so it needs to be thread safe!
  */
-bool_t viewvideo_function(struct image_t *img);
-bool_t viewvideo_function(struct image_t *img)
+struct image_t *viewvideo_function(struct image_t *img);
+struct image_t *viewvideo_function(struct image_t *img)
 {
   // Resize image if needed
   struct image_t img_small;
@@ -189,7 +204,7 @@ bool_t viewvideo_function(struct image_t *img)
   // Free all buffers
   image_free(&img_jpeg);
   image_free(&img_small);
-  return TRUE;
+  return NULL; // No new images were created
 }
 
 /**
@@ -199,9 +214,10 @@ void viewvideo_init(void)
 {
   char save_name[512];
 
-  cv_add(viewvideo_function);
+  struct video_listener *listener = cv_add_to_device_async(&VIEWVIDEO_CAMERA, viewvideo_function, VIEWVIDEO_NICE_LEVEL);
+  listener->maximum_fps = VIEWVIDEO_FPS;
 
-  viewvideo.is_streaming = TRUE;
+  viewvideo.is_streaming = true;
 
 #if VIEWVIDEO_USE_NETCAT
   // Create an Netcat receiver file for the streaming

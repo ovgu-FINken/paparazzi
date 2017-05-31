@@ -37,7 +37,7 @@
 
 // Downlink
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 
@@ -63,7 +63,7 @@ PRINT_CONFIG_VAR(UMARIM_GYRO_SMPLRT_DIV)
 
 struct ImuUmarim imu_umarim;
 
-void imu_impl_init(void)
+void imu_umarim_init(void)
 {
   /////////////////////////////////////////////////////////////////////
   // ITG3200
@@ -80,7 +80,7 @@ void imu_impl_init(void)
   imu_umarim.adxl.config.range = UMARIM_ACCEL_RANGE;
 }
 
-void imu_periodic(void)
+void imu_umarim_periodic(void)
 {
   // Start reading the latest gyroscope data
   itg3200_periodic(&imu_umarim.itg);
@@ -108,7 +108,7 @@ void imu_umarim_event(void)
   itg3200_event(&imu_umarim.itg);
   if (imu_umarim.itg.data_available) {
     RATES_COPY(imu.gyro_unscaled, imu_umarim.itg.data.rates);
-    imu_umarim.itg.data_available = FALSE;
+    imu_umarim.itg.data_available = false;
     imu_scale_gyro(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_BOARD_ID, now_ts, &imu.gyro);
   }
@@ -118,7 +118,7 @@ void imu_umarim_event(void)
   if (imu_umarim.adxl.data_available) {
     VECT3_ASSIGN(imu.accel_unscaled, imu_umarim.adxl.data.vect.y, -imu_umarim.adxl.data.vect.x,
                  imu_umarim.adxl.data.vect.z);
-    imu_umarim.adxl.data_available = FALSE;
+    imu_umarim.adxl.data_available = false;
     imu_scale_accel(&imu);
     AbiSendMsgIMU_ACCEL_INT32(IMU_BOARD_ID, now_ts, &imu.accel);
   }

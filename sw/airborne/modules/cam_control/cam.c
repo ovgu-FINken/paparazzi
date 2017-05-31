@@ -30,7 +30,6 @@
 #include "autopilot.h"
 #include "generated/flight_plan.h"
 #include "state.h"
-#include "subsystems/navigation/traffic_info.h"
 #ifdef POINT_CAM
 #include "point.h"
 #endif // POINT_CAM
@@ -89,7 +88,7 @@ uint8_t cam_target_ac;
 #define CAM_MODE0 CAM_MODE_OFF
 #endif
 uint8_t cam_mode;
-bool_t cam_lock;
+bool cam_lock;
 
 int16_t cam_pan_command;
 int16_t cam_tilt_command;
@@ -194,7 +193,7 @@ void cam_periodic(void)
 
 
 #if defined(COMMAND_CAM_PWR_SW)
-  if (video_tx_state) { ap_state->commands[COMMAND_CAM_PWR_SW] = MAX_PPRZ; } else { ap_state->commands[COMMAND_CAM_PWR_SW] = MIN_PPRZ; }
+  if (video_tx_state) { imcu_set_command(COMMAND_CAM_PWR_SW, MAX_PPRZ); } else { imcu_set_command(COMMAND_CAM_PWR_SW, MIN_PPRZ); }
 #elif defined(VIDEO_TX_SWITCH)
   if (video_tx_state) { LED_OFF(VIDEO_TX_SWITCH); } else { LED_ON(VIDEO_TX_SWITCH); }
 #endif
@@ -251,10 +250,10 @@ void cam_angles(void)
   cam_theta_c = cam_tilt_c;
 
 #ifdef COMMAND_CAM_PAN
-  ap_state->commands[COMMAND_CAM_PAN] = cam_pan;
+  imcu_set_command(COMMAND_CAM_PAN, cam_pan);
 #endif
 #ifdef COMMAND_CAM_TILT
-  ap_state->commands[COMMAND_CAM_TILT] = cam_tilt;
+  imcu_set_command(COMMAND_CAM_TILT, cam_tilt);
 #endif
 }
 
@@ -303,13 +302,17 @@ void cam_waypoint_target(void)
   cam_target();
 }
 
+#ifdef TRAFFIC_INFO
+#include "modules/multi/traffic_info.h"
+
 void cam_ac_target(void)
 {
-#ifdef TRAFFIC_INFO
-  struct ac_info_ * ac = get_ac_info(cam_target_ac);
-  cam_target_x = ac->east;
-  cam_target_y = ac->north;
-  cam_target_alt = ac->alt;
+  struct EnuCoor_f ac_pos *ac = acInfoGetPositionEnu_f(cam_target_ac);
+  cam_target_x = ac->x;
+  cam_target_y = ac->y;
+  cam_target_alt = acInfoGetPositionUtm_f()->alt;
   cam_target();
-#endif // TRAFFIC_INFO
 }
+#else
+void cam_ac_target(void) {}
+#endif // TRAFFIC_INFO

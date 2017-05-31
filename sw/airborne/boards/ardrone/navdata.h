@@ -1,23 +1,24 @@
 /*
- * Copyright (C) 2013 Dino Hensen, Vincent van Hoek
+ * Copyright (C) 2016 The Paparazzi Team
  *
- * This file is part of Paparazzi.
+ * This file is part of paparazzi.
  *
- * Paparazzi is free software; you can redistribute it and/or modify
+ * paparazzi is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
  *
- * Paparazzi is distributed in the hope that it will be useful,
+ * paparazzi is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Paparazzi; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with paparazzi; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  */
+
+/* Thanks to TU Delft by assigning students Dino Hensen, Vincent van Hoek */
 
 /**
  * @file boards/ardrone/navdata.h
@@ -27,10 +28,13 @@
  * containing info about all sensors at a rate of 200Hz.
  */
 
+
+
 #ifndef NAVDATA_H_
 #define NAVDATA_H_
 
 #include "std.h"
+#include <unistd.h>
 
 /**
  * Main navdata structure from the navdata board
@@ -109,7 +113,7 @@ struct bmp180_calib_t {
 
 /* Main navdata structure */
 struct navdata_t {
-  bool_t is_initialized;                  ///< Check if the navdata board is initialized
+  bool is_initialized;                  ///< Check if the navdata board is initialized
   int fd;                                 ///< The navdata file pointer
 
   uint32_t totalBytesRead;
@@ -121,18 +125,18 @@ struct navdata_t {
   struct navdata_measure_t measure;       ///< Main navdata packet receieved from navboard
   struct bmp180_calib_t bmp180_calib;     ///< BMP180 calibration receieved from navboard
 
-  bool_t baro_calibrated;                 ///< Whenever the baro is calibrated
-  bool_t baro_available;                  ///< Whenever the baro is available
-  bool_t imu_lost;                        ///< Whenever the imu is lost
+  bool baro_calibrated;                 ///< Whenever the baro is calibrated
+  bool baro_available;                  ///< Whenever the baro is available
+  bool imu_lost;                        ///< Whenever the imu is lost
 };
 extern struct navdata_t navdata;
 
 
-bool_t navdata_init(void);
+bool navdata_init(void);
 void navdata_update(void);
 int16_t navdata_height(void);
 
-/* This should be moved to the uart handling part! */
+/* FIXME: This should be moved to the uart handling part! */
 ssize_t full_write(int fd, const uint8_t *buf, size_t count);
 ssize_t full_read(int fd, uint8_t *buf, size_t count);
 

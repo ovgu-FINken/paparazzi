@@ -8,7 +8,9 @@
       <arg flag="-d" constant="/dev/ttyUSB0"/>
     </program>
     <program name="Link Combiner" command="sw/ground_segment/python/redundant_link/link_combiner.py"/>
-    <program name="GCS" command="sw/ground_segment/cockpit/gcs"/>
+    <program name="GCS" command="sw/ground_segment/cockpit/gcs">
+      <arg flag="-layout" constant="large_left_col.xml"/>
+    </program>
     <program name="Flight Plan Editor" command="sw/ground_segment/cockpit/gcs">
       <arg flag="-edit"/>
     </program>
@@ -23,6 +25,7 @@
     <program name="GPSd position display" command="sw/ground_segment/tmtc/gpsd2ivy"/>
     <program name="Log Plotter" command="sw/logalizer/logplotter"/>
     <program name="Real-time Plotter" command="sw/logalizer/plotter"/>
+    <program name="Real-time Plotter (Python)" command="sw/ground_segment/python/real_time_plot/realtimeplotapp.py"/>
     <program name="Log File Player" command="sw/logalizer/play"/>
     <program name="Simulator" command="sw/simulator/pprzsim-launch">
       <arg flag="-a" constant="@AIRCRAFT"/>
@@ -61,6 +64,7 @@
     <program name="ADS-B Intruders receiver" command="sw/ground_segment/misc/sbs2ivy">
       <arg flag="--ac" constant="@AC_ID"/>
     </program>
+    <program name="SVInfo" command="sw/ground_segment/python/svinfo/svinfo.py"/>
  </section>
 
   <section name="sessions">

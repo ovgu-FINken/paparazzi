@@ -55,12 +55,13 @@ def check_running(tn):
     ps_aux = execute_command(tn, 'ps')
     running = ""
 
-    if 'program.elf' in ps_aux:
-        running += ' Native (program.elf),'
+
     if 'dragon-prog' in ps_aux:
         running += ' Native (dragon-prog),'
     if 'ap.elf' in ps_aux:
         running += ' Paparazzi (ap.elf),'
+    if 'program.elf' in ps_aux:
+        running += ' Native (program.elf),'
     if 'gst-launch' in ps_aux:
         running += ' GStreamer (gst-launch)'
     return running[1:]
@@ -78,10 +79,10 @@ def uploadfile(ftp, filename, content):
     try:
         ftp.storbinary("STOR " + filename, content)
     except ftplib.error_temp:
-        print("FTP UPLOAD ERROR: Uploading FAILED: Probably your ARDrone memory is full.")
+        print("FTP UPLOAD ERROR: Uploading FAILED: Probably your drone onboard storage memory is full. Remove old JPG or other data?")
         sys.exit()
     except:
-        print("FTP UPLOAD ERROR: Maybe your ARDrone memory is full?", sys.exc_info()[0])
+        print("FTP UPLOAD ERROR: Maybe your drone onboard storage memory is full? Remove old JPG or other data?)", sys.exc_info()[0])
         sys.exit()
 
 
@@ -95,6 +96,8 @@ def connect(host):
         return tn, ftp
     except:
         print('Could not connect to Parrot UAV (host: ' + host + ')')
+        if host == '192.168.42.1':
+            print("Check whether your WiFi is connected and don't forget pressing the power button 4 times after the Bebop has booted!")
         exit(2)
 
 # Close the telnet and ftp

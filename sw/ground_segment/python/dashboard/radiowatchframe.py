@@ -8,9 +8,9 @@ import math
 import pynotify
 import pygame.mixer
 
-sys.path.append(os.getenv("PAPARAZZI_HOME") + "/sw/lib/python")
+sys.path.append(os.getenv("PAPARAZZI_HOME") + "/sw/ext/pprzlink/lib/v1.0/python")
 
-from ivy_msg_interface import IvyMessagesInterface
+from pprzlink.ivy import IvyMessagesInterface
 
 WIDTH = 150
 HEIGHT = 40
@@ -66,7 +66,8 @@ class RadioWatchFrame(wx.Frame):
         sizer.Add(self.rc_statusText, 1, wx.EXPAND)
         self.SetSizer(sizer)
         sizer.Layout()
-        self.interface = IvyMessagesInterface(self.message_recv)
+        self.interface = IvyMessagesInterface("radiowatchframe")
+        self.interface.subscribe(self.message_recv)
         self.update_timer = wx.CallLater(UPDATE_INTERVAL, self.gui_update)
 
     def OnClose(self, event):

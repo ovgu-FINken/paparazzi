@@ -22,6 +22,7 @@
  *
  *)
 
+
 open Printf
 module U = Unix
 
@@ -54,20 +55,44 @@ let check_unique_id_and_name = fun conf conf_xml ->
       Hashtbl.add names name id
     ) conf
 
-let configure_xml2mk = fun f xml ->
-  let name = String.uppercase (ExtXml.attrib xml "name")
-  and value = ExtXml.attrib xml "value" in
-  fprintf f "%s = %s\n" name value
 
-let define_xml2mk = fun f ?(target="$(TARGET)") ?(vpath=None) xml ->
+let configure_xml2mk = fun f xml ->
+  (* all makefiles variables are forced to uppercase *)
+  let name = Compat.bytes_uppercase (ExtXml.attrib xml "name")
+  and value = ExtXml.attrib_or_default xml "value" ""
+  and default = ExtXml.attrib_or_default xml "default" ""
+  and case = ExtXml.attrib_or_default xml "case" "" in
+  (* Only print variable if value is not empty *)
+  if Compat.bytes_length value > 0 then
+    fprintf f "%s = %s\n" name value
+  else if Compat.bytes_length default > 0 then
+    fprintf f "%s ?= %s\n" name default;
+  (* also providing lower and upper case version on request *)
+  if Str.string_match (Str.regexp ".*lower.*") case 0 then
+    fprintf f "%s_LOWER = $(shell echo $(%s) | tr A-Z a-z)\n" name name;
+  if Str.string_match (Str.regexp ".*upper.*") case 0 then
+    fprintf f "%s_UPPER = $(shell echo $(%s) | tr a-z A-Z)\n" name name
+
+let include_xml2mk = fun f ?(target="$(TARGET)") ?(vpath=None) xml ->
   let name = Xml.attrib xml "name"
-  and value = try "=" ^ Xml.attrib xml "value" with _ -> "" in
-  let flag_type = match ExtXml.attrib_or_default xml "type" "define" with
-  | "define" | "D" -> "D"
-  | "include" | "I" -> "I" ^ (match vpath with Some vp -> vp ^ "/" | None -> "")
-  | "raw" -> ""
-  | _ -> "D" in
-  let flag = sprintf "%s.CFLAGS += -%s%s%s" target flag_type name value in
+  and path = match vpath with Some vp -> vp ^ "/" | None -> "" in
+  let flag = sprintf "%s.CFLAGS += -I%s%s" target path name in
+  try
+    (* TODO: add condition in xml syntax ? *)
+    let cond = Xml.attrib xml "cond" in
+    fprintf f "%s\n%s\nendif\n" cond flag
+  with Xml.No_attribute _ -> fprintf f "%s\n" flag
+
+let define_xml2mk = fun f ?(target="$(TARGET)") xml ->
+  let name = Xml.attrib xml "name"
+  and value = try Some (Xml.attrib xml "value") with _ -> None in
+  let flag_type = fun s ->
+    match ExtXml.attrib_or_default xml "type" "raw", value with
+    | "string", Some v -> "=\\\""^v^"\\\""
+    | _, Some v -> "="^v
+    | _, _ -> ""
+  in
+  let flag = sprintf "%s.CFLAGS += -D%s%s" target name (flag_type value) in
   try
     (* TODO: add condition in xml syntax ? *)
     let cond = Xml.attrib xml "cond" in
@@ -88,16 +113,47 @@ let file_xml2mk = fun f ?(arch = false) dir_name target xml ->
     else format_of_string "%s.srcs += %s/%s\n" in
   fprintf f fmt target dir_name name
 
-let module_xml2mk = fun f target m ->
-  if not (List.mem target m.targets) then () else
+(* only print the configuration flags for a module
+ * 'raw' section are not handled here
+ *)
+let module_configure_xml2mk = fun f target firmware m ->
+  (* print global config flags *)
+  List.iter (fun flag ->
+    match Compat.bytes_lowercase (Xml.tag flag) with
+    | "configure" -> configure_xml2mk f flag
+    | _ -> ()) m.param;
+  (* Look for makefile section *)
+  ExtXml.iter_tag "makefile"
+    (fun section ->
+      (* Look for defines, flags, files, ... if target is matching *)
+      let section =
+        let targets = Gen_common.targets_of_field section Env.default_module_targets in
+        if Gen_common.test_targets target targets then section else Xml.Element ("makefile", [], [])
+      in
+      (* keep section if firmware is also matching or not speficied *)
+      let section = begin
+        try
+          if Xml.attrib section "firmware" = firmware then section
+          else Xml.Element ("makefile", [], [])
+        with _ -> section end
+      in
+      Xml.iter
+      (fun field ->
+          match Compat.bytes_lowercase (Xml.tag field) with
+          | "configure" -> configure_xml2mk f field
+          | _ -> ()
+        ) section
+    ) m.xml
+
+(* module files and flags except configuration flags *)
+let module_xml2mk = fun f target firmware m ->
   let name = ExtXml.attrib m.xml "name" in
   let dir = try Xml.attrib m.xml "dir" with Xml.No_attribute _ -> name in
-  let dir_name = String.uppercase dir ^ "_DIR" in
+  let dir_name = Compat.bytes_uppercase dir ^ "_DIR" in
   (* print global flags as compilation defines and flags *)
   fprintf f "\n# makefile for module %s in modules/%s\n" name dir;
   List.iter (fun flag ->
-    match String.lowercase (Xml.tag flag) with
-    | "configure" -> configure_xml2mk f flag
+    match Compat.bytes_lowercase (Xml.tag flag) with
     | "define" -> define_xml2mk f ~target flag
     | _ -> ()) m.param;
   (* Look for makefile section *)
@@ -107,12 +163,19 @@ let module_xml2mk = fun f target m ->
       let section =
         let targets = Gen_common.targets_of_field section Env.default_module_targets in
         if Gen_common.test_targets target targets then section else Xml.Element ("makefile", [], [])
-      in 
+      in
+      (* keep section if firmware is also matching or not speficied *)
+      let section = begin
+        try
+          if Xml.attrib section "firmware" = firmware then section
+          else Xml.Element ("makefile", [], [])
+        with _ -> section end
+      in
       Xml.iter
       (fun field ->
-          match String.lowercase (Xml.tag field) with
-          | "configure" -> configure_xml2mk f field
-          | "define" -> define_xml2mk f ~target ~vpath:m.vpath field
+          match Compat.bytes_lowercase (Xml.tag field) with
+          | "define" -> define_xml2mk f ~target field
+          | "include" -> include_xml2mk f ~target ~vpath:m.vpath field
           | "flag" ->
               let value = Xml.attrib field "value"
               and name = Xml.attrib field "name" in
@@ -124,8 +187,8 @@ let module_xml2mk = fun f target m ->
         ) section
     ) m.xml
 
-let modules_xml2mk = fun f target xml ->
-  let modules = Gen_common.get_modules_of_airframe ~target xml in
+let modules_xml2mk = fun f target xml fp ->
+  let modules = Gen_common.get_modules_of_config ~target ~verbose:true xml fp in
   (* print modules directories and includes for all targets *)
   fprintf f "\n# include modules directory for all targets\n";
   (* get dir list *)
@@ -133,7 +196,7 @@ let modules_xml2mk = fun f target xml ->
   (** include modules directory for ALL targets, not just the defined ones **)
   fprintf f "$(TARGET).CFLAGS += -Imodules -Iarch/$(ARCH)/modules\n";
   List.iter
-    (fun dir -> fprintf f "%s_DIR = modules/%s\n" (String.uppercase dir) dir
+    (fun dir -> fprintf f "%s_DIR = modules/%s\n" (Compat.bytes_uppercase dir) dir
     ) dir_list;
   (* add vpath for external modules *)
   List.iter
@@ -163,24 +226,29 @@ let subsystem_xml2mk = fun f firmware s ->
   fprintf f "\n# -subsystem: '%s'\n" name;
   let s_config, rest = ExtXml.partition_tag "configure" (Xml.children s) in
   let s_defines, _ = ExtXml.partition_tag "define" rest in
-  List.iter (configure_xml2mk f) s_config;
+  (*List.iter (configure_xml2mk f) s_config;*)
   List.iter (fun def -> define_xml2mk f def) s_defines;
   (* include subsystem *) (* TODO test if file exists with the generator ? *)
   let s_name = name ^ s_type ^ ".makefile" in
-  let s_dir = "CFG_" ^ String.uppercase (Xml.attrib firmware "name") in
+  let s_dir = "CFG_" ^ Compat.bytes_uppercase (Xml.attrib firmware "name") in
   fprintf f "ifneq ($(strip $(wildcard $(%s)/%s)),)\n" s_dir s_name;
   fprintf f "\tinclude $(%s)/%s\n" s_dir s_name;
   fprintf f "else\n";
   fprintf f "\tinclude $(CFG_SHARED)/%s\n" s_name;
   fprintf f "endif\n"
 
-let mod_or_subsys_xml2mk = fun f global_targets firmware target xml ->
+let subsystem_configure_xml2mk = fun f s ->
+  let s_config, _ = ExtXml.partition_tag "configure" (Xml.children s) in
+  List.iter (configure_xml2mk f) s_config
+
+(** if xml node valid module, do notihg, otherwise fall back to subsystem *)
+let fallback_subsys_xml2mk = fun f global_targets firmware target xml ->
   try
-    let m = Gen_common.get_module xml global_targets in
-    module_xml2mk f target m;
+    ignore(Gen_common.get_module xml global_targets)
   with Gen_common.Subsystem _file -> subsystem_xml2mk f firmware xml
 
-let parse_firmware = fun makefile_ac ac_xml firmware ->
+let parse_firmware = fun makefile_ac ac_xml firmware fp ->
+  let firmware_name = Xml.attrib firmware "name" in
   (* get the configures, targets, subsystems and defines for this firmware *)
   let config, rest = ExtXml.partition_tag "configure" (Xml.children firmware) in
   let targets, rest = ExtXml.partition_tag "target" rest in
@@ -199,7 +267,7 @@ let parse_firmware = fun makefile_ac ac_xml firmware ->
     fprintf makefile_ac "\n###########\n# -target: '%s'\n" target_name;
     fprintf makefile_ac "ifeq ($(TARGET), %s)\n" target_name;
     let target_name = Xml.attrib target "name" in
-    let modules = modules_xml2mk makefile_ac target_name ac_xml in
+    let modules = modules_xml2mk makefile_ac target_name ac_xml fp in
     begin (* Check for "processor" attribute *)
       try
         let proc = Xml.attrib target "processor" in
@@ -208,12 +276,18 @@ let parse_firmware = fun makefile_ac ac_xml firmware ->
     end;
     List.iter (configure_xml2mk makefile_ac) config;
     List.iter (configure_xml2mk makefile_ac) t_config;
-    fprintf makefile_ac "include $(PAPARAZZI_SRC)/conf/boards/%s.makefile\n" (Xml.attrib target "board");
+    List.iter (subsystem_configure_xml2mk makefile_ac) subsystems;
+    List.iter (subsystem_configure_xml2mk makefile_ac) t_subsystems;
+    List.iter (subsystem_configure_xml2mk makefile_ac) mods;
+    List.iter (subsystem_configure_xml2mk makefile_ac) t_mods;
+    List.iter (module_configure_xml2mk makefile_ac target_name firmware_name) modules;
+    fprintf makefile_ac "\ninclude $(PAPARAZZI_SRC)/conf/boards/%s.makefile\n" (Xml.attrib target "board");
     fprintf makefile_ac "include $(PAPARAZZI_SRC)/conf/firmwares/%s.makefile\n" (Xml.attrib firmware "name");
     List.iter (fun def -> define_xml2mk makefile_ac def) defines;
     List.iter (fun def -> define_xml2mk makefile_ac def) t_defines;
-    List.iter (module_xml2mk makefile_ac target_name) modules;
-    List.iter (mod_or_subsys_xml2mk makefile_ac [] firmware target_name) mods;
+    List.iter (module_xml2mk makefile_ac target_name firmware_name) modules;
+    List.iter (fallback_subsys_xml2mk makefile_ac (Gen_common.Var "") firmware target_name) mods;
+    List.iter (fallback_subsys_xml2mk makefile_ac (Gen_common.Var "") firmware target_name) t_mods;
     List.iter (subsystem_xml2mk makefile_ac firmware) t_subsystems;
     List.iter (subsystem_xml2mk makefile_ac firmware) subsystems;
     fprintf makefile_ac "\nendif # end of target '%s'\n\n" target_name
@@ -221,21 +295,22 @@ let parse_firmware = fun makefile_ac ac_xml firmware ->
 
 
 (** Search and dump the firmware section *)
-let dump_firmware = fun f ac_xml firmware ->
+let dump_firmware = fun f ac_xml firmware fp ->
   try
     fprintf f "\n####################################################\n";
     fprintf f   "# makefile firmware '%s'\n" (Xml.attrib firmware "name");
     fprintf f   "####################################################\n";
-    parse_firmware f ac_xml firmware
+    parse_firmware f ac_xml firmware fp
   with Xml.No_attribute _ -> failwith "Warning: firmware name is undeclared"
 
-let dump_firmware_sections = fun makefile_ac xml ->
+let dump_firmware_sections = fun makefile_ac fp xml ->
   ExtXml.iter_tag "firmware"
-    (fun tag -> dump_firmware makefile_ac xml tag) xml
+    (fun tag -> dump_firmware makefile_ac xml tag fp) xml
 
 (** Extracts the makefile sections of an airframe file *)
-let extract_makefile = fun ac_id airframe_file makefile_ac ->
-  let xml = Xml.parse_file airframe_file in
+let extract_makefile = fun ac_id airframe_file flight_plan_file makefile_ac ->
+  let xml = ExtXml.parse_file airframe_file in
+  let fp = ExtXml.parse_file flight_plan_file in
   let f = open_out makefile_ac in
   fprintf f "# This file has been generated by gen_aircraft from %s by %s\n"
     airframe_file Sys.executable_name;
@@ -246,7 +321,7 @@ let extract_makefile = fun ac_id airframe_file makefile_ac ->
   (** Search and dump makefile sections that have a "location" attribute set to "before" or no attribute *)
   dump_makefile_section xml f airframe_file "before";
   (** Search and dump the firmware sections *)
-  dump_firmware_sections f xml;
+  dump_firmware_sections f fp xml;
   (** Search and dump makefile sections that have a "location" attribute set to "after" *)
   dump_makefile_section xml f airframe_file "after";
   close_out f
@@ -270,7 +345,7 @@ let () =
       failwith (sprintf "Usage: %s <Aircraft name> [conf.xml]" Sys.executable_name);
     let aircraft = Sys.argv.(1) in
     let conf_xml = if Array.length Sys.argv = 3 then Sys.argv.(2) else default_conf_xml in
-    let conf = Xml.parse_file conf_xml in
+    let conf = ExtXml.parse_file conf_xml in
     check_unique_id_and_name conf conf_xml;
     let aircraft_xml =
       try
@@ -287,6 +362,9 @@ let () =
     let airframe_file = value "airframe" in
     let abs_airframe_file = paparazzi_conf // airframe_file in
 
+    let flight_plan_file = value "flight_plan" in
+    let abs_flight_plan_file = paparazzi_conf // flight_plan_file in
+
     mkdir (Env.paparazzi_home // "var");
     mkdir (Env.paparazzi_home // "var" // "aircrafts");
     mkdir aircraft_dir;
@@ -301,19 +379,19 @@ let () =
     mkdir (aircraft_conf_dir // "telemetry");
 
     let target = try Sys.getenv "TARGET" with _ -> "" in
-    let modules = Gen_common.get_modules_of_airframe ~target (Xml.parse_file abs_airframe_file) in
+    let modules = Gen_common.get_modules_of_config ~target (ExtXml.parse_file abs_airframe_file) (ExtXml.parse_file abs_flight_plan_file) in
     (* normal settings *)
     let settings = try Env.filter_settings (value "settings") with _ -> "" in
     (* remove settings if not supported for the current target *)
     let settings = List.fold_left (fun l s -> if Gen_common.is_element_unselected ~verbose:true target modules s then l else l @ [s]) [] (Str.split (Str.regexp " ") settings) in
     (* update aircraft_xml *)
-    let aircraft_xml = ExtXml.subst_attrib "settings" (String.concat " " settings) aircraft_xml in
+    let aircraft_xml = ExtXml.subst_attrib "settings" (Compat.bytes_concat " " settings) aircraft_xml in
     (* add modules settings *)
     let settings_modules = try Env.filter_settings (value "settings_modules") with _ -> "" in
     (* remove settings if not supported for the current target *)
     let settings_modules = List.fold_left (fun l s -> if Gen_common.is_element_unselected ~verbose:true target modules s then l else l @ [s]) [] (Str.split (Str.regexp " ") settings_modules) in
     (* update aircraft_xml *)
-    let aircraft_xml = ExtXml.subst_attrib "settings_modules" (String.concat " " settings_modules) aircraft_xml in
+    let aircraft_xml = ExtXml.subst_attrib "settings_modules" (Compat.bytes_concat " " settings_modules) aircraft_xml in
     (* finally, concat all settings *)
     let settings = settings @ settings_modules in
     let settings = if List.length settings = 0 then
@@ -321,7 +399,7 @@ let () =
         fprintf stderr "\nInfo: No 'settings' attribute specified for A/C '%s', using 'settings/dummy.xml'\n\n%!" aircraft;
         "settings/dummy.xml"
       end
-      else String.concat " " settings
+      else Compat.bytes_concat " " settings
     in
 
     (** Expands the configuration of the A/C into one single file *)
@@ -329,7 +407,7 @@ let () =
     let configuration =
       make_element
         "configuration" []
-        [ make_element "conf" [] [conf_aircraft]; Pprz.messages_xml () ] in
+        [ make_element "conf" [] [conf_aircraft]; PprzLink.messages_xml () ] in
     let conf_aircraft_file = aircraft_conf_dir // "conf_aircraft.xml" in
     let f = open_out conf_aircraft_file in
     Printf.fprintf f "%s\n" (ExtXml.to_string_fmt configuration);
@@ -379,7 +457,7 @@ let () =
 
     let temp_makefile_ac = Filename.temp_file "Makefile.ac" "tmp" in
 
-    let () = extract_makefile (value "ac_id") abs_airframe_file temp_makefile_ac in
+    let () = extract_makefile (value "ac_id") abs_airframe_file abs_flight_plan_file temp_makefile_ac in
 
     (* Create Makefile.ac only if needed *)
     let makefile_ac = aircraft_dir // "Makefile.ac" in
@@ -388,9 +466,9 @@ let () =
 
     (* Get TARGET env, needed to build modules.h according to the target *)
     let t = try Printf.sprintf "TARGET=%s" (Sys.getenv "TARGET") with _ -> "" in
+    make_opt "flight_plan_ac_h" "FLIGHT_PLAN" "flight_plan";
     make "all_ac_h" t;
-    make_opt "radio_ac_h" "RADIO" "radio";
-    make_opt "flight_plan_ac_h" "FLIGHT_PLAN" "flight_plan"
+    make_opt "radio_ac_h" "RADIO" "radio"
   with Failure f ->
     prerr_endline f;
     exit 1

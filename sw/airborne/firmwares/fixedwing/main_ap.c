@@ -57,7 +57,6 @@
 #include "subsystems/sensors/baro.h"
 PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BOARD)
 #endif
-#include "subsystems/ins.h"
 
 
 // autopilot & control
@@ -67,9 +66,6 @@ PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BO
 #include CTRL_TYPE_H
 #include "firmwares/fixedwing/nav.h"
 #include "generated/flight_plan.h"
-#ifdef TRAFFIC_INFO
-#include "subsystems/navigation/traffic_info.h"
-#endif
 
 // datalink & telemetry
 #if DATALINK || SITL
@@ -107,6 +103,9 @@ PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BO
 #ifndef COMMAND_YAW_TRIM
 #define COMMAND_YAW_TRIM 0
 #endif
+
+/* Geofence exceptions */
+#include "modules/nav/nav_geofence.h"
 
 /* if PRINT_CONFIG is defined, print some config options */
 PRINT_CONFIG_VAR(PERIODIC_FREQUENCY)
@@ -187,13 +186,6 @@ void init_ap(void)
   stateInit();
 
   /************* Sensors initialization ***************/
-#if USE_GPS
-  gps_init();
-#endif
-
-#if USE_IMU
-  imu_init();
-#endif
 
 #if USE_AHRS_ALIGNER
   ahrs_aligner_init();
@@ -207,8 +199,6 @@ void init_ap(void)
 #if USE_AHRS
   ahrs_init();
 #endif
-
-  ins_init();
 
 #if USE_BARO_BOARD
   baro_init();
@@ -255,18 +245,14 @@ void init_ap(void)
   IO0SET = _BV(AEROCOMM_DATA_PIN);
 #endif
 
-  /************ Multi-uavs status ***************/
-
-#ifdef TRAFFIC_INFO
-  traffic_info_init();
-#endif
-
   /* set initial trim values.
    * these are passed to fbw via inter_mcu.
    */
+  PPRZ_MUTEX_LOCK(ap_state_mtx);
   ap_state->command_roll_trim = COMMAND_ROLL_TRIM;
   ap_state->command_pitch_trim = COMMAND_PITCH_TRIM;
   ap_state->command_yaw_trim = COMMAND_YAW_TRIM;
+  PPRZ_MUTEX_UNLOCK(ap_state_mtx);
 
 #if USE_IMU
   // send body_to_imu from here for now
@@ -324,11 +310,11 @@ static inline uint8_t pprz_mode_update(void)
   if ((pprz_mode != PPRZ_MODE_HOME &&
        pprz_mode != PPRZ_MODE_GPS_OUT_OF_ORDER)
 #ifdef UNLOCKED_HOME_MODE
-      || TRUE
+      || true
 #endif
      ) {
 #ifndef RADIO_AUTO_MODE
-    return ModeUpdate(pprz_mode, PPRZ_MODE_OF_PULSE(fbw_state->channels[RADIO_MODE]));
+    return ModeUpdate(pprz_mode, PPRZ_MODE_OF_PULSE(imcu_get_radio(RADIO_MODE)));
 #else
     INFO("Using RADIO_AUTO_MODE to switch between AUTO1 and AUTO2.")
     /* If RADIO_AUTO_MODE is enabled mode swithing will be seperated between two switches/channels
@@ -336,36 +322,36 @@ static inline uint8_t pprz_mode_update(void)
      *
      * This is mainly a cludge for entry level radios with no three-way switch but two available two-way switches which can be used.
      */
-    if (PPRZ_MODE_OF_PULSE(fbw_state->channels[RADIO_MODE]) == PPRZ_MODE_MANUAL) {
+    if (PPRZ_MODE_OF_PULSE(imcu_get_radio(RADIO_MODE)) == PPRZ_MODE_MANUAL) {
       /* RADIO_MODE in MANUAL position */
       return ModeUpdate(pprz_mode, PPRZ_MODE_MANUAL);
     } else {
       /* RADIO_MODE not in MANUAL position.
        * Select AUTO mode bassed on RADIO_AUTO_MODE channel
        */
-      return ModeUpdate(pprz_mode, (fbw_state->channels[RADIO_AUTO_MODE] > THRESHOLD2) ? PPRZ_MODE_AUTO2 : PPRZ_MODE_AUTO1);
+      return ModeUpdate(pprz_mode, (imcu_get_radio(RADIO_AUTO_MODE) > THRESHOLD2) ? PPRZ_MODE_AUTO2 : PPRZ_MODE_AUTO1);
     }
 #endif // RADIO_AUTO_MODE
   } else {
-    return FALSE;
+    return false;
   }
 }
 #else // not RADIO_CONTROL
 static inline uint8_t pprz_mode_update(void)
 {
-  return FALSE;
+  return false;
 }
 #endif
 
 static inline uint8_t mcu1_status_update(void)
 {
-  uint8_t new_status = fbw_state->status;
+  uint8_t new_status = imcu_get_status();
   if (mcu1_status != new_status) {
-    bool_t changed = ((mcu1_status & MASK_FBW_CHANGED) != (new_status & MASK_FBW_CHANGED));
+    bool changed = ((mcu1_status & MASK_FBW_CHANGED) != (new_status & MASK_FBW_CHANGED));
     mcu1_status = new_status;
     return changed;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -373,11 +359,15 @@ static inline uint8_t mcu1_status_update(void)
  */
 static inline void copy_from_to_fbw(void)
 {
+  PPRZ_MUTEX_LOCK(fbw_state_mtx);
+  PPRZ_MUTEX_LOCK(ap_state_mtx);
 #ifdef SetAutoCommandsFromRC
   SetAutoCommandsFromRC(ap_state->commands, fbw_state->channels);
 #elif defined RADIO_YAW && defined COMMAND_YAW
   ap_state->commands[COMMAND_YAW] = fbw_state->channels[RADIO_YAW];
 #endif
+  PPRZ_MUTEX_UNLOCK(ap_state_mtx);
+  PPRZ_MUTEX_UNLOCK(fbw_state_mtx);
 }
 
 /** mode to enter when RC is lost in PPRZ_MODE_MANUAL or PPRZ_MODE_AUTO1 */
@@ -390,28 +380,30 @@ static inline void copy_from_to_fbw(void)
  */
 static inline void telecommand_task(void)
 {
-  uint8_t mode_changed = FALSE;
+  uint8_t mode_changed = false;
   copy_from_to_fbw();
 
   /* really_lost is true if we lost RC in MANUAL or AUTO1 */
-  uint8_t really_lost = bit_is_set(fbw_state->status, STATUS_RADIO_REALLY_LOST) &&
-    (pprz_mode == PPRZ_MODE_AUTO1 || pprz_mode == PPRZ_MODE_MANUAL);
+  uint8_t really_lost = bit_is_set(imcu_get_status(), STATUS_RADIO_REALLY_LOST) &&
+                        (pprz_mode == PPRZ_MODE_AUTO1 || pprz_mode == PPRZ_MODE_MANUAL);
 
   if (pprz_mode != PPRZ_MODE_HOME && pprz_mode != PPRZ_MODE_GPS_OUT_OF_ORDER && launch) {
-    if (too_far_from_home) {
+    if (too_far_from_home || datalink_lost() || higher_than_max_altitude()) {
       pprz_mode = PPRZ_MODE_HOME;
-      mode_changed = TRUE;
+      mode_changed = true;
     }
     if (really_lost) {
       pprz_mode = RC_LOST_MODE;
-      mode_changed = TRUE;
+      mode_changed = true;
     }
   }
-  if (bit_is_set(fbw_state->status, AVERAGED_CHANNELS_SENT)) {
-    bool_t pprz_mode_changed = pprz_mode_update();
+  if (bit_is_set(imcu_get_status(), AVERAGED_CHANNELS_SENT)) {
+    bool pprz_mode_changed = pprz_mode_update();
     mode_changed |= pprz_mode_changed;
 #if defined RADIO_CALIB && defined RADIO_CONTROL_SETTINGS
-    bool_t calib_mode_changed = RcSettingsModeUpdate(fbw_state->channels);
+    PPRZ_MUTEX_LOCK(fbw_state_mtx);
+    bool calib_mode_changed = RcSettingsModeUpdate(fbw_state->channels);
+    PPRZ_MUTEX_UNLOCK(fbw_state_mtx);
     rc_settings(calib_mode_changed || pprz_mode_changed);
     mode_changed |= calib_mode_changed;
 #endif
@@ -425,37 +417,35 @@ static inline void telecommand_task(void)
    */
   if (pprz_mode == PPRZ_MODE_AUTO1) {
     /** Roll is bounded between [-AUTO1_MAX_ROLL;AUTO1_MAX_ROLL] */
-    h_ctl_roll_setpoint = FLOAT_OF_PPRZ(fbw_state->channels[RADIO_ROLL], 0., AUTO1_MAX_ROLL);
+    h_ctl_roll_setpoint = FLOAT_OF_PPRZ(imcu_get_radio(RADIO_ROLL), 0., AUTO1_MAX_ROLL);
 
     /** Pitch is bounded between [-AUTO1_MAX_PITCH;AUTO1_MAX_PITCH] */
-    h_ctl_pitch_setpoint = FLOAT_OF_PPRZ(fbw_state->channels[RADIO_PITCH], 0., AUTO1_MAX_PITCH);
+    h_ctl_pitch_setpoint = FLOAT_OF_PPRZ(imcu_get_radio(RADIO_PITCH), 0., AUTO1_MAX_PITCH);
 #if H_CTL_YAW_LOOP && defined RADIO_YAW
     /** Yaw is bounded between [-AUTO1_MAX_YAW_RATE;AUTO1_MAX_YAW_RATE] */
-    h_ctl_yaw_rate_setpoint = FLOAT_OF_PPRZ(fbw_state->channels[RADIO_YAW], 0., AUTO1_MAX_YAW_RATE);
+    h_ctl_yaw_rate_setpoint = FLOAT_OF_PPRZ(imcu_get_radio(RADIO_YAW), 0., AUTO1_MAX_YAW_RATE);
 #endif
   } /** Else asynchronously set by \a h_ctl_course_loop() */
 
   /** In AUTO1, throttle comes from RADIO_THROTTLE
       In MANUAL, the value is copied to get it in the telemetry */
   if (pprz_mode == PPRZ_MODE_MANUAL || pprz_mode == PPRZ_MODE_AUTO1) {
-    v_ctl_throttle_setpoint = fbw_state->channels[RADIO_THROTTLE];
+    v_ctl_throttle_setpoint = imcu_get_radio(RADIO_THROTTLE);
   }
   /** else asynchronously set by v_ctl_climb_loop(); */
 
-  mcu1_ppm_cpt = fbw_state->ppm_cpt;
+  mcu1_ppm_cpt = imcu_get_ppm_cpt();
 #endif // RADIO_CONTROL
 
-
-  vsupply = fbw_state->vsupply;
-  current = fbw_state->current;
-  energy = fbw_state->energy;
+  // update electrical from FBW
+  imcu_get_electrical(&vsupply, &current, &energy);
 
 #ifdef RADIO_CONTROL
   /* the SITL check is a hack to prevent "automatic" launch in NPS */
 #ifndef SITL
   if (!autopilot_flight_time) {
-    if (pprz_mode == PPRZ_MODE_AUTO2 && fbw_state->channels[RADIO_THROTTLE] > THROTTLE_THRESHOLD_TAKEOFF) {
-      launch = TRUE;
+    if (pprz_mode == PPRZ_MODE_AUTO2 && imcu_get_radio(RADIO_THROTTLE) > THROTTLE_THRESHOLD_TAKEOFF) {
+      launch = true;
     }
   }
 #endif
@@ -471,14 +461,14 @@ static inline void telecommand_task(void)
  */
 void reporting_task(void)
 {
-  static uint8_t boot = TRUE;
+  static uint8_t boot = true;
 
   /* initialisation phase during boot */
   if (boot) {
 #if DOWNLINK
     send_autopilot_version(&(DefaultChannel).trans_tx, &(DefaultDevice).device);
 #endif
-    boot = FALSE;
+    boot = false;
   }
   /* then report periodicly */
   else {
@@ -511,12 +501,12 @@ void navigation_task(void)
         last_pprz_mode = pprz_mode;
         pprz_mode = PPRZ_MODE_GPS_OUT_OF_ORDER;
         autopilot_send_mode();
-        gps_lost = TRUE;
+        gps_lost = true;
       }
     } else if (gps_lost) { /* GPS is ok */
       /** If aircraft was in failsafe mode, come back in previous mode */
       pprz_mode = last_pprz_mode;
-      gps_lost = FALSE;
+      gps_lost = false;
       autopilot_send_mode();
     }
   }
@@ -532,7 +522,7 @@ void navigation_task(void)
   }
 
 #ifdef TCAS
-  CallTCAS();
+  callTCAS();
 #endif
 
 #if DOWNLINK && !defined PERIOD_NAVIGATION_Ap_0 // If not sent periodically (in default 0 mode)
@@ -550,7 +540,7 @@ void navigation_task(void)
       || pprz_mode == PPRZ_MODE_GPS_OUT_OF_ORDER) {
 #ifdef H_CTL_RATE_LOOP
     /* Be sure to be in attitude mode, not roll */
-    h_ctl_auto1_rate = FALSE;
+    h_ctl_auto1_rate = false;
 #endif
     if (lateral_mode >= LATERAL_MODE_COURSE) {
       h_ctl_course_loop();  /* aka compute nav_desired_roll */
@@ -565,12 +555,22 @@ void attitude_loop(void)
 {
 
   if (pprz_mode >= PPRZ_MODE_AUTO2) {
-    if (v_ctl_mode == V_CTL_MODE_AUTO_THROTTLE) {
-      v_ctl_throttle_setpoint = nav_throttle_setpoint;
-      v_ctl_pitch_setpoint = nav_pitch;
-    } else if (v_ctl_mode >= V_CTL_MODE_AUTO_CLIMB) {
-      v_ctl_climb_loop();
-    }
+#if CTRL_VERTICAL_LANDING
+    if (v_ctl_mode == V_CTL_MODE_LANDING) {
+      v_ctl_landing_loop();
+    } else {
+#endif
+      if (v_ctl_mode == V_CTL_MODE_AUTO_THROTTLE) {
+        v_ctl_throttle_setpoint = nav_throttle_setpoint;
+        v_ctl_pitch_setpoint = nav_pitch;
+      } else {
+        if (v_ctl_mode >= V_CTL_MODE_AUTO_CLIMB) {
+          v_ctl_climb_loop();
+        } /* v_ctl_mode >= V_CTL_MODE_AUTO_CLIMB */
+      } /* v_ctl_mode == V_CTL_MODE_AUTO_THROTTLE */
+#if CTRL_VERTICAL_LANDING
+    } /* v_ctl_mode == V_CTL_MODE_LANDING */
+#endif
 
 #if defined V_CTL_THROTTLE_IDLE
     Bound(v_ctl_throttle_setpoint, TRIM_PPRZ(V_CTL_THROTTLE_IDLE * MAX_PPRZ), MAX_PPRZ);
@@ -593,6 +593,7 @@ void attitude_loop(void)
 
   h_ctl_attitude_loop(); /* Set  h_ctl_aileron_setpoint & h_ctl_elevator_setpoint */
   v_ctl_throttle_slew();
+  PPRZ_MUTEX_LOCK(ap_state_mtx);
   ap_state->commands[COMMAND_THROTTLE] = v_ctl_throttle_slewed;
   ap_state->commands[COMMAND_ROLL] = -h_ctl_aileron_setpoint;
   ap_state->commands[COMMAND_PITCH] = h_ctl_elevator_setpoint;
@@ -602,12 +603,13 @@ void attitude_loop(void)
 #if H_CTL_CL_LOOP && defined COMMAND_CL
   ap_state->commands[COMMAND_CL] = h_ctl_flaps_setpoint;
 #endif
+  PPRZ_MUTEX_UNLOCK(ap_state_mtx);
 
 #if defined MCU_SPI_LINK || defined MCU_UART_LINK || defined MCU_CAN_LINK
   link_mcu_send();
 #elif defined INTER_MCU && defined SINGLE_MCU
   /**Directly set the flag indicating to FBW that shared buffer is available*/
-  inter_mcu_received_ap = TRUE;
+  inter_mcu_received_ap = true;
 #endif
 
 }
@@ -616,25 +618,11 @@ void attitude_loop(void)
 /** Run at PERIODIC_FREQUENCY (60Hz if not defined) */
 void sensors_task(void)
 {
-#if USE_IMU
-  imu_periodic();
-#endif // USE_IMU
-
   //FIXME: this is just a kludge
 #if USE_AHRS && defined SITL && !USE_NPS
   update_ahrs_from_sim();
 #endif
-
-#if USE_GPS
-  gps_periodic_check();
-#endif
-
-  //FIXME: temporary hack, remove me
-#ifdef InsPeriodic
-  InsPeriodic();
-#endif
 }
-
 
 #ifdef LOW_BATTERY_KILL_DELAY
 #warning LOW_BATTERY_KILL_DELAY has been renamed to CATASTROPHIC_BAT_KILL_DELAY, please update your airframe file!
@@ -677,7 +665,7 @@ void monitor_task(void)
   if (!autopilot_flight_time &&
       stateGetHorizontalSpeedNorm_f() > MIN_SPEED_FOR_TAKEOFF) {
     autopilot_flight_time = 1;
-    launch = TRUE; /* Not set in non auto launch */
+    launch = true; /* Not set in non auto launch */
 #if DOWNLINK
     uint16_t time_sec = sys_time.nb_sec;
     DOWNLINK_SEND_TAKEOFF(DefaultChannel, DefaultDevice, &time_sec);
@@ -697,19 +685,6 @@ void event_task_ap(void)
   mcu_event();
 #endif /* SINGLE_MCU */
 
-#if USE_IMU
-  ImuEvent();
-#endif
-
-#ifdef InsEvent
-  TODO("calling InsEvent, remove me..")
-  InsEvent();
-#endif
-
-#if USE_GPS
-  GpsEvent();
-#endif /* USE_GPS */
-
 #if USE_BARO_BOARD
   BaroEvent();
 #endif
@@ -723,7 +698,7 @@ void event_task_ap(void)
 
   if (inter_mcu_received_fbw) {
     /* receive radio control task from fbw */
-    inter_mcu_received_fbw = FALSE;
+    inter_mcu_received_fbw = false;
     telecommand_task();
   }
 

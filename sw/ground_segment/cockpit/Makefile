@@ -31,9 +31,9 @@ INCLUDES=
 LIBS=
 LIBSX=$(LIBS:.cma=.cmxa)
 
-INCLUDES= -I ../multimon
-PKG = -package pprz.xlib
-LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz.xlib
+INCLUDES=
+PKG = -package pprzlink,pprz.xlib
+LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz.xlib,pprzlink
 
 LABLGTK2INIT = $(shell ocamlfind query -p-format lablgtk2.init 2>/dev/null)
 ifeq ($(LABLGTK2INIT),)
@@ -47,6 +47,12 @@ LABLGTK2_MM := $(shell echo $(LABLGTK2_VER) | cut -f1,2 -d.)
 ifeq ($(shell echo '$(LABLGTK2_MM)>=2.18' | bc),1)
 CAMLP4_DEFS = -DGDK_NATIVE_WINDOW
 endif
+# workaround wrong reported version of lablgtk
+# see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822949 and https://bugs.launchpad.net/ubuntu/+source/lablgtk2/+bug/1577236
+LABLGTK2_DEB := $(shell LC_ALL=C apt-cache policy liblablgtk2-ocaml | grep Installed | awk '{print $$2}' 2>/dev/null)
+ifneq (,$(findstring 2.18.3+dfsg-1, $(LABLGTK2_DEB)))
+CAMLP4_DEFS = -DGDK_NATIVE_WINDOW
+endif
 CAMLP4_DEFS ?=
 PP_OPTS = -pp "camlp4o pa_macro.cmo $(CAMLP4_DEFS)"
 
@@ -55,7 +61,7 @@ PP_SRC = gcs.ml
 PP_CMO = $(PP_SRC:.ml=.cmo)
 PP_CMX = $(PP_SRC:.ml=.cmx)
 
-ML= gtk_setting_time.ml gtk_strip.ml horizon.ml strip.ml gtk_save_settings.ml saveSettings.ml page_settings.ml pages.ml speech.ml plugin.ml sectors.ml map2d.ml editFP.ml intruders.ml live.ml particules.ml papgets.ml gcs.ml
+ML= gtk_setting_time.ml gtk_strip.ml horizon.ml strip.ml gtk_save_settings.ml saveSettings.ml page_settings.ml pages.ml speech.ml plugin.ml sectors.ml map2d.ml editFP.ml intruders.ml shapes.ml live.ml particules.ml papgets.ml gcs.ml
 MAIN=gcs
 CMO=$(ML:.ml=.cmo)
 CMX=$(ML:.ml=.cmx)
@@ -64,11 +70,11 @@ all : $(MAIN)
 
 opt : $(MAIN).opt
 
-$(MAIN) : $(CMO) $(LIBPPRZCMA) $(XLIBPPRZCMA)
+$(MAIN) : $(CMO) $(LIBPPRZCMA) $(LIBPPRZLINKCMA) $(XLIBPPRZCMA)
 	@echo OL $@
 	$(Q)$(OCAMLC) $(OCAMLCFLAGS) $(INCLUDES) $(LIBS) $(LINKPKG) $(CMO) -o $@
 
-$(MAIN).opt : $(CMX) $(LIBPPRZCMXA) $(XLIBPPRZCMXA)
+$(MAIN).opt : $(CMX) $(LIBPPRZCMXA) $(LIBPPRZLINKCMXA) $(XLIBPPRZCMXA)
 	@echo OOL $@
 	$(Q)$(OCAMLOPT) $(OCAMLCFLAGS) $(INCLUDES) $(LIBSX) -package pprz.xlib,$(LABLGTK2INIT) -linkpkg $(CMX) -o $@
 
@@ -114,14 +120,14 @@ compass : compass.ml
 
 
 clean:
-	$(Q)rm -f *~* *.cm* *.o *.out *.opt map2d gcs .depend gtk_strip.ml gtk_setting_time.ml gtk_save_settings.ml compass ant_track ant_track_pmm test_enose actuators
+	$(Q)rm -f *~* *.cm* *.o *.out *.opt map2d gcs .depend gtk_strip.ml gtk_setting_time.ml gtk_save_settings.ml compass ant_track ant_track_pmm actuators
 
 .PHONY: all opt clean
 
 
 CC = gcc
 CFLAGS=-g -O2 -Wall $(shell pkg-config gtk+-2.0 --cflags) -fPIC
-LDFLAGS=$(shell pkg-config gtk+-2.0 --libs) -s -lglibivy
+LDFLAGS=$(shell pkg-config gtk+-2.0 --libs) -s -lglibivy -lm -lpcre
 
 
 ant_track : ant_track.c
@@ -129,9 +135,6 @@ ant_track : ant_track.c
 
 ant_track_pmm : ant_track_pmm.c
 	$(CC) $(CFLAGS) -g -o $@ $^ $(LDFLAGS)
-
-test_enose : test_enose.c sliding_plot.c
-	$(CC) $(CFLAGS) -g -o $@ $^ $(LDFLAGS) -lgtkdatabox
 
 actuators : actuators.c
 	$(CC) $(CFLAGS) -g -o $@ $^ $(LDFLAGS)

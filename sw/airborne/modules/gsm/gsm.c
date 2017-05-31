@@ -73,7 +73,7 @@ Receiving:
 #define GSMLinkDev (&(GSM_LINK).device)
 
 #define GSMLinkChAvailable() GSMLinkDev->check_available(GSMLinkDev->periph)
-#define GSMLinkTransmit(_c) GSMLinkDev->put_byte(GSMLinkDev->periph, _c)
+#define GSMLinkTransmit(_c) GSMLinkDev->put_byte(GSMLinkDev->periph, 0, _c)
 #define GSMLinkGetch() GSMLinkDev->get_byte(GSMLinkDev->periph)
 #define ReadGSMBuffer() { while (GSMLinkChAvailable&&!gsm_line_received) gsm_parse(GSMLinkGetch()); }
 
@@ -150,7 +150,7 @@ void gsm_init(void)
     //
     //  Send_AT();
     //  gsm_status = STATUS_SEND_AT;
-    //  gsm_gsm_init_status = FALSE;
+    //  gsm_gsm_init_status = false;
   }
   gcs_index = 0;
   gcs_index_max = 0;
@@ -170,7 +170,7 @@ void gsm_init_report(void)   /* Second call */
 
     Send_AT();
     gsm_status = STATUS_SEND_AT;
-    gsm_gsm_init_report_status = FALSE;
+    gsm_gsm_init_report_status = false;
   }
 }
 

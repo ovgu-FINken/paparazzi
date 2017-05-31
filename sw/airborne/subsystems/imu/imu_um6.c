@@ -56,9 +56,9 @@ struct FloatQuat UM6_quat;
 inline void UM6_imu_align(void);
 inline void UM6_send_packet(uint8_t *packet_buffer, uint8_t packet_length);
 inline uint16_t UM6_calculate_checksum(uint8_t packet_buffer[], uint8_t packet_length);
-inline bool_t UM6_verify_chk(uint8_t packet_buffer[], uint8_t packet_length);
+inline bool UM6_verify_chk(uint8_t packet_buffer[], uint8_t packet_length);
 
-inline bool_t UM6_verify_chk(uint8_t packet_buffer[], uint8_t packet_length)
+inline bool UM6_verify_chk(uint8_t packet_buffer[], uint8_t packet_length)
 {
   chk_rec = (packet_buffer[packet_length - 2] << 8) | packet_buffer[packet_length - 1];
   chk_calc = UM6_calculate_checksum(packet_buffer, packet_length - 2);
@@ -77,7 +77,7 @@ inline uint16_t UM6_calculate_checksum(uint8_t packet_buffer[], uint8_t packet_l
 inline void UM6_send_packet(uint8_t *packet_buffer, uint8_t packet_length)
 {
   for (int i = 0; i < packet_length; i++) {
-    uart_put_byte(&(UM6_LINK), packet_buffer[i]);
+    uart_put_byte(&(UM6_LINK), 0, packet_buffer[i]);
   }
 }
 
@@ -132,7 +132,7 @@ void UM6_imu_align(void)
   UM6_status = UM6Running;
 }
 
-void imu_impl_init(void)
+void imu_um6_init(void)
 {
   // Initialize variables
   UM6_status = UM6Uninit;
@@ -140,7 +140,7 @@ void imu_impl_init(void)
   // Initialize packet
   UM6_packet.status = UM6PacketWaiting;
   UM6_packet.msg_idx = 0;
-  UM6_packet.msg_available = FALSE;
+  UM6_packet.msg_available = false;
   UM6_packet.chksm_error = 0;
   UM6_packet.hdr_error = 0;
 
@@ -192,7 +192,7 @@ void imu_impl_init(void)
 
 
 
-void imu_periodic(void)
+void imu_um6_periodic(void)
 {
   /* We would request for data here - optional
   //GET_DATA command 0xAE
@@ -345,9 +345,9 @@ void UM6_packet_parse(uint8_t c)
       UM6_packet.msg_idx++;
       if (UM6_packet.msg_idx == PacketLength) {
         if (UM6_verify_chk(UM6_packet.msg_buf, PacketLength)) {
-          UM6_packet.msg_available = TRUE;
+          UM6_packet.msg_available = true;
         } else {
-          UM6_packet.msg_available = FALSE;
+          UM6_packet.msg_available = false;
           UM6_packet.chksm_error++;
         }
         UM6_packet.status = UM6PacketWaiting;

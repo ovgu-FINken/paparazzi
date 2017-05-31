@@ -10,10 +10,10 @@ from os import path, getenv
 # if PAPARAZZI_SRC not set, then assume the tree containing this
 # file is a reasonable substitute
 PPRZ_SRC = getenv("PAPARAZZI_SRC", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
-sys.path.append(PPRZ_SRC + "/sw/lib/python")
+sys.path.append(PPRZ_SRC + "/sw/ext/pprzlink/lib/v1.0/python")
 
-from ivy_msg_interface import IvyMessagesInterface
-from pprz_msg.message import PprzMessage
+from pprzlink.ivy import IvyMessagesInterface
+from pprzlink.message import PprzMessage
 
 
 class Message(PprzMessage):
@@ -32,7 +32,7 @@ class Aircraft(object):
 
 
 class MessagePicker(wx.Frame):
-    def __init__(self, parent, callback, initIvy = True):
+    def __init__(self, parent, callback, ivy_interface=None):
         wx.Frame.__init__(self, parent, name="MessagePicker", title=u'Message Picker', size=wx.Size(320,640))
 
         self.aircrafts = {}
@@ -42,12 +42,20 @@ class MessagePicker(wx.Frame):
         self.root = self.tree.AddRoot("Telemetry")
         self.tree.Bind(wx.EVT_LEFT_DCLICK, self.OnDoubleClick)
         self.tree.Bind(wx.EVT_CHAR, self.OnKeyChar)
-        self.Bind( wx.EVT_CLOSE, self.OnClose)
-        self.message_interface = IvyMessagesInterface(self.msg_recv, initIvy)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        if ivy_interface is None:
+            self.message_interface = IvyMessagesInterface("MessagePicker")
+        else:
+            self.message_interface = ivy_interface
+        self.message_interface.subscribe(self.msg_recv)
 
     def OnClose(self, event):
-        self.message_interface.shutdown()
-        self.Destroy()
+        # if we have a parent (like the plotpanel) only hide instead of shutdown
+        if self.GetParent() is not None:
+            self.Hide()
+        else:
+            self.message_interface.shutdown()
+            self.Destroy()
 
     def msg_recv(self, ac_id, msg):
         if msg.msg_class != "telemetry":

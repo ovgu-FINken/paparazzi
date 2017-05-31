@@ -77,14 +77,14 @@ PRINT_CONFIG_VAR(L3G4200_SCALE)
 
 struct ImuGL1I2c imu_gl1;
 
-void imu_impl_init(void)
+void imu_gl1_init(void)
 {
   /* Set accel configuration */
   adxl345_i2c_init(&imu_gl1.acc_adxl, &(GL1_I2C_DEV), ADXL345_ADDR);
   // set the data rate
   imu_gl1.acc_adxl.config.rate = GL1_ACCEL_RATE;
   /// @todo drdy int handling for adxl345
-  //imu_aspirin.acc_adxl.config.drdy_int_enable = TRUE;
+  //imu_aspirin.acc_adxl.config.drdy_int_enable = true;
 
 
   /* Gyro configuration and initalization */
@@ -104,7 +104,7 @@ void imu_impl_init(void)
 }
 
 
-void imu_periodic(void)
+void imu_gl1_periodic(void)
 {
   adxl345_i2c_periodic(&imu_gl1.acc_adxl);
 
@@ -115,7 +115,7 @@ void imu_periodic(void)
   RunOnceEvery(10, hmc58xx_periodic(&imu_gl1.mag_hmc));
 }
 
-void imu_gl1_i2c_event(void)
+void imu_gl1_event(void)
 {
   uint32_t now_ts = get_sys_time_usec();
 
@@ -125,7 +125,7 @@ void imu_gl1_i2c_event(void)
     imu.accel_unscaled.x =  imu_gl1.acc_adxl.data.vect.y;
     imu.accel_unscaled.y =  imu_gl1.acc_adxl.data.vect.x;
     imu.accel_unscaled.z = -imu_gl1.acc_adxl.data.vect.z;
-    imu_gl1.acc_adxl.data_available = FALSE;
+    imu_gl1.acc_adxl.data_available = false;
     imu_scale_accel(&imu);
     AbiSendMsgIMU_ACCEL_INT32(IMU_GL1_ID, now_ts, &imu.accel);
   }
@@ -137,7 +137,7 @@ void imu_gl1_i2c_event(void)
     imu.gyro_unscaled.p =  imu_gl1.gyro_l3g.data.rates.q;
     imu.gyro_unscaled.q =  imu_gl1.gyro_l3g.data.rates.p;
     imu.gyro_unscaled.r = -imu_gl1.gyro_l3g.data.rates.r;
-    imu_gl1.gyro_l3g.data_available = FALSE;
+    imu_gl1.gyro_l3g.data_available = false;
     imu_scale_gyro(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_GL1_ID, now_ts, &imu.gyro);
   }
@@ -149,7 +149,7 @@ void imu_gl1_i2c_event(void)
     imu.mag_unscaled.y =  imu_gl1.mag_hmc.data.vect.x;
     imu.mag_unscaled.x =  imu_gl1.mag_hmc.data.vect.y;
     imu.mag_unscaled.z = -imu_gl1.mag_hmc.data.vect.z;
-    imu_gl1.mag_hmc.data_available = FALSE;
+    imu_gl1.mag_hmc.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_GL1_ID, now_ts, &imu.mag);
   }

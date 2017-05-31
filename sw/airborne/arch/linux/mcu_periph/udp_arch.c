@@ -66,7 +66,7 @@ void udp_arch_init(void)
  * Initialize the UDP peripheral.
  * Allocate UdpSocket struct and create and bind the UDP socket.
  */
-void udp_arch_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool_t broadcast)
+void udp_arch_periph_init(struct udp_periph *p, char *host, int port_out, int port_in, bool broadcast)
 {
   struct UdpSocket *sock = malloc(sizeof(struct UdpSocket));
   udp_socket_create(sock, host, port_out, port_in, broadcast);
@@ -121,7 +121,7 @@ void udp_receive(struct udp_periph *p)
   }
 
   socklen_t slen = sizeof(struct sockaddr_in);
-  ssize_t byte_read = recvfrom(sock->sockfd, buf, UDP_RX_BUFFER_SIZE, MSG_DONTWAIT,
+  ssize_t byte_read = recvfrom(sock->sockfd, buf, available, MSG_DONTWAIT,
                                (struct sockaddr *)&sock->addr_in, &slen);
 
   pthread_mutex_lock(&udp_mutex);
@@ -139,7 +139,7 @@ void udp_receive(struct udp_periph *p)
 /**
  * Send a message
  */
-void udp_send_message(struct udp_periph *p)
+void udp_send_message(struct udp_periph *p, long fd __attribute__((unused)))
 {
   if (p == NULL) return;
   if (p->network == NULL) return;
@@ -165,7 +165,7 @@ void udp_send_message(struct udp_periph *p)
 /**
  * Send a packet from another buffer
  */
-void udp_send_raw(struct udp_periph *p, uint8_t *buffer, uint16_t size)
+void udp_send_raw(struct udp_periph *p, long fd __attribute__((unused)), uint8_t *buffer, uint16_t size)
 {
   if (p == NULL) return;
   if (p->network == NULL) return;

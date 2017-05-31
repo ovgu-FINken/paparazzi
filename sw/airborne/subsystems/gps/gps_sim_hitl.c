@@ -24,17 +24,19 @@
  * GPS subsystem simulation from rotorcrafts horizontal/vertical reference system
  */
 
+#include "subsystems/gps/gps_sim_hitl.h"
 #include "subsystems/gps.h"
 #include "subsystems/abi.h"
 
 #include "state.h"
 #include "guidance/guidance_h.h"
 #include "guidance/guidance_v.h"
+#include "firmwares/rotorcraft/autopilot.h"
 
-bool_t gps_available;
+bool gps_available;
 uint32_t gps_sim_hitl_timer;
 
-void gps_impl_init(void)
+void gps_sim_hitl_init(void)
 {
   gps.fix = GPS_FIX_NONE;
 }
@@ -50,29 +52,29 @@ void gps_sim_hitl_event(void)
         struct Int32Vect2 zero_vector;
         INT_VECT2_ZERO(zero_vector);
         gh_set_ref(zero_vector, zero_vector, zero_vector);
-        INT_VECT2_ZERO(guidance_h_pos_ref);
-        INT_VECT2_ZERO(guidance_h_speed_ref);
-        INT_VECT2_ZERO(guidance_h_accel_ref);
+        INT_VECT2_ZERO(guidance_h.ref.pos);
+        INT_VECT2_ZERO(guidance_h.ref.speed);
+        INT_VECT2_ZERO(guidance_h.ref.accel);
         gv_set_ref(0, 0, 0);
         guidance_v_z_ref = 0;
         guidance_v_zd_ref = 0;
         guidance_v_zdd_ref = 0;
       }
       struct NedCoor_i ned_c;
-      ned_c.x = guidance_h_pos_ref.x * INT32_POS_OF_CM_DEN / INT32_POS_OF_CM_NUM;
-      ned_c.y = guidance_h_pos_ref.y * INT32_POS_OF_CM_DEN / INT32_POS_OF_CM_NUM;
+      ned_c.x = guidance_h.ref.pos.x * INT32_POS_OF_CM_DEN / INT32_POS_OF_CM_NUM;
+      ned_c.y = guidance_h.ref.pos.y * INT32_POS_OF_CM_DEN / INT32_POS_OF_CM_NUM;
       ned_c.z = guidance_v_z_ref * INT32_POS_OF_CM_DEN / INT32_POS_OF_CM_NUM;
       ecef_of_ned_point_i(&gps.ecef_pos, &state.ned_origin_i, &ned_c);
       gps.lla_pos.alt = state.ned_origin_i.lla.alt - ned_c.z;
       gps.hmsl = state.ned_origin_i.hmsl - ned_c.z;
-      ned_c.x = guidance_h_speed_ref.x * INT32_SPEED_OF_CM_S_DEN / INT32_SPEED_OF_CM_S_NUM;
-      ned_c.y = guidance_h_speed_ref.y * INT32_SPEED_OF_CM_S_DEN / INT32_SPEED_OF_CM_S_NUM;
+      ned_c.x = guidance_h.ref.speed.x * INT32_SPEED_OF_CM_S_DEN / INT32_SPEED_OF_CM_S_NUM;
+      ned_c.y = guidance_h.ref.speed.y * INT32_SPEED_OF_CM_S_DEN / INT32_SPEED_OF_CM_S_NUM;
       ned_c.z = guidance_v_zd_ref * INT32_SPEED_OF_CM_S_DEN / INT32_SPEED_OF_CM_S_NUM;
       ecef_of_ned_vect_i(&gps.ecef_vel, &state.ned_origin_i, &ned_c);
       gps.fix = GPS_FIX_3D;
       gps.last_3dfix_ticks = sys_time.nb_sec_rem;
       gps.last_3dfix_time = sys_time.nb_sec;
-      gps_available = TRUE;
+      gps_available = true;
     }
     else {
       struct Int32Vect2 zero_vector;
@@ -92,3 +94,4 @@ void gps_sim_hitl_event(void)
     AbiSendMsgGPS(GPS_SIM_ID, now_ts, &gps);
   }
 }
+

@@ -48,16 +48,16 @@ int record_video = 0;
 
 volatile uint32_t blob_locator = 0;
 
-volatile bool_t blob_enabled = FALSE;
-volatile bool_t marker_enabled = FALSE;
-volatile bool_t window_enabled = FALSE;
+volatile bool blob_enabled = false;
+volatile bool marker_enabled = false;
+volatile bool window_enabled = false;
 
 // Computer vision thread
-bool_t cv_marker_func(struct image_t *img);
-bool_t cv_marker_func(struct image_t *img) {
+struct image_t* cv_marker_func(struct image_t *img);
+struct image_t* cv_marker_func(struct image_t *img) {
 
   if (!marker_enabled)
-    return FALSE;
+    return NULL;
 
   struct marker_deviation_t m = marker(img, marker_size);
 
@@ -66,18 +66,18 @@ bool_t cv_marker_func(struct image_t *img) {
   temp += m.y;
   blob_locator = temp;
 
-  return FALSE;
+  return NULL;
 }
 
 #define Img(X,Y)(((uint8_t*)img->buf)[(Y)*img->w*2+(X)*2])
 
 
 // Computer vision thread
-bool_t cv_window_func(struct image_t *img);
-bool_t cv_window_func(struct image_t *img) {
+struct image_t* cv_window_func(struct image_t *img);
+struct image_t* cv_window_func(struct image_t *img) {
 
   if (!window_enabled)
-    return FALSE;
+    return NULL;
 
 
   uint16_t coordinate[2] = {0,0};
@@ -114,15 +114,15 @@ bool_t cv_window_func(struct image_t *img) {
 
   }
 
-  return FALSE;
+  return NULL;
 }
 
 
-bool_t cv_blob_locator_func(struct image_t *img);
-bool_t cv_blob_locator_func(struct image_t *img) {
+struct image_t* cv_blob_locator_func(struct image_t *img);
+struct image_t* cv_blob_locator_func(struct image_t *img) {
 
   if (!blob_enabled)
-    return FALSE;
+    return NULL;
 
 
   // Color Filter
@@ -209,7 +209,7 @@ bool_t cv_blob_locator_func(struct image_t *img) {
 
   image_free(&dst);
 
-  return FALSE;
+  return NULL; // No new image is available for follow up modules
 }
 
 #include "modules/computer_vision/cv_georeference.h"
@@ -238,15 +238,13 @@ void cv_blob_locator_init(void) {
 
   georeference_init();
 
-  cv_add(cv_blob_locator_func);
-  cv_add(cv_marker_func);
-  cv_add(cv_window_func);
+  cv_add_to_device(&BLOB_LOCATOR_CAMERA, cv_blob_locator_func);
+  cv_add_to_device(&BLOB_LOCATOR_CAMERA, cv_marker_func);
+  cv_add_to_device(&BLOB_LOCATOR_CAMERA, cv_window_func);
 }
 
 void cv_blob_locator_periodic(void) {
-  if (record_video == 1) {
-    video_thread_take_shot(TRUE);
-  }
+
 }
 
 
@@ -255,24 +253,24 @@ void cv_blob_locator_event(void) {
   switch (cv_blob_locator_type)
   {
   case 1:
-    blob_enabled = TRUE;
-    marker_enabled = FALSE;
-    window_enabled = FALSE;
+    blob_enabled = true;
+    marker_enabled = false;
+    window_enabled = false;
     break;
   case 2:
-    blob_enabled = FALSE;
-    marker_enabled = TRUE;
-    window_enabled = FALSE;
+    blob_enabled = false;
+    marker_enabled = true;
+    window_enabled = false;
     break;
   case 3:
-    blob_enabled = FALSE;
-    marker_enabled = FALSE;
-    window_enabled = TRUE;
+    blob_enabled = false;
+    marker_enabled = false;
+    window_enabled = true;
     break;
   default:
-    blob_enabled = FALSE;
-    marker_enabled = FALSE;
-    window_enabled = FALSE;
+    blob_enabled = false;
+    marker_enabled = false;
+    window_enabled = false;
     break;
   }
   if (blob_locator != 0) {

@@ -28,8 +28,7 @@
  */
 #include "subsystems/ins/ins_vectornav_wrapper.h"
 
-
-void ins_vectornav_register(void)
+void gps_vectornav_init(void)
 {
-  ins_register_impl(ins_vectornav_init);
+  gps.nb_channels = 0;
 }

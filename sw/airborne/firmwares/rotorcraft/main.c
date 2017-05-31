@@ -71,7 +71,6 @@ PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BO
 #if USE_AHRS_ALIGNER
 #include "subsystems/ahrs/ahrs_aligner.h"
 #endif
-#include "subsystems/ins.h"
 
 #include "state.h"
 
@@ -185,21 +184,13 @@ STATIC_INLINE void main_init(void)
 #if USE_BARO_BOARD
   baro_init();
 #endif
-#if USE_IMU
-  imu_init();
-#endif
+
 #if USE_AHRS_ALIGNER
   ahrs_aligner_init();
 #endif
 
 #if USE_AHRS
   ahrs_init();
-#endif
-
-  ins_init();
-
-#if USE_GPS
-  gps_init();
 #endif
 
   autopilot_init();
@@ -268,15 +259,6 @@ STATIC_INLINE void handle_periodic_tasks(void)
 STATIC_INLINE void main_periodic(void)
 {
 
-#if USE_IMU
-  imu_periodic();
-#endif
-
-  //FIXME: temporary hack, remove me
-#ifdef InsPeriodic
-  InsPeriodic();
-#endif
-
   /* run control loops */
   autopilot_periodic();
   /* set actuators     */
@@ -300,14 +282,14 @@ STATIC_INLINE void main_periodic(void)
 
 STATIC_INLINE void telemetry_periodic(void)
 {
-  static uint8_t boot = TRUE;
+  static uint8_t boot = true;
 
   /* initialisation phase during boot */
   if (boot) {
 #if DOWNLINK
     send_autopilot_version(&(DefaultChannel).trans_tx, &(DefaultDevice).device);
 #endif
-    boot = FALSE;
+    boot = false;
   }
   /* then report periodicly */
   else {
@@ -328,7 +310,10 @@ STATIC_INLINE void failsafe_check(void)
       autopilot_mode != AP_MODE_KILL &&
       autopilot_mode != AP_MODE_HOME &&
       autopilot_mode != AP_MODE_FAILSAFE &&
-      autopilot_mode != AP_MODE_NAV) {
+      autopilot_mode != AP_MODE_NAV &&
+      autopilot_mode != AP_MODE_MODULE &&
+      autopilot_mode != AP_MODE_FLIP &&
+      autopilot_mode != AP_MODE_GUIDED) {
     autopilot_set_mode(RC_LOST_MODE);
   }
 
@@ -340,7 +325,6 @@ STATIC_INLINE void failsafe_check(void)
 #endif
 
 #if USE_GPS
-  gps_periodic_check();
   if (autopilot_mode == AP_MODE_NAV &&
       autopilot_motors_on &&
 #if NO_GPS_LOST_WITH_RC_VALID
@@ -370,21 +354,8 @@ STATIC_INLINE void main_event(void)
     RadioControlEvent(autopilot_on_rc_frame);
   }
 
-#if USE_IMU
-  ImuEvent();
-#endif
-
-#ifdef InsEvent
-  TODO("calling InsEvent, remove me..")
-  InsEvent();
-#endif
-
 #if USE_BARO_BOARD
   BaroEvent();
-#endif
-
-#if USE_GPS
-  GpsEvent();
 #endif
 
 #if FAILSAFE_GROUND_DETECT || KILL_ON_GROUND_DETECT

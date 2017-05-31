@@ -31,12 +31,12 @@
 #include "detect_window.h"
 #include <stdio.h>
 
-extern void detect_window_init(void)
+void detect_window_init(void)
 {
-  cv_add(detect_window);
+  cv_add_to_device(&BLOB_LOCATOR_CAMERA, detect_window);
 }
 
-extern bool_t detect_window(struct image_t *img)
+struct image_t* detect_window(struct image_t *img)
 {
 
   uint16_t coordinate[2];
@@ -53,7 +53,7 @@ extern bool_t detect_window(struct image_t *img)
   printf("Response = %d\n", response);
 
   image_free(&gray);
-  return 1;
+  return NULL; // No new image was created
 }
 
 

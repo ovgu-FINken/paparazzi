@@ -40,6 +40,8 @@
 #include <models/FGPropulsion.h>
 #include <models/FGGroundReactions.h>
 #include <models/FGAccelerations.h>
+#include <models/FGAuxiliary.h>
+#include <models/FGAtmosphere.h>
 #include <models/FGFCS.h>
 #include <models/atmosphere/FGWinds.h>
 
@@ -66,6 +68,9 @@
 /// Macro to convert from feet to metres
 #define MetersOfFeet(_f) ((_f)/3.2808399)
 #define FeetOfMeters(_m) ((_m)*3.2808399)
+
+#define PascalOfPsf(_p) ((_p) * 47.8802588889)
+#define CelsiusOfRankine(_r) (((_r) - 491.67) / 1.8)
 
 /** Name of the JSBSim model.
  *  Defaults to the AIRFRAME_NAME
@@ -183,11 +188,11 @@ void nps_fdm_init(double dt)
 
 }
 
-void nps_fdm_run_step(bool_t launch __attribute__((unused)), double *commands, int commands_nb)
+void nps_fdm_run_step(bool launch __attribute__((unused)), double *commands, int commands_nb)
 {
 
 #ifdef NPS_JSBSIM_LAUNCHSPEED
-  static bool_t already_launched = FALSE;
+  static bool already_launched = FALSE;
 
   if (launch && !already_launched) {
     printf("Launching with speed of %.1f m/s!\n", (float)NPS_JSBSIM_LAUNCHSPEED);
@@ -271,6 +276,11 @@ void nps_fdm_set_turbulence(double wind_speed, int turbulence_severity)
   /* wind speed used for turbulence */
   Winds->SetWindspeed20ft(FeetOfMeters(wind_speed) / 2);
   Winds->SetProbabilityOfExceedence(turbulence_severity);
+}
+
+void nps_fdm_set_temperature(double temp, double h)
+{
+  FDMExec->GetAtmosphere()->SetTemperature(temp, h, FGAtmosphere::eCelsius);
 }
 
 /**
@@ -414,7 +424,7 @@ static void fetch_state(void)
   const FGQuaternion jsb_quat = propagate->GetQuaternion();
   jsbsimquat_to_quat(&fdm.ltp_to_body_quat, &jsb_quat);
   /* convert to eulers */
-  DOUBLE_EULERS_OF_QUAT(fdm.ltp_to_body_eulers, fdm.ltp_to_body_quat);
+  double_eulers_of_quat(&fdm.ltp_to_body_eulers, &fdm.ltp_to_body_quat);
   /* the "false" pprz lpt */
   /* FIXME: use jsbsim ltp for now */
   EULERS_COPY(fdm.ltpprz_to_body_eulers, fdm.ltp_to_body_eulers);
@@ -435,6 +445,16 @@ static void fetch_state(void)
    */
   const FGColumnVector3 &fg_wind_ned = FDMExec->GetWinds()->GetTotalWindNED();
   jsbsimvec_to_vec(&fdm.wind, &fg_wind_ned);
+
+  /*
+   * Equivalent Airspeed, atmospheric pressure and temperature.
+   */
+  fdm.airspeed = MetersOfFeet(FDMExec->GetAuxiliary()->GetVequivalentFPS());
+  fdm.pressure = PascalOfPsf(FDMExec->GetAtmosphere()->GetPressure());
+  fdm.pressure_sl = PascalOfPsf(FDMExec->GetAtmosphere()->GetPressureSL());
+  fdm.total_pressure = PascalOfPsf(FDMExec->GetAuxiliary()->GetTotalPressure());
+  fdm.dynamic_pressure = PascalOfPsf(FDMExec->GetAuxiliary()->Getqbar());
+  fdm.temperature = CelsiusOfRankine(FDMExec->GetAtmosphere()->GetTemperature());
 
   /*
    * Control surface positions
@@ -486,10 +506,24 @@ static void init_jsbsim(double dt)
 
   char buf[1024];
   string rootdir;
+  string jsbsim_home = "/conf/simulator/jsbsim/";
   string jsbsim_ic_name;
 
-  sprintf(buf, "%s/conf/simulator/jsbsim/", getenv("PAPARAZZI_HOME"));
-  rootdir = string(buf);
+  char* pprz_home = getenv("PAPARAZZI_HOME");
+
+  int cnt = -1;
+  if (strlen(pprz_home) < sizeof(buf)) {
+    cnt = snprintf(buf, strlen(pprz_home) + 1, "%s", pprz_home);
+    rootdir = string(buf) + jsbsim_home;
+  }
+
+  // check the results
+  if (cnt < 0){
+    // Either pprz_home path too long for the buffer
+    // or writing the string was not successful.
+    cout << "PPRZ_HOME not set correctly, exiting..." << endl;
+    exit(-1);
+  }
 
   /* if jsbsim initial conditions are defined, use them
    * otherwise use flightplan location

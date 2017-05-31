@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Paparazzi Team
+ * Copyright (C) 2015 Freek van Tienen <freek.v.tienen@gmail.com>
  *
  * This file is part of paparazzi.
  *
@@ -25,90 +25,244 @@
  */
 
 #include "intermcu_fbw.h"
-#include "intermcu_msg.h"
+#include "pprzlink/intermcu_msg.h"
 #include "subsystems/radio_control.h"
+#include "subsystems/electrical.h"
 #include "mcu_periph/uart.h"
-#include "subsystems/datalink/pprz_transport.h"
+#include "modules/telemetry/telemetry_intermcu.h"
+
+
+#include "modules/spektrum_soft_bind/spektrum_soft_bind_fbw.h"
+
+#include BOARD_CONFIG
+#ifdef BOARD_PX4IO
+#include "libopencm3/cm3/scb.h"
+#include "led.h"
+#include "mcu_periph/sys_time.h"
+static uint8_t px4RebootSequence[] = {0x41, 0xd7, 0x32, 0x0a, 0x46, 0x39};
+static uint8_t px4RebootSequenceCount = 0;
+tid_t px4bl_tid; ///< id for time out of the px4 bootloader reset
+#endif
 
 #if RADIO_CONTROL_NB_CHANNEL > 8
 #undef RADIO_CONTROL_NB_CHANNEL
 #define RADIO_CONTROL_NB_CHANNEL 8
-#warning "INTERMCU UART WILL ONLY SEND 8 RADIO CHANNELS"
+INFO("InterMCU UART will only send 8 radio channels!")
 #endif
 
-// Used for communication
-static struct link_device *intermcu_device = (&((INTERMCU_LINK).device));
-static struct pprz_transport intermcu_transport;
+/* Main InterMCU structure */
+struct intermcu_t intermcu = {
+  .device = (&((INTERMCU_LINK).device)),
+  .enabled = true,
+  .msg_available = false
+};
+uint8_t imcu_msg_buf[128] __attribute__((aligned));  ///< The InterMCU message buffer
 
-struct intermcu_t inter_mcu;
 pprz_t intermcu_commands[COMMANDS_NB];
-static inline void intermcu_parse_msg(struct transport_rx *trans, void (*commands_frame_handler)(void));
+bool autopilot_motors_on = false;
+static void intermcu_parse_msg(void (*commands_frame_handler)(void));
+
+#ifdef BOARD_PX4IO
+static void checkPx4RebootCommand(unsigned char b);
+#endif
 
 void intermcu_init(void)
 {
-  pprz_transport_init(&intermcu_transport);
+  pprz_transport_init(&intermcu.transport);
+
+#ifdef BOARD_PX4IO
+  px4bl_tid = sys_time_register_timer(10.0, NULL);
+#endif
 }
 
 void intermcu_periodic(void)
 {
   /* Check for interMCU loss */
-  if (inter_mcu.time_since_last_frame >= INTERMCU_LOST_CNT) {
-    inter_mcu.status = INTERMCU_LOST;
+  if (intermcu.time_since_last_frame >= INTERMCU_LOST_CNT) {
+    intermcu.status = INTERMCU_LOST;
   } else {
-    inter_mcu.time_since_last_frame++;
+    intermcu.time_since_last_frame++;
   }
 }
 
-void intermcu_on_rc_frame(void)
+void intermcu_on_rc_frame(uint8_t fbw_mode)
 {
-  pprz_msg_send_IMCU_RADIO_COMMANDS(&(intermcu_transport.trans_tx), intermcu_device,
-                                    INTERMCU_FBW, 0, RADIO_CONTROL_NB_CHANNEL, radio_control.values); //TODO: Fix status
+  pprz_t  values[9];
+
+  values[INTERMCU_RADIO_THROTTLE] = radio_control.values[RADIO_THROTTLE];
+  values[INTERMCU_RADIO_ROLL] = radio_control.values[RADIO_ROLL];
+  values[INTERMCU_RADIO_PITCH] = radio_control.values[RADIO_PITCH];
+  values[INTERMCU_RADIO_YAW] = radio_control.values[RADIO_YAW];
+#ifdef RADIO_MODE
+  values[INTERMCU_RADIO_MODE] = radio_control.values[RADIO_MODE];
+#endif
+#ifdef RADIO_KILL_SWITCH
+  values[INTERMCU_RADIO_KILL_SWITCH] = radio_control.values[RADIO_KILL];
+#endif
+
+#if defined (RADIO_AUX1) && defined (RADIO_KILL_SWITCH)
+#warning "RC AUX1 and KILL_SWITCH are on the same channel."
+#endif
+
+#ifdef RADIO_AUX1
+  values[INTERMCU_RADIO_AUX1] = radio_control.values[RADIO_AUX1];
+#endif
+#ifdef RADIO_AUX2
+  values[INTERMCU_RADIO_AUX2] = radio_control.values[RADIO_AUX2];
+#endif
+#ifdef RADIO_AUX3
+  values[INTERMCU_RADIO_AUX3] = radio_control.values[RADIO_AUX3];
+#endif
+
+  pprz_msg_send_IMCU_RADIO_COMMANDS(&(intermcu.transport.trans_tx), intermcu.device,
+                                    INTERMCU_FBW, &fbw_mode, RADIO_CONTROL_NB_CHANNEL, values);
 }
 
 void intermcu_send_status(uint8_t mode)
 {
   // Send Status
-  (void)mode;
-  //FIXME
+  pprz_msg_send_IMCU_FBW_STATUS(&(intermcu.transport.trans_tx), intermcu.device, INTERMCU_FBW,
+                                &mode, &(radio_control.status), &(radio_control.frame_rate), &electrical.vsupply,
+                                &electrical.current);
 }
 
-static inline void intermcu_parse_msg(struct transport_rx *trans, void (*commands_frame_handler)(void))
+#pragma GCC diagnostic ignored "-Wcast-align"
+static void intermcu_parse_msg(void (*commands_frame_handler)(void))
 {
   /* Parse the Inter MCU message */
-  uint8_t msg_id = trans->payload[1];
+  uint8_t msg_id = imcu_msg_buf[1];
   switch (msg_id) {
     case DL_IMCU_COMMANDS: {
       uint8_t i;
-      uint8_t size = DL_IMCU_COMMANDS_values_length(trans->payload);
-      int16_t *new_commands = DL_IMCU_COMMANDS_values(trans->payload);
+      uint8_t size = DL_IMCU_COMMANDS_values_length(imcu_msg_buf);
+      int16_t *new_commands = DL_IMCU_COMMANDS_values(imcu_msg_buf);
+      intermcu.cmd_status |= DL_IMCU_COMMANDS_status(imcu_msg_buf);
+
+      // Read the autopilot status and then clear it
+      autopilot_motors_on = INTERMCU_GET_CMD_STATUS(INTERMCU_CMD_MOTORS_ON);
+      INTERMCU_CLR_CMD_STATUS(INTERMCU_CMD_MOTORS_ON)
+
       for (i = 0; i < size; i++) {
         intermcu_commands[i] = new_commands[i];
       }
 
-      inter_mcu.status = INTERMCU_OK;
-      inter_mcu.time_since_last_frame = 0;
+      intermcu.status = INTERMCU_OK;
+      intermcu.time_since_last_frame = 0;
       commands_frame_handler();
       break;
     }
+#if defined(TELEMETRY_INTERMCU_DEV)
+    case DL_IMCU_TELEMETRY: {
+      uint8_t id = DL_IMCU_TELEMETRY_msg_id(imcu_msg_buf);
+      uint8_t size = DL_IMCU_TELEMETRY_msg_length(imcu_msg_buf);
+      uint8_t *msg = DL_IMCU_TELEMETRY_msg(imcu_msg_buf);
+      telemetry_intermcu_on_msg(id, msg, size);
+      break;
+    }
+#endif
+#if defined(SPEKTRUM_HAS_SOFT_BIND_PIN) //TODO: make subscribable module parser
+    case DL_IMCU_SPEKTRUM_SOFT_BIND:
+      received_spektrum_soft_bind();
+      break;
+#endif
 
     default:
       break;
   }
-
-  // Set to receive another message
-  trans->msg_received = FALSE;
 }
+#pragma GCC diagnostic pop
 
 void InterMcuEvent(void (*frame_handler)(void))
 {
-  /* Parse incoming bytes */
-  if (intermcu_device->char_available(intermcu_device->periph)) {
-    while (intermcu_device->char_available(intermcu_device->periph) && !intermcu_transport.trans_rx.msg_received) {
-      parse_pprz(&intermcu_transport, intermcu_device->get_byte(intermcu_device->periph));
+  uint8_t i, c;
+
+  // Check if there are messages in the device
+  if (intermcu.device->char_available(intermcu.device->periph)) {
+    while (intermcu.device->char_available(intermcu.device->periph) && !intermcu.transport.trans_rx.msg_received) {
+      c = intermcu.device->get_byte(intermcu.device->periph);
+      parse_pprz(&intermcu.transport, c);
+
+#ifdef BOARD_PX4IO
+      // TODO: create a hook
+      checkPx4RebootCommand(c);
+#endif
     }
 
-    if (intermcu_transport.trans_rx.msg_received) {
-      intermcu_parse_msg(&(intermcu_transport.trans_rx), frame_handler);
+    // If we have a message copy it
+    if (intermcu.transport.trans_rx.msg_received) {
+      for (i = 0; i < intermcu.transport.trans_rx.payload_len; i++) {
+        imcu_msg_buf[i] = intermcu.transport.trans_rx.payload[i];
+      }
+
+      intermcu.msg_available = true;
+      intermcu.transport.trans_rx.msg_received = false;
+    }
+  }
+
+  if (intermcu.msg_available) {
+    intermcu_parse_msg(frame_handler);
+    intermcu.msg_available = false;
+  }
+}
+
+
+/* SOME STUFF FOR PX4IO BOOTLOADER (TODO: move this code) */
+#ifdef BOARD_PX4IO
+static void checkPx4RebootCommand(uint8_t b)
+{
+  if (intermcu.stable_px4_baud == CHANGING_BAUD && sys_time_check_and_ack_timer(px4bl_tid)) {
+    //to prevent a short intermcu comm loss, give some time to changing the baud
+    sys_time_cancel_timer(px4bl_tid);
+    intermcu.stable_px4_baud = PPRZ_BAUD;
+  } else if (intermcu.stable_px4_baud == PX4_BAUD) {
+
+    if (sys_time_check_and_ack_timer(px4bl_tid)) {
+      //time out the possibility to reboot to the px4 bootloader, to prevent unwanted restarts during flight
+      sys_time_cancel_timer(px4bl_tid);
+      //for unknown reasons, 1500000 baud does not work reliably after prolonged times.
+      //I suspect a temperature related issue, combined with the fbw f1 crystal which is out of specs
+      //After a initial period on 1500000, revert to 230400
+      //We still start at 1500000 to remain compatible with original PX4 firmware. (which always runs at 1500000)
+      uart_periph_set_baudrate(intermcu.device->periph, B230400);
+      intermcu.stable_px4_baud = CHANGING_BAUD;
+      px4bl_tid = sys_time_register_timer(1.0, NULL);
+      return;
+    }
+
+#ifdef SYS_TIME_LED
+    LED_ON(SYS_TIME_LED);
+#endif
+
+    if (b == px4RebootSequence[px4RebootSequenceCount]) {
+      px4RebootSequenceCount++;
+    } else {
+      px4RebootSequenceCount = 0;
+    }
+
+    if (px4RebootSequenceCount >= 6) { // 6 = length of rebootSequence + 1
+      px4RebootSequenceCount = 0; // should not be necessary...
+
+      //send some magic back
+      //this is the same as the Pixhawk IO code would send
+      intermcu.device->put_byte(intermcu.device->periph, 0, 0x00);
+      intermcu.device->put_byte(intermcu.device->periph, 0, 0xe5);
+      intermcu.device->put_byte(intermcu.device->periph, 0, 0x32);
+      intermcu.device->put_byte(intermcu.device->periph, 0, 0x0a);
+      intermcu.device->put_byte(intermcu.device->periph, 0,
+                                0x66); // dummy byte, seems to be necessary otherwise one byte is missing at the fmu side...
+
+      while (((struct uart_periph *)(intermcu.device->periph))->tx_running) {
+        // tx_running is volatile now, so LED_TOGGLE not necessary anymore
+#ifdef SYS_TIME_LED
+        LED_TOGGLE(SYS_TIME_LED);
+#endif
+      }
+
+#ifdef SYS_TIME_LED
+      LED_OFF(SYS_TIME_LED);
+#endif
+      scb_reset_system();
     }
   }
 }
+#endif

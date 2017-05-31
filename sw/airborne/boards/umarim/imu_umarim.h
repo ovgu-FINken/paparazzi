@@ -102,8 +102,8 @@
 #define IMU_ACCEL_Z_NEUTRAL 0
 #endif
 
-extern volatile bool_t gyr_valid;
-extern volatile bool_t acc_valid;
+extern volatile bool gyr_valid;
+extern volatile bool acc_valid;
 
 struct ImuUmarim {
   struct Itg3200 itg;
@@ -112,16 +112,9 @@ struct ImuUmarim {
 
 extern struct ImuUmarim imu_umarim;
 
-
-/* must be defined in order to be IMU code: declared in imu.h
-extern void imu_impl_init(void);
-extern void imu_periodic(void);
-*/
-
-/* Own Extra Functions */
+extern void imu_umarim_init(void);
+extern void imu_umarim_periodic(void);
 extern void imu_umarim_event(void);
 extern void imu_umarim_downlink_raw(void);
-
-#define ImuEvent imu_umarim_event
 
 #endif // PPZUAVIMU_H

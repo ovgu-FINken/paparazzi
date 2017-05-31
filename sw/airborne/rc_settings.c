@@ -40,13 +40,13 @@ float slider_1_val, slider_2_val;
 #define ParamValFloat(param_init_val, param_travel, cur_pulse, init_pulse) \
   (param_init_val + ((float)(cur_pulse - init_pulse)) * param_travel / (float)MAX_PPRZ)
 
-#define RcChannel(x) (fbw_state->channels[x])
+#define RcChannel(x) (imcu_get_radio(x))
 
 /** Includes generated code from tuning_rc.xml */
 #include "generated/settings.h"
 
 
-void rc_settings(bool_t mode_changed __attribute__((unused)))
+void rc_settings(bool mode_changed __attribute__((unused)))
 {
   RCSettings(mode_changed);
 }

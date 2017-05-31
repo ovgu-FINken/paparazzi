@@ -3,14 +3,17 @@
 
 #include "std.h"
 
-#define GPS_NB_CHANNELS 16
+#ifndef PRIMARY_GPS
+#define PRIMARY_GPS GPS_SIM
+#endif
 
-extern bool_t gps_has_fix;
+extern struct GpsState gps_nps;
+extern bool gps_has_fix;
 
 extern void gps_feed_value();
 
-extern void gps_impl_init();
+extern void gps_nps_init();
 
-#define GpsEvent() {}
+#define gps_nps_periodic_check() gps_periodic_check(&gps_nps)
 
 #endif /* GPS_SIM_NPS_H */

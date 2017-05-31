@@ -45,7 +45,7 @@
 #if FLOAT_DCM_SEND_DEBUG
 // FIXME Debugging Only
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #endif
 
@@ -99,7 +99,7 @@ static inline void set_dcm_matrix_from_rmat(struct FloatRMat *rmat)
 void ahrs_dcm_init(void)
 {
   ahrs_dcm.status = AHRS_DCM_UNINIT;
-  ahrs_dcm.is_aligned = FALSE;
+  ahrs_dcm.is_aligned = false;
 
   /* init ltp_to_imu euler with zero */
   FLOAT_EULERS_ZERO(ahrs_dcm.ltp_to_imu_euler);
@@ -112,12 +112,12 @@ void ahrs_dcm_init(void)
   ahrs_dcm.gps_speed = 0;
   ahrs_dcm.gps_acceleration = 0;
   ahrs_dcm.gps_course = 0;
-  ahrs_dcm.gps_course_valid = FALSE;
+  ahrs_dcm.gps_course_valid = false;
   ahrs_dcm.gps_age = 100;
 }
 
-bool_t ahrs_dcm_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
-                      struct Int32Vect3 *lp_mag)
+bool ahrs_dcm_align(struct FloatRates *lp_gyro, struct FloatVect3 *lp_accel,
+                      struct FloatVect3 *lp_mag)
 {
   /* Compute an initial orientation using euler angles */
   ahrs_float_get_euler_from_accel_mag(&ahrs_dcm.ltp_to_imu_euler, lp_accel, lp_mag);
@@ -130,25 +130,19 @@ bool_t ahrs_dcm_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
   set_dcm_matrix_from_rmat(&ltp_to_imu_rmat);
 
   /* use averaged gyro as initial value for bias */
-  struct Int32Rates bias0;
-  RATES_COPY(bias0, *lp_gyro);
-  RATES_FLOAT_OF_BFP(ahrs_dcm.gyro_bias, bias0);
+  ahrs_dcm.gyro_bias = *lp_gyro;
 
   ahrs_dcm.status = AHRS_DCM_RUNNING;
-  ahrs_dcm.is_aligned = TRUE;
+  ahrs_dcm.is_aligned = true;
 
-  return TRUE;
+  return true;
 }
 
 
-void ahrs_dcm_propagate(struct Int32Rates *gyro, float dt)
+void ahrs_dcm_propagate(struct FloatRates *gyro, float dt)
 {
-  /* convert imu data to floating point */
-  struct FloatRates gyro_float;
-  RATES_FLOAT_OF_BFP(gyro_float, *gyro);
-
   /* unbias rate measurement */
-  RATES_DIFF(ahrs_dcm.imu_rate, gyro_float, ahrs_dcm.gyro_bias);
+  RATES_DIFF(ahrs_dcm.imu_rate, *gyro, ahrs_dcm.gyro_bias);
 
   /* Uncouple Motions */
 #ifdef IMU_GYRO_P_Q
@@ -183,9 +177,9 @@ void ahrs_dcm_update_gps(struct GpsState *gps_s)
 
     if (gps_s->gspeed >= 500) { //got a 3d fix and ground speed is more than 5.0 m/s
       ahrs_dcm.gps_course = ((float)gps_s->course) / 1.e7;
-      ahrs_dcm.gps_course_valid = TRUE;
+      ahrs_dcm.gps_course_valid = true;
     } else {
-      ahrs_dcm.gps_course_valid = FALSE;
+      ahrs_dcm.gps_course_valid = false;
     }
   } else {
     ahrs_dcm.gps_age = 100;
@@ -197,15 +191,13 @@ void ahrs_dcm_update_gps(struct GpsState *gps_s)
 }
 
 
-void ahrs_dcm_update_accel(struct Int32Vect3 *accel)
+void ahrs_dcm_update_accel(struct FloatVect3 *accel)
 {
-  ACCELS_FLOAT_OF_BFP(accel_float, *accel);
-
   // DCM filter uses g-force as positive
   // accelerometer measures [0 0 -g] in a static case
-  accel_float.x = -accel_float.x;
-  accel_float.y = -accel_float.y;
-  accel_float.z = -accel_float.z;
+  accel_float.x = -accel->x;
+  accel_float.y = -accel->y;
+  accel_float.z = -accel->z;
 
 
   ahrs_dcm.gps_age ++;
@@ -226,12 +218,10 @@ void ahrs_dcm_update_accel(struct Int32Vect3 *accel)
 }
 
 
-void ahrs_dcm_update_mag(struct Int32Vect3 *mag)
+void ahrs_dcm_update_mag(struct FloatVect3 *mag)
 {
 #if USE_MAGNETOMETER
-#warning MAGNETOMETER FEEDBACK NOT TESTED YET
-
-  MAG_FLOAT_OF_BFP(mag_float, *mag);
+MESSAGE("MAGNETOMETER FEEDBACK NOT TESTED YET")
 
   float cos_roll;
   float sin_roll;
@@ -268,12 +258,12 @@ void ahrs_dcm_update_mag(struct Int32Vect3 *mag)
     Heading_Y = sin(Heading);
   */
 
+#if FLOAT_DCM_SEND_DEBUG
   struct FloatVect3 ltp_mag;
 
   ltp_mag.x = MAG_Heading_X;
   ltp_mag.y = MAG_Heading_Y;
 
-#if FLOAT_DCM_SEND_DEBUG
   // Downlink
   RunOnceEvery(10, DOWNLINK_SEND_IMU_MAG(DefaultChannel, DefaultDevice, &ltp_mag.x, &ltp_mag.y, &ltp_mag.z));
 #endif
@@ -292,7 +282,7 @@ void Normalize(void)
   float error = 0;
   float temporary[3][3];
   float renorm = 0;
-  uint8_t problem = FALSE;
+  uint8_t problem = false;
 
   // Find the non-orthogonality of X wrt Y
   error = -Vector_Dot_Product(&DCM_Matrix[0][0], &DCM_Matrix[1][0]) * .5; //eq.19
@@ -319,7 +309,7 @@ void Normalize(void)
     renorm_sqrt_count++;
 #endif
   } else {
-    problem = TRUE;
+    problem = true;
 #if PERFORMANCE_REPORTING == 1
     renorm_blowup_count++;
 #endif
@@ -336,7 +326,7 @@ void Normalize(void)
     renorm_sqrt_count++;
 #endif
   } else {
-    problem = TRUE;
+    problem = true;
 #if PERFORMANCE_REPORTING == 1
     renorm_blowup_count++;
 #endif
@@ -353,7 +343,7 @@ void Normalize(void)
     renorm_sqrt_count++;
 #endif
   } else {
-    problem = TRUE;
+    problem = true;
 #if PERFORMANCE_REPORTING == 1
     renorm_blowup_count++;
 #endif
@@ -363,7 +353,7 @@ void Normalize(void)
   // Reset on trouble
   if (problem) {                // Our solution is blowing up and we will force back to initial condition.  Hope we are not upside down!
     set_dcm_matrix_from_rmat(orientationGetRMat_f(&ahrs_dcm.body_to_imu));
-    problem = FALSE;
+    problem = false;
   }
 }
 
@@ -385,7 +375,7 @@ void Drift_correction()
   //*****Roll and Pitch***************
 
   // Calculate the magnitude of the accelerometer vector
-  Accel_magnitude = sqrt(accel_float.x * accel_float.x + accel_float.y * accel_float.y + accel_float.z * accel_float.z);
+  Accel_magnitude = sqrtf(accel_float.x * accel_float.x + accel_float.y * accel_float.y + accel_float.z * accel_float.z);
   Accel_magnitude = Accel_magnitude / GRAVITY; // Scale to gravity.
   // Dynamic weighting of accelerometer info (reliability filter)
   // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
@@ -442,11 +432,11 @@ void Drift_correction()
     Vector_Scale(&Scaled_Omega_I[0], &errorYaw[0], Ki_YAW);
     Vector_Add(Omega_I, Omega_I, Scaled_Omega_I); //adding integrator to the Omega_I
   }
-#if USE_MAGNETOMETER_ONGROUND == 1
+#if USE_MAGNETOMETER_ONGROUND
   PRINT_CONFIG_MSG("AHRS_FLOAT_DCM uses magnetometer prior to takeoff and GPS during flight")
   else if (launch == FALSE) {
-    float COGX = mag_float.x; // Non-Tilt-Compensated (for filter stability reasons)
-    float COGY = mag_float.y; // Non-Tilt-Compensated (for filter stability reasons)
+    float COGX = mag->x; // Non-Tilt-Compensated (for filter stability reasons)
+    float COGY = mag->y; // Non-Tilt-Compensated (for filter stability reasons)
 
     errorCourse = (DCM_Matrix[0][0] * COGY) - (DCM_Matrix[1][0] * COGX); //Calculating YAW error
     //Applys the yaw correction to the XYZ rotation of the aircraft, depeding the position.

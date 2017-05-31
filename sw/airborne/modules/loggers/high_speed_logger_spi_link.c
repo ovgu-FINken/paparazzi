@@ -25,10 +25,11 @@
 #include "subsystems/imu.h"
 #include "mcu_periph/spi.h"
 
+
 struct high_speed_logger_spi_link_data high_speed_logger_spi_link_data;
 struct spi_transaction high_speed_logger_spi_link_transaction;
 
-static volatile bool_t high_speed_logger_spi_link_ready = TRUE;
+static volatile bool high_speed_logger_spi_link_ready = true;
 
 static void high_speed_logger_spi_link_trans_cb(struct spi_transaction *trans);
 
@@ -53,8 +54,18 @@ void high_speed_logger_spi_link_init(void)
 
 void high_speed_logger_spi_link_periodic(void)
 {
+  // Static counter to identify missing samples
+  static int32_t counter = 0;
+
+  // count all periodic steps
+  counter ++;
+
+  // only send a new message if the previous was completely sent
   if (high_speed_logger_spi_link_ready) {
-    high_speed_logger_spi_link_ready = FALSE;
+    // copy the counter into the SPI datablock
+    high_speed_logger_spi_link_data.id = counter;
+
+    high_speed_logger_spi_link_ready = false;
     high_speed_logger_spi_link_data.gyro_p     = imu.gyro_unscaled.p;
     high_speed_logger_spi_link_data.gyro_q     = imu.gyro_unscaled.q;
     high_speed_logger_spi_link_data.gyro_r     = imu.gyro_unscaled.r;
@@ -67,13 +78,11 @@ void high_speed_logger_spi_link_periodic(void)
 
     spi_submit(&(HIGH_SPEED_LOGGER_SPI_LINK_DEVICE), &high_speed_logger_spi_link_transaction);
   }
-
-  high_speed_logger_spi_link_data.id++;
 }
 
 static void high_speed_logger_spi_link_trans_cb(struct spi_transaction *trans __attribute__((unused)))
 {
-  high_speed_logger_spi_link_ready = TRUE;
+  high_speed_logger_spi_link_ready = true;
 }
 
 

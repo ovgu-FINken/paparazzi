@@ -186,12 +186,12 @@ unit_t nav_drop_compute_approach(uint8_t wp_target, uint8_t wp_start, uint8_t wp
 
 unit_t nav_drop_shoot(void)
 {
-  ap_state->commands[COMMAND_HATCH] = MAX_PPRZ;
+  imcu_set_command(COMMAND_HATCH, MAX_PPRZ);
   return 0;
 }
 
 /* Compute start and end waypoints to be aligned on w1-w2 */
-bool_t compute_alignment(uint8_t w1, uint8_t w2, uint8_t wp_before, uint8_t wp_after, float d_before, float d_after)
+bool compute_alignment(uint8_t w1, uint8_t w2, uint8_t wp_before, uint8_t wp_after, float d_before, float d_after)
 {
   float x_0 = waypoints[w2].x - waypoints[w1].x;
   float y_0 = waypoints[w2].y - waypoints[w1].y;
@@ -206,7 +206,7 @@ bool_t compute_alignment(uint8_t w1, uint8_t w2, uint8_t wp_before, uint8_t wp_a
   waypoints[wp_after].x = waypoints[w2].x + d_after * x_0;
   waypoints[wp_after].y = waypoints[w2].y + d_after * y_0;
 
-  return FALSE;
+  return false;
 }
 
 #endif /* WP_RELEASE */

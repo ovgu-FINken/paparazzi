@@ -47,8 +47,6 @@ else
   $(TARGET).CFLAGS 	+= -DWIND_INFO
 endif
 
-$(TARGET).CFLAGS 	+= -DTRAFFIC_INFO
-
 #
 # frequencies
 #
@@ -113,13 +111,16 @@ ifeq ($(ARCH), stm32)
   ns_srcs       += $(SRC_ARCH)/mcu_periph/gpio_arch.c
 endif
 
+ifeq ($(ARCH), chibios)
+  ns_srcs       += $(SRC_ARCH)/mcu_periph/gpio_arch.c
+endif
+
 
 #
 # Main
 #
-ifeq ($(RTOS), chibios-libopencm3)
- ns_srcs += $(SRC_FIRMWARE)/main_chibios_libopencm3.c
- ns_srcs += $(SRC_FIRMWARE)/chibios-libopencm3/chibios_init.c
+ifeq ($(RTOS), chibios)
+ ns_srcs += $(SRC_FIRMWARE)/main_chibios.c
 else
  ns_srcs += $(SRC_FIRMWARE)/main.c
 endif
@@ -132,7 +133,7 @@ ns_CFLAGS 		+= -DUSE_LED
 ifneq ($(SYS_TIME_LED),none)
   ns_CFLAGS 	+= -DSYS_TIME_LED=$(SYS_TIME_LED)
 endif
-ifneq ($(ARCH), lpc21)
+ifeq ($(ARCH), $(filter $(ARCH), stm32 sim))
   ns_srcs 	+= $(SRC_ARCH)/led_hw.c
 endif
 
@@ -196,7 +197,7 @@ sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
 sim.CFLAGS 		+= -DDOWNLINK -DPERIODIC_TELEMETRY -DDOWNLINK_TRANSPORT=ivy_tp -DDOWNLINK_DEVICE=ivy_tp
-sim.srcs 		+= subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c subsystems/datalink/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
+sim.srcs 		+= subsystems/datalink/downlink.c subsystems/datalink/datalink.c $(SRC_FIRMWARE)/fixedwing_datalink.c pprzlink/src/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c
 
@@ -212,14 +213,11 @@ sim.srcs        += $(SRC_ARCH)/sim_ahrs.c $(SRC_ARCH)/sim_ir.c
 # SINGLE MCU / DUAL MCU
 #
 
-ifeq ($(BOARD),classix)
-  include $(CFG_FIXEDWING)/intermcu_spi.makefile
-else
-  # Single MCU's run both
-  ifeq ($(SEPARATE_FBW),)
-    ap.CFLAGS 		+= $(fbw_CFLAGS)
-    ap.srcs 		+= $(fbw_srcs)
-  endif
+
+# Single MCU's run both
+ifeq ($(SEPARATE_FBW),)
+  ap.CFLAGS 		+= $(fbw_CFLAGS)
+  ap.srcs 		+= $(fbw_srcs)
 endif
 
 #
@@ -231,3 +229,16 @@ fbw.srcs 		+= $(fbw_srcs) $(ns_srcs)
 
 ap.CFLAGS 		+= $(ap_CFLAGS) $(ns_CFLAGS)
 ap.srcs 		+= $(ap_srcs) $(ns_srcs)
+
+######################################################################
+##
+## include firmware independent nps makefile and add fixedwing specifics
+##
+include $(CFG_SHARED)/nps.makefile
+nps.srcs += nps/nps_autopilot_fixedwing.c
+nps.srcs += subsystems/datalink/datalink.c $(SRC_FIRMWARE)/fixedwing_datalink.c
+nps.srcs += $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
+
+# add normal ap and fbw sources
+nps.CFLAGS  += $(fbw_CFLAGS) $(ap_CFLAGS)
+nps.srcs    += $(fbw_srcs) $(ap_srcs)

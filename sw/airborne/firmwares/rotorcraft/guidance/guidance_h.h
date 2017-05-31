@@ -68,8 +68,10 @@ struct HorizontalGuidanceSetpoint {
    *  accuracy 0.0039, range 8388km
    */
   struct Int32Vect2 pos;
-  struct Int32Vect2 speed;  ///< only used if GUIDANCE_H_USE_SPEED_REF
+  struct Int32Vect2 speed;  ///< only used in HOVER mode if GUIDANCE_H_USE_SPEED_REF or in GUIDED mode
   int32_t heading;          ///< with #INT32_ANGLE_FRAC
+  int32_t heading_rate;     ///< with #INT32_RATE_FRAC
+  uint8_t mask;             ///< bit 5: vx & vy, bit 6: vz, bit 7: vyaw
 };
 
 struct HorizontalGuidanceReference {
@@ -89,8 +91,8 @@ struct HorizontalGuidanceGains {
 struct HorizontalGuidance {
   uint8_t mode;
   /* configuration options */
-  bool_t use_ref;
-  bool_t approx_force_by_thrust;
+  bool use_ref;
+  bool approx_force_by_thrust;
   /* gains */
   struct HorizontalGuidanceGains gains;
 
@@ -107,8 +109,8 @@ extern int32_t transition_theta_offset;
 
 extern void guidance_h_init(void);
 extern void guidance_h_mode_changed(uint8_t new_mode);
-extern void guidance_h_read_rc(bool_t in_flight);
-extern void guidance_h_run(bool_t in_flight);
+extern void guidance_h_read_rc(bool in_flight);
+extern void guidance_h_run(bool in_flight);
 
 extern void guidance_h_set_igain(uint32_t igain);
 
@@ -117,13 +119,39 @@ extern void guidance_h_set_igain(uint32_t igain);
  * @param y East position (local NED frame) in meters.
  * @return TRUE if setpoints were set (currently in GUIDANCE_H_MODE_GUIDED)
  */
-bool_t guidance_h_set_guided_pos(float x, float y);
+extern bool guidance_h_set_guided_pos(float x, float y);
 
 /** Set heading setpoint in GUIDED mode.
  * @param heading Setpoint in radians.
  * @return TRUE if setpoint was set (currently in GUIDANCE_H_MODE_GUIDED)
  */
-bool_t guidance_h_set_guided_heading(float heading);
+extern bool guidance_h_set_guided_heading(float heading);
+
+/** Set body relative horizontal velocity setpoint in GUIDED mode.
+ * @param vx forward velocity (body frame) in meters/sec.
+ * @param vy right velocity (body frame) in meters/sec.
+ * @return TRUE if setpoints were set (currently in GUIDANCE_H_MODE_GUIDED)
+ */
+extern bool guidance_h_set_guided_body_vel(float vx, float vy);
+
+/** Set horizontal velocity setpoint in GUIDED mode.
+ * @param vx North velocity (local NED frame) in meters/sec.
+ * @param vy East velocity (local NED frame) in meters/sec.
+ * @return TRUE if setpoints were set (currently in GUIDANCE_H_MODE_GUIDED)
+ */
+extern bool guidance_h_set_guided_vel(float vx, float vy);
+
+/** Set heading rate setpoint in GUIDED mode.
+ * @param rate Heading rate in radians.
+ * @return TRUE if setpoints were set (currently in GUIDANCE_H_MODE_GUIDED)
+ */
+extern bool guidance_h_set_guided_heading_rate(float rate);
+
+/** Gets the position error
+ * @param none.
+ * @return Pointer to a structure containing x and y position errors
+ */
+extern const struct Int32Vect2 *guidance_h_get_pos_err(void);
 
 /* Make sure that ref can only be temporarily disabled for testing,
  * but not enabled if GUIDANCE_H_USE_REF was defined to FALSE.

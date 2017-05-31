@@ -45,8 +45,8 @@
     <let var="hover_left"  value="3*$aileron_feedback_left"/>
     <let var="hover_right" value="3*$aileron_feedback_right"/>
 
-    <let var="forward_left"  value="6*$aileron_feedback_left+4*$elevator_feedback_left"/>
-    <let var="forward_right" value="6*$aileron_feedback_right+4*$elevator_feedback_right"/>
+    <let var="forward_left"  value="1*$aileron_feedback_left+4*$elevator_feedback_left"/>
+    <let var="forward_right" value="1*$aileron_feedback_right+4*$elevator_feedback_right"/>
 
     <!-- This statement tells the autopilot to use the hover feedback if in mode attitude direct and to use the forward feedback in all other cases-->
     <set servo="ELEVON_LEFT"    value="AP_MODE == AP_MODE_ATTITUDE_DIRECT ? $hover_left  : $forward_left" />
@@ -104,23 +104,10 @@
   </section>
 
   <section name="BAT">
-    <define name="MIN_BAT_LEVEL" value="10.4" units="V"/>
-    <define name="CATASTROPHIC_BAT_LEVEL" value="9.3" unit="V"/>
+    <define name="MIN_BAT_LEVEL" value="10.9" units="V"/>
+    <define name="CATASTROPHIC_BAT_LEVEL" value="10.3" unit="V"/>
   </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <define name="SP_MAX_P" value="140" unit="deg/s"/>
-    <define name="SP_MAX_Q" value="140" unit="deg/s"/>
-    <define name="SP_MAX_R" value="140" unit="deg/s"/>
-
-    <define name="GAIN_P" value="350"/>
-    <define name="GAIN_Q" value="250"/>
-    <define name="GAIN_R" value="350"/>
-
-    <define name="IGAIN_P" value="200"/>
-    <define name="IGAIN_Q" value="200"/>
-    <define name="IGAIN_R" value="200"/>
-  </section>
 
   <!-- These gains are used when the gain scheduling module is enabled (by loading it in the modules section)-->
   <section name ="GAIN_SETS">
@@ -232,6 +219,7 @@
   </section>
 
   <section name="AHRS" prefix="AHRS_">
+    <define name="GRAVITY_HEURISTIC_FACTOR" value="0"/>
     <define name="H_X" value=" 0.47577"/>
     <define name="H_Y" value=" 0.11811"/>
     <define name="H_Z" value=" 0.87161"/>
@@ -249,31 +237,30 @@
     <!--The Quadshot uses a slightly different axis system for the setpoint, to make both hovering and flying forward intuitive-->
     <define name="USE_EARTH_BOUND_RC_SETPOINT" value="TRUE"/>
     <!-- This is the pitch angle that the Quadshot will have in forward flight, where 0 degrees is hover-->
-    <define name="TRANSITION_MAX_OFFSET" value="-82.0" unit="deg"/>
+    <define name="TRANSITION_MAX_OFFSET" value="-80.0" unit="deg"/>
     <define name="NO_RC_THRUST_LIMIT" value="TRUE"/>
-<!--     <define name="RADIO_CONTROL_SPEKTRUM_SIGNS" value=" {1,1,-1,-1,1,-1,1,1,1,1,1,1}"/> -->
   </section>
 
   <modules main_freq="512">
-    <load name="gps_ubx_ucenter.xml"/>
+    <module name="gps" type="ubx_ucenter"/>
 
     <!-- The the led_safety_status module will make the Quadshot LEDs blink in certain patterns when there are safety violations-->
-    <load name="led_safety_status.xml">
+    <module name="led_safety_status">
       <define name="USE_LED_BODY" value="1"/>
       <define name="SAFETY_WARNING_LED" value="BODY"/>
-    </load>
+    </module>
 
     <!-- Load this module to use multiple gain sets, which have to be specified in the gain sets section -->
-    <!--load name="gain_scheduling.xml"/-->
+    <!--module name="gain_scheduling"/-->
   </modules>
 
   <firmware name="rotorcraft">
     <target name="ap" board="lisa_m_2.0">
-      <subsystem name="radio_control" type="spektrum">
+      <module name="radio_control" type="spektrum">
         <!-- Put the mode on channel AUX1-->
-        <define name="RADIO_KILL_SWITCH" value="6"/>
+        <define name="RADIO_KILL_SWITCH" value="5"/>
         <!--       <configure name="USE_SECONDARY_SPEKTRUM_RECEIVER" value="1"/> -->
-      </subsystem>
+      </module>
 
       <configure name="FLASH_MODE"   value="SWD"/>
 
@@ -283,23 +270,24 @@
       <configure name="LISA_M_BARO" value="BARO_MS5611_SPI"/>
     </target>
 
-    <subsystem name="motor_mixing"/>
-    <subsystem name="actuators"     type="pwm">
+    <module name="motor_mixing"/>
+    <module name="actuators"     type="pwm">
       <define name="SERVO_HZ" value="400"/>
-    </subsystem>
-    <subsystem name="actuators"     type="asctec_v2_new"/>
+    </module>
+    <module name="actuators"     type="asctec_v2_new"/>
 
-    <subsystem name="telemetry"     type="xbee_api"/>
-<!--     <subsystem name="telemetry"     type="transparent"/> -->
-    <subsystem name="imu"           type="aspirin_v2.2"/>
-    <subsystem name="gps"           type="ublox"/>
-    <subsystem name="stabilization" type="indi"/>
+    <module name="telemetry"     type="xbee_api"/>
+<!--     <module name="telemetry"     type="transparent"/> -->
+    <module name="imu"           type="aspirin_v2.2"/>
+    <module name="gps"           type="ublox"/>
+    <module name="stabilization" type="indi"/>
+    <module name="stabilization" type="rate_indi"/>
 
-    <subsystem name="ahrs"          type="int_cmpl_quat">
+    <module name="ahrs"          type="int_cmpl_quat">
       <configure name="USE_MAGNETOMETER" value="TRUE"/>
       <!--define name="AHRS_GRAVITY_UPDATE_COORDINATED_TURN" value="TRUE"/-->
-    </subsystem>
+    </module>
 
-    <subsystem name="ins"/>
+    <module name="ins"/>
   </firmware>
 </airframe>

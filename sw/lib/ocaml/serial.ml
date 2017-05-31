@@ -24,6 +24,7 @@
 
 open Printf
 
+
 type speed =
     B0
   | B50
@@ -44,6 +45,9 @@ type speed =
   | B57600
   | B115200
   | B230400
+  | B921600
+  | B1500000
+  | B3000000
 
 let speed_of_baudrate = fun baudrate ->
   match baudrate with
@@ -66,13 +70,10 @@ let speed_of_baudrate = fun baudrate ->
     | "57600" -> B57600
     | "115200" -> B115200
     | "230400" -> B230400
+    | "921600" -> B921600
+    | "1500000" -> B1500000
+    | "3000000" -> B3000000
     | _ -> invalid_arg "Serial.speed_of_baudrate"
-
-
-type payload = string
-
-let string_of_payload = fun x -> x
-let payload_of_string = fun x -> x
 
 
 external init_serial : string -> speed -> bool -> Unix.file_descr = "c_init_serial"
@@ -93,11 +94,11 @@ type 'a closure = Closure of 'a
 (*let buffer_len = 256 *)
 let buffer_len = 2048
 let input = fun ?(read = Unix.read) f ->
-  let buffer = String.create buffer_len
+  let buffer = Compat.bytes_create buffer_len
   and index = ref 0 in
 
   let wait = fun start n ->
-    String.blit buffer start buffer 0 n;
+    Compat.bytes_blit buffer start buffer 0 n;
     index := n in
 
   Closure (fun fd ->
@@ -108,7 +109,7 @@ let input = fun ?(read = Unix.read) f ->
     Debug.call 'T' (fun f -> fprintf f "input: %d %d\n" !index n);
     let rec parse = fun start n ->
       Debug.call 'T' (fun f -> fprintf f "input parse: %d %d\n" start n);
-      let nb_used = f (String.sub buffer start n) in
+      let nb_used = f (Compat.bytes_sub buffer start n) in
       (*  Printf.fprintf stderr "n'=%d\n" nb_used; flush stderr; *)
       if nb_used > 0 then
         parse (start + nb_used) (n - nb_used)
@@ -119,58 +120,3 @@ let input = fun ?(read = Unix.read) f ->
       else
         wait start n in
     parse 0 n)
-
-
-exception Not_enough
-
-module type PROTOCOL = sig
-  val index_start : string -> int (* raise Not_found *)
-  val length : string -> int -> int (* raise Not_enough *)
-  val checksum : string -> bool
-  val payload : string -> payload
-  val packet : payload -> string
-end
-
-module Transport(Protocol:PROTOCOL) = struct
-  let nb_err = ref 0
-  let discarded_bytes = ref 0
-  let rec parse = fun use buf ->
-    Debug.call 'T' (fun f -> fprintf f "Transport.parse: %s\n" (Debug.xprint buf));
-    (** ref required due to Not_enough exception raised by Protocol.length *)
-    let start = ref 0
-    and n = String.length buf in
-    try
-      (* Looks for the beginning of the frame. May raise Not_found exception *)
-      start := Protocol.index_start buf;
-
-      (* Discards skipped characters *)
-      discarded_bytes := !discarded_bytes + !start;
-
-      (* Get length of the frame (may raise Not_enough exception) *)
-      let length = Protocol.length buf !start in
-      let end_ = !start + length in
-
-      (* Checks if the complete frame is available in the buffer. *)
-      if n < end_ then
-        raise Not_enough;
-
-      (* Extracts the complete frame *)
-      let msg = String.sub buf !start length in
-
-      (* Checks sum *)
-      if Protocol.checksum msg then begin
-        (* Calls the handler with the message *)
-        use (Protocol.payload msg)
-      end else begin
-        (* Reports the error *)
-        incr nb_err;
-        discarded_bytes := !discarded_bytes + length;
-        Debug.call 'T' (fun f -> fprintf f "Transport.chk: %s\n" (Debug.xprint msg))
-      end;
-
-      (* Continues with the rest of the message *)
-      end_ + parse use (String.sub buf end_ (String.length buf - end_))
-    with
-        Not_found -> String.length buf
-      | Not_enough -> !start
-end

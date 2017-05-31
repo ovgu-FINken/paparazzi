@@ -69,7 +69,7 @@ PRINT_CONFIG_VAR(IMU_MPU_ACCEL_RANGE)
 
 struct ImuMpu6000 imu_mpu_spi;
 
-void imu_impl_init(void)
+void imu_mpu_spi_init(void)
 {
   mpu60x0_spi_init(&imu_mpu_spi.mpu, &IMU_MPU_SPI_DEV, IMU_MPU_SPI_SLAVE_IDX);
   // change the default configuration
@@ -80,7 +80,7 @@ void imu_impl_init(void)
 }
 
 
-void imu_periodic(void)
+void imu_mpu_spi_periodic(void)
 {
   mpu60x0_spi_periodic(&imu_mpu_spi.mpu);
 }
@@ -92,7 +92,7 @@ void imu_mpu_spi_event(void)
     uint32_t now_ts = get_sys_time_usec();
     RATES_COPY(imu.gyro_unscaled, imu_mpu_spi.mpu.data_rates.rates);
     VECT3_COPY(imu.accel_unscaled, imu_mpu_spi.mpu.data_accel.vect);
-    imu_mpu_spi.mpu.data_available = FALSE;
+    imu_mpu_spi.mpu.data_available = false;
     imu_scale_gyro(&imu);
     imu_scale_accel(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_MPU6000_ID, now_ts, &imu.gyro);

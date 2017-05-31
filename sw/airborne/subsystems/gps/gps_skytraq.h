@@ -26,6 +26,10 @@
 
 #define SKYTRAQ_ID_NAVIGATION_DATA 0XA8
 
+#ifndef PRIMARY_GPS
+#define PRIMARY_GPS GPS_SKYTRAQ
+#endif
+
 /* last error type */
 enum GpsSkytraqError {
   GPS_SKYTRAQ_ERR_NONE = 0,
@@ -39,7 +43,7 @@ enum GpsSkytraqError {
 #define GPS_SKYTRAQ_MAX_PAYLOAD 255
 struct GpsSkytraq {
   uint8_t msg_buf[GPS_SKYTRAQ_MAX_PAYLOAD];
-  bool_t  msg_available;
+  bool  msg_available;
   uint8_t msg_id;
 
   uint8_t status;
@@ -50,30 +54,15 @@ struct GpsSkytraq {
   enum GpsSkytraqError error_last;
 
   struct LtpDef_i ref_ltp;
+
+  struct GpsState state;
 };
 
 extern struct GpsSkytraq gps_skytraq;
 
+extern void gps_skytraq_init(void);
+extern void gps_skytraq_event(void);
 
-/*
- * This part is used by the autopilot to read data from a uart
- */
-#include "mcu_periph/link_device.h"
-
-extern void gps_skytraq_read_message(void);
-extern void gps_skytraq_parse(uint8_t c);
-extern void gps_skytraq_msg(void);
-
-static inline void GpsEvent(void)
-{
-  struct link_device *dev = &((GPS_LINK).device);
-
-  while (dev->char_available(dev->periph)) {
-    gps_skytraq_parse(dev->get_byte(dev->periph));
-    if (gps_skytraq.msg_available) {
-      gps_skytraq_msg();
-    }
-  }
-}
+#define gps_skytraq_periodic_check() gps_periodic_check(&gps_skytraq.state)
 
 #endif /* GPS_SKYTRAQ_H */

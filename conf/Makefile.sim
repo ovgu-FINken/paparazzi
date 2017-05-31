@@ -33,7 +33,7 @@ CC = gcc
 SIMDIR = $(PAPARAZZI_SRC)/sw/simulator
 CAMLINCLUDES = -I $(LIBPPRZDIR) -I $(SIMDIR) -I $(OBJDIR)
 PKG = -package glibivy,pprz
-LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz
+LINKPKG = $(PKG) -linkpkg -dllpath-pkg pprz,pprzlink
 SIMSITLML = $(OBJDIR)/simsitl.ml
 SITLCMA = $(SIMDIR)/sitl.cma
 OPT ?= 2
@@ -50,14 +50,15 @@ INCLUDES += -I $(shell $(OCAMLC) -where)
 CFLAGS  = -W -Wall
 CFLAGS += $(INCLUDES)
 CFLAGS += $($(TARGET).CFLAGS)
-CFLAGS += $(USER_CFLAGS)
+CFLAGS += $(USER_CFLAGS) $(BOARD_CFLAGS)
 CFLAGS += -fPIC
 CFLAGS += -O$(OPT)
 CFLAGS += -g
 CFLAGS += -std=gnu99
 CFLAGS += $(shell pkg-config --cflags-only-I ivy-glib)
 
-LDFLAGS		=	-lm
+LDFLAGS	 =	-lm
+LDFLAGS += $(BOARD_LDFLAGS)
 
 LIBFLAGS = -shared
 

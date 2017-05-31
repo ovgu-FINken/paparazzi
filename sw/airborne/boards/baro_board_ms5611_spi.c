@@ -36,7 +36,7 @@
 #include "subsystems/abi.h"
 
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 #ifdef BARO_PERIODIC_FREQUENCY
@@ -94,7 +94,7 @@ void baro_event(void)
       AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
       float temp = bb_ms5611.data.temperature / 100.0f;
       AbiSendMsgTEMPERATURE(BARO_BOARD_SENDER_ID, temp);
-      bb_ms5611.data_available = FALSE;
+      bb_ms5611.data_available = false;
 
 #ifdef BARO_LED
       RunOnceEvery(10, LED_TOGGLE(BARO_LED));

@@ -27,15 +27,15 @@
 
 #define ADS8344_NB_CHANNELS 8
 extern uint16_t ADS8344_values[ADS8344_NB_CHANNELS];
-extern volatile bool_t ADS8344_available;
+extern volatile bool ADS8344_available;
 
 /* underlying architecture */
 #include "subsystems/imu/imu_crista_arch.h"
 /* must be defined by underlying architecture */
 extern void imu_crista_arch_init(void);
 
+extern void imu_christa_init(void);
+extern void imu_christa_periodic(void);
 extern void imu_christa_event(void);
-
-#define ImuEvent imu_christa_event
 
 #endif /* IMU_CRISTA_H */

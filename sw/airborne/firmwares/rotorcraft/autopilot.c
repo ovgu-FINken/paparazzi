@@ -30,6 +30,7 @@
 #include "firmwares/rotorcraft/autopilot.h"
 
 #include "mcu_periph/uart.h"
+#include "mcu_periph/sys_time.h"
 #include "subsystems/radio_control.h"
 #include "subsystems/commands.h"
 #include "subsystems/actuators.h"
@@ -41,8 +42,11 @@
 
 #include "firmwares/rotorcraft/stabilization.h"
 #include "firmwares/rotorcraft/stabilization/stabilization_none.h"
-#include "firmwares/rotorcraft/stabilization/stabilization_rate.h"
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude.h"
+
+#if USE_STABILIZATION_RATE
+#include "firmwares/rotorcraft/stabilization/stabilization_rate.h"
+#endif
 
 #include "generated/settings.h"
 
@@ -65,18 +69,21 @@
 uint8_t  autopilot_mode;
 uint8_t  autopilot_mode_auto2;
 
-bool_t   autopilot_in_flight;
+bool   autopilot_in_flight;
 uint32_t autopilot_in_flight_counter;
 uint16_t autopilot_flight_time;
 
-bool_t   autopilot_motors_on;
-bool_t   kill_throttle;
+bool   autopilot_motors_on;
+bool   kill_throttle;
 
-bool_t   autopilot_rc;
-bool_t   autopilot_power_switch;
+bool   autopilot_rc;
+bool   autopilot_power_switch;
 
-bool_t   autopilot_ground_detected;
-bool_t   autopilot_detect_ground_once;
+bool   autopilot_ground_detected;
+bool   autopilot_detect_ground_once;
+
+/* Geofence exceptions */
+#include "modules/nav/nav_geofence.h"
 
 /** time steps for in_flight detection (at 20Hz, so 20=1second) */
 #ifndef AUTOPILOT_IN_FLIGHT_TIME
@@ -107,7 +114,7 @@ static inline int ahrs_is_aligned(void)
 PRINT_CONFIG_MSG("Using AUTOPILOT_DISABLE_AHRS_KILL")
 static inline int ahrs_is_aligned(void)
 {
-  return TRUE;
+  return true;
 }
 #endif
 
@@ -190,12 +197,13 @@ static void send_status(struct transport_tx *trans, struct link_device *dev)
 #else
   uint8_t fix = 0;
 #endif
+  uint8_t in_flight = autopilot_in_flight;
+  uint8_t motors_on = autopilot_motors_on;
   uint16_t time_sec = sys_time.nb_sec;
   pprz_msg_send_ROTORCRAFT_STATUS(trans, dev, AC_ID,
                                   &imu_nb_err, &_motor_nb_err,
                                   &radio_control.status, &radio_control.frame_rate,
-                                  &fix, &autopilot_mode,
-                                  &autopilot_in_flight, &autopilot_motors_on,
+                                  &fix, &autopilot_mode, &in_flight, &motors_on,
                                   &guidance_h.mode, &guidance_v_mode,
                                   &electrical.vsupply, &time_sec);
 }
@@ -283,16 +291,16 @@ void autopilot_init(void)
 {
   /* mode is finally set at end of init if MODE_STARTUP is not KILL */
   autopilot_mode = AP_MODE_KILL;
-  autopilot_motors_on = FALSE;
+  autopilot_motors_on = false;
   kill_throttle = ! autopilot_motors_on;
-  autopilot_in_flight = FALSE;
+  autopilot_in_flight = false;
   autopilot_in_flight_counter = 0;
   autopilot_mode_auto2 = MODE_AUTO2;
-  autopilot_ground_detected = FALSE;
-  autopilot_detect_ground_once = FALSE;
+  autopilot_ground_detected = false;
+  autopilot_detect_ground_once = false;
   autopilot_flight_time = 0;
-  autopilot_rc = TRUE;
-  autopilot_power_switch = FALSE;
+  autopilot_rc = true;
+  autopilot_power_switch = false;
 #ifdef POWER_SWITCH_GPIO
   gpio_setup_output(POWER_SWITCH_GPIO);
   gpio_clear(POWER_SWITCH_GPIO); // POWER OFF
@@ -306,7 +314,9 @@ void autopilot_init(void)
 
   stabilization_init();
   stabilization_none_init();
+#if USE_STABILIZATION_RATE
   stabilization_rate_init();
+#endif
   stabilization_attitude_init();
 
   /* set startup mode, propagates through to guidance h/v */
@@ -337,7 +347,7 @@ void autopilot_periodic(void)
   RunOnceEvery(NAV_PRESCALER, compute_dist2_to_home());
 
   if (autopilot_in_flight && autopilot_mode == AP_MODE_NAV) {
-    if (too_far_from_home) {
+    if (too_far_from_home || datalink_lost() || higher_than_max_altitude()) {
       if (dist2_to_home > failsafe_mode_dist2) {
         autopilot_set_mode(FAILSAFE_MODE_TOO_FAR_FROM_HOME);
       } else {
@@ -373,8 +383,8 @@ void autopilot_periodic(void)
   /* Reset ground detection _after_ running flight plan
    */
   if (!autopilot_in_flight) {
-    autopilot_ground_detected = FALSE;
-    autopilot_detect_ground_once = FALSE;
+    autopilot_ground_detected = false;
+    autopilot_detect_ground_once = false;
   }
 
   /* Set fixed "failsafe" commands from airframe file if in KILL mode.
@@ -389,6 +399,25 @@ void autopilot_periodic(void)
     SetRotorcraftCommands(stabilization_cmd, autopilot_in_flight, autopilot_motors_on);
   }
 
+}
+
+/** AP mode setting handler
+ *
+ * Checks RC status before calling autopilot_set_mode function
+ */
+void autopilot_SetModeHandler(float mode)
+{
+  if (mode == AP_MODE_KILL || mode == AP_MODE_FAILSAFE || mode == AP_MODE_HOME) {
+    // safety modes are always accessible via settings
+    autopilot_set_mode(mode);
+  } else {
+    if (radio_control.status != RC_OK &&
+        (mode == AP_MODE_NAV || mode == AP_MODE_GUIDED || mode == AP_MODE_FLIP || mode == AP_MODE_MODULE)) {
+      // without RC, only nav-like modes are accessible
+      autopilot_set_mode(mode);
+    }
+  }
+  // with RC, other modes can only be changed from the RC
 }
 
 
@@ -410,16 +439,21 @@ void autopilot_set_mode(uint8_t new_autopilot_mode)
         break;
 #endif
       case AP_MODE_KILL:
-        autopilot_in_flight = FALSE;
+        autopilot_in_flight = false;
         autopilot_in_flight_counter = 0;
         guidance_h_mode_changed(GUIDANCE_H_MODE_KILL);
         break;
       case AP_MODE_RC_DIRECT:
         guidance_h_mode_changed(GUIDANCE_H_MODE_RC_DIRECT);
         break;
+      case AP_MODE_RATE_RC_CLIMB:
       case AP_MODE_RATE_DIRECT:
       case AP_MODE_RATE_Z_HOLD:
+#if USE_STABILIZATION_RATE
         guidance_h_mode_changed(GUIDANCE_H_MODE_RATE);
+#else
+        return;
+#endif
         break;
       case AP_MODE_ATTITUDE_RC_CLIMB:
       case AP_MODE_ATTITUDE_DIRECT:
@@ -508,23 +542,23 @@ void autopilot_set_mode(uint8_t new_autopilot_mode)
       default:
         break;
     }
+    //if switching to rate mode but rate mode is not defined, the function returned
     autopilot_mode = new_autopilot_mode;
   }
-
 }
 
-bool_t autopilot_guided_goto_ned(float x, float y, float z, float heading)
+bool autopilot_guided_goto_ned(float x, float y, float z, float heading)
 {
   if (autopilot_mode == AP_MODE_GUIDED) {
     guidance_h_set_guided_pos(x, y);
     guidance_h_set_guided_heading(heading);
     guidance_v_set_guided_z(z);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
-bool_t autopilot_guided_goto_ned_relative(float dx, float dy, float dz, float dyaw)
+bool autopilot_guided_goto_ned_relative(float dx, float dy, float dz, float dyaw)
 {
   if (autopilot_mode == AP_MODE_GUIDED && stateIsLocalCoordinateValid()) {
     float x = stateGetPositionNed_f()->x + dx;
@@ -533,10 +567,10 @@ bool_t autopilot_guided_goto_ned_relative(float dx, float dy, float dz, float dy
     float heading = stateGetNedToBodyEulers_f()->psi + dyaw;
     return autopilot_guided_goto_ned(x, y, z, heading);
   }
-  return FALSE;
+  return false;
 }
 
-bool_t autopilot_guided_goto_body_relative(float dx, float dy, float dz, float dyaw)
+bool autopilot_guided_goto_body_relative(float dx, float dy, float dz, float dyaw)
 {
   if (autopilot_mode == AP_MODE_GUIDED && stateIsLocalCoordinateValid()) {
     float psi = stateGetNedToBodyEulers_f()->psi;
@@ -546,10 +580,93 @@ bool_t autopilot_guided_goto_body_relative(float dx, float dy, float dz, float d
     float heading = psi + dyaw;
     return autopilot_guided_goto_ned(x, y, z, heading);
   }
-  return FALSE;
+  return false;
 }
 
-void autopilot_check_in_flight(bool_t motors_on)
+bool autopilot_guided_move_ned(float vx, float vy, float vz, float heading)
+{
+  if (autopilot_mode == AP_MODE_GUIDED) {
+    guidance_h_set_guided_vel(vx, vy);
+    guidance_h_set_guided_heading(heading);
+    guidance_v_set_guided_vz(vz);
+    return true;
+  }
+  return false;
+}
+
+/* Set guided mode setpoint
+ * Note: Offset position command in NED frame or body frame will only be implemented if
+ * local reference frame has been initialised.
+ * Flag definition:
+   bit 0: x,y as offset coordinates
+   bit 1: x,y in body coordinates
+   bit 2: z as offset coordinates
+   bit 3: yaw as offset coordinates
+   bit 4: free
+   bit 5: x,y as vel
+   bit 6: z as vel
+   bit 7: yaw as rate
+ */
+void autopilot_guided_update(uint8_t flags, float x, float y, float z, float yaw)
+{
+  /* only update setpoints when in guided mode */
+  if (autopilot_mode != AP_MODE_GUIDED) {
+    return;
+  }
+
+  // handle x,y
+  struct FloatVect2 setpoint = {.x = x, .y = y};
+  if (bit_is_set(flags, 5)) { // velocity setpoint
+    if (bit_is_set(flags, 1)) { // set velocity in body frame
+      guidance_h_set_guided_body_vel(setpoint.x, setpoint.y);
+    } else {
+      guidance_h_set_guided_vel(setpoint.x, setpoint.y);
+    }
+  } else {  // position setpoint
+    if (!bit_is_set(flags, 0) && !bit_is_set(flags, 1)) {   // set absolute position setpoint
+      guidance_h_set_guided_pos(setpoint.x, setpoint.y);
+    } else {
+      if (stateIsLocalCoordinateValid()) {
+        if (bit_is_set(flags, 1)) {  // set position as offset in body frame
+          float psi = stateGetNedToBodyEulers_f()->psi;
+
+          setpoint.x = stateGetPositionNed_f()->x + cosf(-psi) * x + sinf(-psi) * y;
+          setpoint.y = stateGetPositionNed_f()->y - sinf(-psi) * x + cosf(-psi) * y;
+        } else {                     // set position as offset in NED frame
+          setpoint.x += stateGetPositionNed_f()->x;
+          setpoint.y += stateGetPositionNed_f()->y;
+        }
+        guidance_h_set_guided_pos(setpoint.x, setpoint.y);
+      }
+    }
+  }
+
+  //handle z
+  if (bit_is_set(flags, 6)) { // speed set-point
+    guidance_v_set_guided_vz(z);
+  } else {    // position set-point
+    if (bit_is_set(flags, 2)) { // set position as offset in NED frame
+      if (stateIsLocalCoordinateValid()) {
+        z += stateGetPositionNed_f()->z;
+        guidance_v_set_guided_z(z);
+      }
+    } else {
+      guidance_v_set_guided_z(z);
+    }
+  }
+
+  //handle yaw
+  if (bit_is_set(flags, 7)) { // speed set-point
+    guidance_h_set_guided_heading_rate(yaw);
+  } else {    // position set-point
+    if (bit_is_set(flags, 3)) { // set yaw as offset
+      yaw += stateGetNedToBodyEulers_f()->psi;  // will be wrapped to [-pi,pi] later
+    }
+    guidance_h_set_guided_heading(yaw);
+  }
+}
+
+void autopilot_check_in_flight(bool motors_on)
 {
   if (autopilot_in_flight) {
     if (autopilot_in_flight_counter > 0) {
@@ -559,7 +676,7 @@ void autopilot_check_in_flight(bool_t motors_on)
           (fabsf(stateGetAccelNed_f()->z) < AUTOPILOT_IN_FLIGHT_MIN_ACCEL)) {
         autopilot_in_flight_counter--;
         if (autopilot_in_flight_counter == 0) {
-          autopilot_in_flight = FALSE;
+          autopilot_in_flight = false;
         }
       } else { /* thrust, speed or accel not above min threshold, reset counter */
         autopilot_in_flight_counter = AUTOPILOT_IN_FLIGHT_TIME;
@@ -574,7 +691,7 @@ void autopilot_check_in_flight(bool_t motors_on)
       if (stabilization_cmd[COMMAND_THRUST] > AUTOPILOT_IN_FLIGHT_MIN_THRUST) {
         autopilot_in_flight_counter++;
         if (autopilot_in_flight_counter == AUTOPILOT_IN_FLIGHT_TIME) {
-          autopilot_in_flight = TRUE;
+          autopilot_in_flight = true;
         }
       } else { /* currently not in_flight and thrust below threshold, reset counter */
         autopilot_in_flight_counter = 0;
@@ -584,12 +701,12 @@ void autopilot_check_in_flight(bool_t motors_on)
 }
 
 
-void autopilot_set_motors_on(bool_t motors_on)
+void autopilot_set_motors_on(bool motors_on)
 {
   if (autopilot_mode != AP_MODE_KILL && ahrs_is_aligned() && motors_on) {
-    autopilot_motors_on = TRUE;
+    autopilot_motors_on = true;
   } else {
-    autopilot_motors_on = FALSE;
+    autopilot_motors_on = false;
   }
   kill_throttle = ! autopilot_motors_on;
   autopilot_arming_set(autopilot_motors_on);
@@ -604,11 +721,9 @@ static uint8_t ap_mode_of_3way_switch(void)
 {
   if (radio_control.values[RADIO_MODE] > THRESHOLD_2_PPRZ) {
     return autopilot_mode_auto2;
-  }
-  else if (radio_control.values[RADIO_MODE] > THRESHOLD_1_PPRZ) {
+  } else if (radio_control.values[RADIO_MODE] > THRESHOLD_1_PPRZ) {
     return MODE_AUTO1;
-  }
-  else {
+  } else {
     return MODE_MANUAL;
   }
 }
@@ -627,16 +742,15 @@ static uint8_t ap_mode_of_two_switches(void)
   if (radio_control.values[RADIO_MODE] < THRESHOLD_1_PPRZ) {
     /* RADIO_MODE in MANUAL position */
     return MODE_MANUAL;
-  }
-  else {
+  } else {
     /* RADIO_MODE not in MANUAL position.
      * Select AUTO mode bassed on RADIO_AUTO_MODE channel
      */
     if (radio_control.values[RADIO_AUTO_MODE] > THRESHOLD_2_PPRZ) {
       return autopilot_mode_auto2;
-    }
-    else
+    } else {
       return MODE_AUTO1;
+    }
   }
 }
 #endif

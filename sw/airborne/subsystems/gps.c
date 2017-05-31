@@ -19,14 +19,47 @@
  * Boston, MA 02111-1307, USA.
  */
 
-/** @file gps.c
- *  @brief Device independent GPS code
+/**
+ * @file gps.c
+ * @brief Device independent GPS code.
+ * This provides some general GPS functions and handles the selection of the
+ * currently active GPS (if multiple ones are used).
  *
+ * Each GPS implementation sends a GPS message via ABI for each new measurement,
+ * which can be received by any other part (either from all or only one specific GPS).
+ *
+ * To make it easy to switch to the currently best (or simply the preferred) GPS at runtime,
+ * the #multi_gps_mode can be set to #GPS_MODE_PRIMARY, #GPS_MODE_SECONDARY or #GPS_MODE_AUTO.
+ * This re-sends the GPS message of the "selected" GPS with #GPS_MULTI_ID as sender id.
+ * In the (default) GPS_MODE_AUTO mode, the GPS with the best fix is selected.
+ *
+ * The global #gps struct is also updated from the "selected" GPS
+ * and used to send the normal GPS telemetry messages.
  */
 
+#include "subsystems/abi.h"
 #include "subsystems/gps.h"
-
 #include "led.h"
+#include "subsystems/settings.h"
+#include "generated/settings.h"
+#include "math/pprz_geodetic_wgs84.h"
+#include "math/pprz_geodetic.h"
+
+#ifndef PRIMARY_GPS
+#error "PRIMARY_GPS not set!"
+#else
+PRINT_CONFIG_VAR(PRIMARY_GPS)
+#endif
+
+#ifdef SECONDARY_GPS
+PRINT_CONFIG_VAR(SECONDARY_GPS)
+#endif
+
+/* expand GpsId(PRIMARY_GPS) to e.g. GPS_UBX_ID */
+#define __GpsId(_x) _x ## _ID
+#define _GpsId(_x) __GpsId(_x)
+#define GpsId(_x) _GpsId(_x)
+
 
 #ifdef GPS_POWER_GPIO
 #include "mcu_periph/gpio.h"
@@ -37,10 +70,18 @@
 #endif
 
 #define MSEC_PER_WEEK (1000*60*60*24*7)
+#define TIME_TO_SWITCH 5000 //ten s in ms
 
 struct GpsState gps;
 
 struct GpsTimeSync gps_time_sync;
+
+#ifdef SECONDARY_GPS
+static uint8_t current_gps_id = 0;
+#endif
+
+uint8_t multi_gps_mode;
+
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -90,10 +131,11 @@ static void send_gps(struct transport_tx *trans, struct link_device *dev)
   uint8_t zero = 0;
   int16_t climb = -gps.ned_vel.z;
   int16_t course = (DegOfRad(gps.course) / ((int32_t)1e6));
+  struct UtmCoor_i utm = utm_int_from_gps(&gps, 0);
   pprz_msg_send_GPS(trans, dev, AC_ID, &gps.fix,
-                    &gps.utm_pos.east, &gps.utm_pos.north,
+                    &utm.east, &utm.north,
                     &course, &gps.hmsl, &gps.gspeed, &climb,
-                    &gps.week, &gps.tow, &gps.utm_pos.zone, &zero);
+                    &gps.week, &gps.tow, &utm.zone, &zero);
   // send SVINFO for available satellites that have new data
   send_svinfo_available(trans, dev);
 }
@@ -109,7 +151,8 @@ static void send_gps_int(struct transport_tx *trans, struct link_device *dev)
                         &gps.tow,
                         &gps.pdop,
                         &gps.num_sv,
-                        &gps.fix);
+                        &gps.fix,
+                        &gps.comp_id);
   // send SVINFO for available satellites that have new data
   send_svinfo_available(trans, dev);
 }
@@ -132,8 +175,87 @@ static void send_gps_sol(struct transport_tx *trans, struct link_device *dev)
 }
 #endif
 
+
+#ifdef SECONDARY_GPS
+static uint8_t gps_multi_switch(struct GpsState *gps_s) {
+  static uint32_t time_since_last_gps_switch = 0;
+
+  if (multi_gps_mode == GPS_MODE_PRIMARY){
+    return GpsId(PRIMARY_GPS);
+  } else if (multi_gps_mode == GPS_MODE_SECONDARY){
+    return GpsId(SECONDARY_GPS);
+  } else{
+    if (gps_s->fix > gps.fix){
+      return gps_s->comp_id;
+    } else if (gps.fix > gps_s->fix){
+      return gps.comp_id;
+    } else{
+      if (get_sys_time_msec() - time_since_last_gps_switch > TIME_TO_SWITCH) {
+        if (gps_s->num_sv > gps.num_sv) {
+          current_gps_id = gps_s->comp_id;
+          time_since_last_gps_switch = get_sys_time_msec();
+        } else if (gps.num_sv > gps_s->num_sv) {
+          current_gps_id = gps.comp_id;
+          time_since_last_gps_switch = get_sys_time_msec();
+        }
+      }
+    }
+  }
+  return current_gps_id;
+}
+#endif /*SECONDARY_GPS*/
+
+
+void gps_periodic_check(struct GpsState *gps_s)
+{
+  if (sys_time.nb_sec - gps_s->last_msg_time > GPS_TIMEOUT) {
+    gps_s->fix = GPS_FIX_NONE;
+  }
+
+#ifdef SECONDARY_GPS
+  current_gps_id = gps_multi_switch(gps_s);
+  if (gps_s->comp_id == current_gps_id) {
+    gps = *gps_s;
+  }
+#else
+  gps = *gps_s;
+#endif
+}
+
+
+static abi_event gps_ev;
+static void gps_cb(uint8_t sender_id,
+                   uint32_t stamp __attribute__((unused)),
+                   struct GpsState *gps_s)
+{
+  /* ignore callback from own AbiSendMsgGPS */
+  if (sender_id == GPS_MULTI_ID) {
+    return;
+  }
+  uint32_t now_ts = get_sys_time_usec();
+#ifdef SECONDARY_GPS
+  current_gps_id = gps_multi_switch(gps_s);
+  if (gps_s->comp_id == current_gps_id) {
+    gps = *gps_s;
+    AbiSendMsgGPS(GPS_MULTI_ID, now_ts, gps_s);
+  }
+#else
+  gps = *gps_s;
+  AbiSendMsgGPS(GPS_MULTI_ID, now_ts, gps_s);
+#endif
+  if (gps.tow != gps_time_sync.t0_tow)
+  {
+    gps_time_sync.t0_ticks = sys_time.nb_tick;
+    gps_time_sync.t0_tow = gps.tow;
+  }
+}
+
+
 void gps_init(void)
 {
+  multi_gps_mode = MULTI_GPS_MODE;
+
+  gps.valid_fields = 0;
   gps.fix = GPS_FIX_NONE;
   gps.week = 0;
   gps.tow = 0;
@@ -143,6 +265,7 @@ void gps_init(void)
   gps.last_3dfix_time = 0;
   gps.last_msg_ticks = 0;
   gps.last_msg_time = 0;
+
 #ifdef GPS_POWER_GPIO
   gpio_setup_output(GPS_POWER_GPIO);
   GPS_POWER_GPIO_ON(GPS_POWER_GPIO);
@@ -150,9 +273,8 @@ void gps_init(void)
 #ifdef GPS_LED
   LED_OFF(GPS_LED);
 #endif
-#ifdef GPS_TYPE_H
-  gps_impl_init();
-#endif
+
+  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GPS, send_gps);
@@ -161,13 +283,6 @@ void gps_init(void)
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GPS_SOL, send_gps_sol);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_SVINFO, send_svinfo);
 #endif
-}
-
-void gps_periodic_check(void)
-{
-  if (sys_time.nb_sec - gps.last_msg_time > GPS_TIMEOUT) {
-    gps.fix = GPS_FIX_NONE;
-  }
 }
 
 uint32_t gps_tow_from_sys_ticks(uint32_t sys_ticks)
@@ -197,4 +312,57 @@ uint32_t gps_tow_from_sys_ticks(uint32_t sys_ticks)
  */
 void WEAK gps_inject_data(uint8_t packet_id __attribute__((unused)), uint8_t length __attribute__((unused)), uint8_t *data __attribute__((unused))){
 
+}
+
+/**
+ * Convenience functions to get utm position from GPS state
+ */
+#include "state.h"
+struct UtmCoor_f utm_float_from_gps(struct GpsState *gps_s, uint8_t zone)
+{
+  struct UtmCoor_f utm = {.east = 0., .north=0., .alt=0., .zone=zone};
+
+  if (bit_is_set(gps_s->valid_fields, GPS_VALID_POS_UTM_BIT)) {
+    /* A real UTM position is available, use the correct zone */
+    UTM_FLOAT_OF_BFP(utm, gps_s->utm_pos);
+  } else if (bit_is_set(gps_s->valid_fields, GPS_VALID_POS_LLA_BIT))
+  {
+    /* Recompute UTM coordinates in this zone */
+    struct UtmCoor_i utm_i;
+    utm_i.zone = zone;
+    utm_of_lla_i(&utm_i, &gps_s->lla_pos);
+    UTM_FLOAT_OF_BFP(utm, utm_i);
+
+    /* set utm.alt in hsml */
+    if (bit_is_set(gps_s->valid_fields, GPS_VALID_HMSL_BIT)) {
+      utm.alt = gps_s->hmsl/1000.;
+    } else {
+      utm.alt = wgs84_ellipsoid_to_geoid_i(gps_s->lla_pos.lat, gps_s->lla_pos.lon)/1000.;
+    }
+  }
+
+  return utm;
+}
+
+struct UtmCoor_i utm_int_from_gps(struct GpsState *gps_s, uint8_t zone)
+{
+  struct UtmCoor_i utm = {.east = 0, .north=0, .alt=0, .zone=zone};
+
+  if (bit_is_set(gps_s->valid_fields, GPS_VALID_POS_UTM_BIT)) {
+    // A real UTM position is available, use the correct zone
+    UTM_COPY(utm, gps_s->utm_pos);
+  }
+  else if (bit_is_set(gps_s->valid_fields, GPS_VALID_POS_LLA_BIT)){
+    /* Recompute UTM coordinates in zone */
+    utm_of_lla_i(&utm, &gps_s->lla_pos);
+
+    /* set utm.alt in hsml */
+    if (bit_is_set(gps_s->valid_fields, GPS_VALID_HMSL_BIT)) {
+      utm.alt = gps_s->hmsl;
+    } else {
+      utm.alt = wgs84_ellipsoid_to_geoid_i(gps_s->lla_pos.lat, gps_s->lla_pos.lon);
+    }
+  }
+
+  return utm;
 }

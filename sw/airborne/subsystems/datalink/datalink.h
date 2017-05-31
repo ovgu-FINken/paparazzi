@@ -33,14 +33,12 @@
 #define EXTERN extern
 #endif
 
-#ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */
-#define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }
-#else
-#define Swap32IfBigEndian(_) {}
-#endif
-
 #include "std.h"
-#include "dl_protocol.h"
+#include "pprzlink/dl_protocol.h"
+
+/* Message id helpers */
+#define SenderIdOfPprzMsg(x) (x[0])
+#define IdOfPprzMsg(x) (x[1])
 
 /** Datalink kinds */
 #define PPRZ 1
@@ -50,7 +48,7 @@
 #define BLUEGIGA 5
 
 /** Flag provided to control calls to ::dl_parse_msg. NOT used in this module*/
-EXTERN bool_t dl_msg_available;
+EXTERN bool dl_msg_available;
 
 /** time in seconds since last datalink message was received */
 EXTERN uint16_t datalink_time;
@@ -64,9 +62,21 @@ EXTERN uint8_t dl_buffer[MSG_SIZE]  __attribute__((aligned));
 /** Should be called when chars are available in dl_buffer */
 EXTERN void dl_parse_msg(void);
 
+/** Firmware specfic msg handler */
+EXTERN void firmware_parse_msg(void);
+
 #if USE_NPS
-EXTERN bool_t datalink_enabled;
+EXTERN bool datalink_enabled;
 #endif
+
+/** Convenience macro to fill dl_buffer */
+#define DatalinkFillDlBuffer(_buf, _len) { \
+  uint8_t _i = 0; \
+  for (_i = 0; _i < _len; _i++) { \
+    dl_buffer[_i] = _buf[_i]; \
+  } \
+  dl_msg_available = true; \
+}
 
 /** Check for new message and parse */
 static inline void DlCheckAndParse(void)
@@ -82,21 +92,21 @@ static inline void DlCheckAndParse(void)
     datalink_time = 0;
     datalink_nb_msgs++;
     dl_parse_msg();
-    dl_msg_available = FALSE;
+    dl_msg_available = false;
   }
 }
 
 #if defined DATALINK && DATALINK == PPRZ
 
 #define DatalinkEvent() {                       \
-    PprzCheckAndParse(PPRZ_UART, pprz_tp);      \
+    pprz_check_and_parse(&(PPRZ_UART).device, &pprz_tp, dl_buffer, &dl_msg_available);      \
     DlCheckAndParse();                          \
   }
 
 #elif defined DATALINK && DATALINK == XBEE
 
 #define DatalinkEvent() {                       \
-    XBeeCheckAndParse(XBEE_UART, xbee_tp);      \
+    xbee_check_and_parse(&(XBEE_UART).device, &xbee_tp, dl_buffer, &dl_msg_available);      \
     DlCheckAndParse();                          \
   }
 
@@ -117,7 +127,7 @@ static inline void DlCheckAndParse(void)
 #elif defined DATALINK && DATALINK == BLUEGIGA
 
 #define DatalinkEvent() {                       \
-    BlueGigaCheckAndParse(DOWNLINK_DEVICE, pprz_tp);   \
+    pprz_check_and_parse(&(DOWNLINK_DEVICE).device, &pprz_tp, dl_buffer, &dl_msg_available);      \
     DlCheckAndParse();                          \
   }
 

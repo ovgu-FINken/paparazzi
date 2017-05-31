@@ -76,7 +76,7 @@ struct ImuBebop imu_bebop;
 /**
  * Navstik IMU initializtion of the MPU-60x0 and HMC58xx
  */
-void imu_impl_init(void)
+void imu_bebop_init(void)
 {
   /* MPU-60X0 */
   mpu60x0_i2c_init(&imu_bebop.mpu, &(BEBOP_MPU_I2C_DEV), MPU60X0_ADDR);
@@ -93,7 +93,7 @@ void imu_impl_init(void)
  * Handle all the periodic tasks of the Navstik IMU components.
  * Read the MPU60x0 every periodic call and the HMC58XX every 10th call.
  */
-void imu_periodic(void)
+void imu_bebop_periodic(void)
 {
   // Start reading the latest gyroscope data
   mpu60x0_i2c_periodic(&imu_bebop.mpu);
@@ -120,7 +120,7 @@ void imu_bebop_event(void)
     VECT3_ASSIGN(imu.accel_unscaled, imu_bebop.mpu.data_accel.vect.x, -imu_bebop.mpu.data_accel.vect.y,
                  -imu_bebop.mpu.data_accel.vect.z);
 
-    imu_bebop.mpu.data_available = FALSE;
+    imu_bebop.mpu.data_available = false;
     imu_scale_gyro(&imu);
     imu_scale_accel(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_BOARD_ID, now_ts, &imu.gyro);
@@ -134,11 +134,11 @@ void imu_bebop_event(void)
 #if BEBOP_VERSION2
     // In the second bebop version the magneto is turned 90 degrees
     VECT3_ASSIGN(imu.mag_unscaled, -imu_bebop.ak.data.vect.x, -imu_bebop.ak.data.vect.y, imu_bebop.ak.data.vect.z);
-#else
-    VECT3_ASSIGN(imu.mag_unscaled, imu_bebop.ak.data.vect.y, imu_bebop.ak.data.vect.x, imu_bebop.ak.data.vect.z);
+#else //BEBOP regular first verion
+    VECT3_ASSIGN(imu.mag_unscaled, -imu_bebop.ak.data.vect.y, imu_bebop.ak.data.vect.x, imu_bebop.ak.data.vect.z);
 #endif
 
-    imu_bebop.ak.data_available = FALSE;
+    imu_bebop.ak.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_BOARD_ID, now_ts, &imu.mag);
   }

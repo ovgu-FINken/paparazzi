@@ -26,6 +26,7 @@
  * and passes it through to the state interface.
  */
 
+#include "subsystems/ins/ins_gps_passthrough.h"
 #include "subsystems/ins.h"
 
 #include <inttypes.h>
@@ -33,6 +34,7 @@
 
 #include "state.h"
 #include "subsystems/gps.h"
+#include "subsystems/abi.h"
 
 #ifndef USE_INS_NAV_INIT
 #define USE_INS_NAV_INIT TRUE
@@ -43,11 +45,10 @@ PRINT_CONFIG_MSG("USE_INS_NAV_INIT defaulting to TRUE")
 #include "generated/flight_plan.h"
 #endif
 
-#include "subsystems/ins/ins_gps_passthrough.h"
 
 struct InsGpsPassthrough {
   struct LtpDef_i  ltp_def;
-  bool_t           ltp_initialized;
+  bool           ltp_initialized;
 
   /* output LTP NED */
   struct NedCoor_i ltp_pos;
@@ -56,6 +57,42 @@ struct InsGpsPassthrough {
 };
 
 struct InsGpsPassthrough ins_gp;
+
+
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef INS_PT_GPS_ID
+#define INS_PT_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(INS_PT_GPS_ID)
+static abi_event gps_ev;
+
+static void gps_cb(uint8_t sender_id __attribute__((unused)),
+                   uint32_t stamp __attribute__((unused)),
+                   struct GpsState *gps_s)
+{
+  if (gps_s->fix < GPS_FIX_3D) {
+    return;
+  }
+  if (!ins_gp.ltp_initialized) {
+    ins_reset_local_origin();
+  }
+
+  /* simply scale and copy pos/speed from gps */
+  struct NedCoor_i gps_pos_cm_ned;
+  ned_of_ecef_point_i(&gps_pos_cm_ned, &ins_gp.ltp_def, &gps_s->ecef_pos);
+  INT32_VECT3_SCALE_2(ins_gp.ltp_pos, gps_pos_cm_ned,
+                      INT32_POS_OF_CM_NUM, INT32_POS_OF_CM_DEN);
+  stateSetPositionNed_i(&ins_gp.ltp_pos);
+
+  struct NedCoor_i gps_speed_cm_s_ned;
+  ned_of_ecef_vect_i(&gps_speed_cm_s_ned, &ins_gp.ltp_def, &gps_s->ecef_vel);
+  INT32_VECT3_SCALE_2(ins_gp.ltp_speed, gps_speed_cm_s_ned,
+                      INT32_SPEED_OF_CM_S_NUM, INT32_SPEED_OF_CM_S_DEN);
+  stateSetSpeedNed_i(&ins_gp.ltp_speed);
+}
+
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -105,9 +142,9 @@ void ins_gps_passthrough_init(void)
   ins_gp.ltp_def.hmsl = NAV_ALT0;
   stateSetLocalOrigin_i(&ins_gp.ltp_def);
 
-  ins_gp.ltp_initialized = TRUE;
+  ins_gp.ltp_initialized = true;
 #else
-  ins_gp.ltp_initialized  = FALSE;
+  ins_gp.ltp_initialized  = false;
 #endif
 
   INT32_VECT3_ZERO(ins_gp.ltp_pos);
@@ -119,6 +156,8 @@ void ins_gps_passthrough_init(void)
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_INS_Z, send_ins_z);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_INS_REF, send_ins_ref);
 #endif
+
+  AbiBindMsgGPS(INS_PT_GPS_ID, &gps_ev, gps_cb);
 }
 
 void ins_reset_local_origin(void)
@@ -127,7 +166,7 @@ void ins_reset_local_origin(void)
   ins_gp.ltp_def.lla.alt = gps.lla_pos.alt;
   ins_gp.ltp_def.hmsl = gps.hmsl;
   stateSetLocalOrigin_i(&ins_gp.ltp_def);
-  ins_gp.ltp_initialized = TRUE;
+  ins_gp.ltp_initialized = true;
 }
 
 void ins_reset_altitude_ref(void)
@@ -140,38 +179,4 @@ void ins_reset_altitude_ref(void)
   ltp_def_from_lla_i(&ins_gp.ltp_def, &lla);
   ins_gp.ltp_def.hmsl = gps.hmsl;
   stateSetLocalOrigin_i(&ins_gp.ltp_def);
-}
-
-
-#include "subsystems/abi.h"
-static abi_event gps_ev;
-static void gps_cb(uint8_t sender_id __attribute__((unused)),
-                   uint32_t stamp __attribute__((unused)),
-                   struct GpsState *gps_s)
-{
-  if (gps_s->fix < GPS_FIX_3D) {
-    return;
-  }
-  if (!ins_gp.ltp_initialized) {
-    ins_reset_local_origin();
-  }
-
-  /* simply scale and copy pos/speed from gps */
-  struct NedCoor_i gps_pos_cm_ned;
-  ned_of_ecef_point_i(&gps_pos_cm_ned, &ins_gp.ltp_def, &gps_s->ecef_pos);
-  INT32_VECT3_SCALE_2(ins_gp.ltp_pos, gps_pos_cm_ned,
-                      INT32_POS_OF_CM_NUM, INT32_POS_OF_CM_DEN);
-  stateSetPositionNed_i(&ins_gp.ltp_pos);
-
-  struct NedCoor_i gps_speed_cm_s_ned;
-  ned_of_ecef_vect_i(&gps_speed_cm_s_ned, &ins_gp.ltp_def, &gps_s->ecef_vel);
-  INT32_VECT3_SCALE_2(ins_gp.ltp_speed, gps_speed_cm_s_ned,
-                      INT32_SPEED_OF_CM_S_NUM, INT32_SPEED_OF_CM_S_DEN);
-  stateSetSpeedNed_i(&ins_gp.ltp_speed);
-}
-
-void ins_gps_passthrough_register(void)
-{
-  ins_register_impl(ins_gps_passthrough_init);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
 }

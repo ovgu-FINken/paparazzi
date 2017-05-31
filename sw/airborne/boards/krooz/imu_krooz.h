@@ -105,8 +105,8 @@
 #endif
 
 struct ImuKrooz {
-  volatile bool_t mpu_eoc;
-  volatile bool_t hmc_eoc;
+  volatile bool mpu_eoc;
+  volatile bool hmc_eoc;
   struct Mpu60x0_I2c mpu;
   struct Hmc58xx hmc;
   struct Int32Rates rates_sum;
@@ -118,16 +118,9 @@ struct ImuKrooz {
 
 extern struct ImuKrooz imu_krooz;
 
-
-/* must be defined in order to be IMU code: declared in imu.h
-extern void imu_impl_init(void);
-extern void imu_periodic(void);
-*/
-
-/* Own Extra Functions */
+extern void imu_krooz_init(void);
+extern void imu_krooz_periodic(void);
 extern void imu_krooz_event(void);
 extern void imu_krooz_downlink_raw(void);
-
-#define ImuEvent imu_krooz_event
 
 #endif // IMU_KROOZ_H

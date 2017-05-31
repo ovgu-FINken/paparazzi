@@ -29,6 +29,8 @@
 #ifndef _INTER_THREAD_DATA_H
 #define _INTER_THREAD_DATA_H
 
+#include "math/pprz_algebra_float.h"
+
 /* The result calculated from the opticflow */
 struct opticflow_result_t {
   float fps;              ///< Frames per second of the optical flow calculation
@@ -40,8 +42,11 @@ struct opticflow_result_t {
   int16_t flow_der_x;     ///< The derotated flow calculation in the x direction (in subpixels)
   int16_t flow_der_y;     ///< The derotated flow calculation in the y direction (in subpixels)
 
-  float vel_x;            ///< The velocity in the x direction
-  float vel_y;            ///< The velocity in the y direction
+  float vel_x;            ///< The velocity in the x direction (image coordinates)
+  float vel_y;            ///< The velocity in the y direction (image coordinates)
+
+  float vel_body_x;     ///< The velocity in the x direction (body fixed coordinates)
+  float vel_body_y;     ///< The velocity in the y direction (body fixed coordinates)
 
   float div_size;         ///< Divergence as determined with the size_divergence script
 
@@ -53,9 +58,8 @@ struct opticflow_result_t {
 
 /* The state of the drone when it took an image */
 struct opticflow_state_t {
-  float phi;      ///< roll [rad]
-  float theta;    ///< pitch [rad]
-  float agl;      ///< height above ground [m]
+  struct FloatRates rates;   ///< Body rates
+  float agl;                 ///< height above ground [m]
 };
 
 #endif

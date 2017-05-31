@@ -41,13 +41,13 @@ struct ImuAspirin2Spi {
   struct spi_transaction wait_slave4_trans;
   volatile uint8_t wait_slave4_tx_buf[1];
   volatile uint8_t wait_slave4_rx_buf[2];
-  volatile bool_t slave4_ready;
+  volatile bool slave4_ready;
 };
 
 extern struct ImuAspirin2Spi imu_aspirin2;
 
+extern void imu_aspirin2_init(void);
 extern void imu_aspirin2_event(void);
-
-#define ImuEvent imu_aspirin2_event
+extern void imu_aspirin2_periodic(void);
 
 #endif /* IMU_ASPIRIN_2_H */

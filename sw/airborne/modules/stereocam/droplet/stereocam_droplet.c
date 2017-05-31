@@ -41,7 +41,7 @@ PRINT_CONFIG_VAR(STEREO_UART)
 struct link_device *xdev = STEREO_PORT;
 
 #define StereoGetch() STEREO_PORT ->get_byte(STEREO_PORT->periph)
-#define StereoSend1(c) STEREO_PORT->put_byte(STEREO_PORT->periph, c)
+#define StereoSend1(c) STEREO_PORT->put_byte(STEREO_PORT->periph, 0, c)
 #define StereoUartSend1(c) StereoSend1(c)
 #define StereoSend(_dat,_len) { for (uint8_t i = 0; i< (_len); i++) StereoSend1(_dat[i]); };
 #define StereoUartSetBaudrate(_b) uart_periph_set_baudrate(STEREO_PORT, _b);
@@ -56,7 +56,7 @@ struct link_device *xdev = STEREO_PORT;
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
 #endif
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 #include "led.h"
@@ -113,13 +113,13 @@ void stereocam_droplet_periodic(void)
   // Results
   DOWNLINK_SEND_PAYLOAD(DefaultChannel, DefaultDevice, 1, avoid_navigation_data.stereo_bin);
 
-  volatile bool_t once = TRUE;
+  volatile bool once = true;
   // Move waypoint with constant speed in current direction
   if (
     (avoid_navigation_data.stereo_bin[0] == 97) ||
     (avoid_navigation_data.stereo_bin[0] == 100)
   ) {
-    once = TRUE;
+    once = true;
     struct EnuCoor_f enu;
     enu.x = waypoint_get_x(WP_GOAL);
     enu.y = waypoint_get_y(WP_GOAL);
@@ -133,10 +133,10 @@ void stereocam_droplet_periodic(void)
     // STOP!!!
     if (once) {
       NavSetWaypointHere(WP_GOAL);
-      once = FALSE;
+      once = false;
     }
   } else {
-    once = TRUE;
+    once = true;
   }
 
 

@@ -48,8 +48,8 @@ static void uart_receive_handler(struct uart_periph *periph);
 static void *uart_thread(void *data __attribute__((unused)));
 static pthread_mutex_t uart_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define TRACE(fmt,args...)    fprintf(stderr, fmt, args)
-//#define TRACE(fmt,args...)
+//#define TRACE(fmt,args...)    fprintf(stderr, fmt, args)
+#define TRACE(fmt,args...)
 
 void uart_arch_init(void)
 {
@@ -240,7 +240,7 @@ void uart_periph_set_baudrate(struct uart_periph *periph, uint32_t baud)
   }
 }
 
-void uart_put_byte(struct uart_periph *periph, uint8_t data)
+void uart_put_byte(struct uart_periph *periph, long fd __attribute__((unused)), uint8_t data)
 {
   if (periph->reg_addr == NULL) { return; } // device not initialized ?
 

@@ -24,7 +24,6 @@
 #include "autopilot.h"
 #include "generated/flight_plan.h"
 #include "state.h"
-#include "subsystems/navigation/traffic_info.h"
 #include "airborne_ant_track.h"
 
 
@@ -41,7 +40,7 @@ typedef struct {
 } MATRIX;
 
 float   airborne_ant_pan;
-static bool_t ant_pan_positive = 0;
+static bool ant_pan_positive = 0;
 
 void ant_point(void);
 static void vSubtractVectors(VECTOR *svA, VECTOR svB, VECTOR svC);
@@ -116,23 +115,23 @@ void airborne_ant_point_periodic(void)
   /*
    * This is for one axis pan antenna mechanisms. The default is to
    * circle clockwise so view is right. The pan servo neutral makes
-   * the antenna look to the right with 0� given, 90� is to the back and
-   * -90� is to the front.
+   * the antenna look to the right with 0˚ given, 90˚ is to the back and
+   * -90˚ is to the front.
    *
    *
    *
    *   plane front
    *
-   *                  90
+   *                  90˚
                       ^
    *                  I
-   *             135  I  45�
+   *             135˚ I  45˚
    *                \ I /
    *                 \I/
-   *        180-------I------- 0�
+   *       180˚-------I------- 0˚
    *                 /I\
    *                / I \
-   *            -135  I  -45�
+   *            -135˚ I  -45˚
    *                  I
    *                -90
    *             plane back
@@ -140,9 +139,9 @@ void airborne_ant_point_periodic(void)
    *
    */
 
-  /* fPan =   0  -> antenna looks along the wing
-             90  -> antenna looks in flight direction
-            -90  -> antenna looks backwards
+  /* fPan =   0˚  -> antenna looks along the wing
+             90˚  -> antenna looks in flight direction
+            -90˚  -> antenna looks backwards
   */
   /* fixed to the plane*/
   airborne_ant_pan = (float)(atan2(Home_PositionForPlane2.fx, (Home_PositionForPlane2.fy)));
@@ -171,7 +170,7 @@ void airborne_ant_point_periodic(void)
   airborne_ant_pan_servo = TRIM_PPRZ(airborne_ant_pan_servo);
 
 #ifdef COMMAND_ANT_PAN
-  ap_state->commands[COMMAND_ANT_PAN] = airborne_ant_pan_servo;
+  imcu_set_command(COMMAND_ANT_PAN, airborne_ant_pan_servo);
 #endif
 
 

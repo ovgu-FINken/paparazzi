@@ -75,9 +75,9 @@ void cam_periodic(void);
 void cam_init(void);
 
 extern int16_t cam_pan_command;
-#define cam_SetPanCommand(x) { ap_state->commands[COMMAND_CAM_PAN] = cam_pan_command = x;}
+#define cam_SetPanCommand(x) { cam_pan_command = x; imcu_set_command(COMMAND_CAM_PAN, cam_pan_command);}
 extern int16_t cam_tilt_command;
-#define cam_SetTiltCommand(x) { ap_state->commands[COMMAND_CAM_TILT] = cam_tilt_command = x;}
+#define cam_SetTiltCommand(x) { cam_tilt_command = x; imcu_set_command(COMMAND_CAM_TILT, cam_tilt_command);}
 
 #ifdef TEST_CAM
 extern float test_cam_estimator_x;
@@ -90,7 +90,7 @@ extern float test_cam_estimator_hspeed_dir;
 
 #if defined(COMMAND_CAM_PWR_SW) || defined(VIDEO_TX_SWITCH)
 
-extern bool_t video_tx_state;
+extern bool video_tx_state;
 #define VIDEO_TX_ON()   { video_tx_state = 1; 0; }
 #define VIDEO_TX_OFF()  { video_tx_state = 0; 0; }
 

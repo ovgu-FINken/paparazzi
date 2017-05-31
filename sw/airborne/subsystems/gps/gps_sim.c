@@ -19,10 +19,10 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include "subsystems/gps.h"
+#include "subsystems/gps/gps_sim.h"
 #include "subsystems/abi.h"
 
-void gps_impl_init(void)
+void gps_sim_init(void)
 {
   gps.fix = GPS_FIX_NONE;
 }

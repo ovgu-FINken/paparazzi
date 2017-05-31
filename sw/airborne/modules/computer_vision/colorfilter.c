@@ -24,10 +24,12 @@
  */
 
 // Own header
-#include "modules/computer_vision/cv.h"
 #include "modules/computer_vision/colorfilter.h"
-
 #include <stdio.h>
+
+#include "modules/computer_vision/lib/vision/image.h"
+
+struct video_listener *listener = NULL;
 
 // Filter Settings
 uint8_t color_lum_min = 105;
@@ -41,21 +43,20 @@ uint8_t color_cr_max  = 255;
 int color_count = 0;
 
 // Function
-bool_t colorfilter_func(struct image_t* img);
-bool_t colorfilter_func(struct image_t* img)
+struct image_t *colorfilter_func(struct image_t *img);
+struct image_t *colorfilter_func(struct image_t *img)
 {
   // Filter
-  color_count = image_yuv422_colorfilt(img,img,
-      color_lum_min,color_lum_max,
-      color_cb_min,color_cb_max,
-      color_cr_min,color_cr_max
-      );
+  color_count = image_yuv422_colorfilt(img, img,
+                                       color_lum_min, color_lum_max,
+                                       color_cb_min, color_cb_max,
+                                       color_cr_min, color_cr_max
+                                      );
 
-  return FALSE;
+  return img; // Colorfilter did not make a new image
 }
 
 void colorfilter_init(void)
 {
-  cv_add(colorfilter_func);
+  listener = cv_add_to_device(&COLORFILTER_CAMERA, colorfilter_func);
 }
-

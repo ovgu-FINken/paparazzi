@@ -28,7 +28,7 @@
      radio="radios/cockpitSX.xml"
      telemetry="telemetry/default_rotorcraft.xml"
      flight_plan="flight_plans/rotorcraft_basic.xml"
-     settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_att_int.xml settings/control/stabilization_rate.xml"
+     settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_att_int.xml"
 -->
 
 <airframe name="quadrotor_lisa_s">
@@ -93,19 +93,6 @@
     <define name="MAX_BAT_LEVEL" value="4.1" unit="V"/>
  </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <define name="SP_MAX_P" value="210" unit="deg/s"/>
-    <define name="SP_MAX_Q" value="210" unit="deg/s"/>
-    <define name="SP_MAX_R" value="210" unit="deg/s"/>
-
-    <define name="GAIN_P" value="400"/>
-    <define name="GAIN_Q" value="400"/>
-    <define name="GAIN_R" value="418"/>
-
-    <define name="IGAIN_P" value="301"/>
-    <define name="IGAIN_Q" value="302"/>
-    <define name="IGAIN_R" value="303"/>
-  </section>
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
 
@@ -159,13 +146,7 @@
 
   <section name="INS" prefix="INS_">
     <define name="USE_GPS_ALT" value="1"/>
-  </section>
-
-  <section name="GPS" prefix="GPS_">
-    <define name="USE_DATALINK_SMALL" value="1"/>
-    <define name="LOCAL_ECEF_ORIGIN_X" value="392433200"/>
-    <define name="LOCAL_ECEF_ORIGIN_Y" value="30036200"/>
-    <define name="LOCAL_ECEF_ORIGIN_Z" value="500219700"/>
+    <define name="USE_GPS_ALT_SPEED" value="1"/>
   </section>
 
  <section name="GUIDANCE_V" prefix="GUIDANCE_V_">
@@ -183,8 +164,6 @@
     <define name="H_Z" value="0.92060036"/>
     <define name="USE_GPS_HEADING" value="1"/>
   </section>
-<define name="USE_GPS" value="TRUE"/>
- <define name="USE_GPS_HEADING" value="TRUE"/>
 
  <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
    <define name="PGAIN" value="290"/>
@@ -209,24 +188,24 @@
  </section>
 
  <modules main_freq="512">
-   <load name="send_imu_mag_current.xml"/>
- <load name="stereocam.xml">
+   <module name="send_imu_mag_current"/>
+ <module name="stereocam">
 	<configure name="STEREO_UART" value="UART1"/>
 	<configure name="STEREO_BAUD" value="B115200"/>
-</load>
+</module>
  </modules>
 
   <firmware name="rotorcraft">
     <target name="ap" board="lisa_s_1.0">
-      <subsystem name="radio_control" type="datalink">
-      </subsystem>
+      <module name="radio_control" type="datalink">
+      </module>
       <configure name="USE_MAGNETOMETER" value="0"/>
       <configure name="AHRS_PROPAGATE_FREQUENCY" value="500"/>
       <define name="USE_PERSISTENT_SETTINGS" value="TRUE"/>
     </target>
 
-    <subsystem name="motor_mixing"/>
-    <subsystem name="actuators" type="pwm">
+    <module name="motor_mixing"/>
+    <module name="actuators" type="pwm">
       <!-- This airframe is using the servo PWM outputs directly to drive mosfets, which in turn directly drive brushed motors.
            With the following settings we will be driving the motors with a 36KHz signal that should be well above anyone's hearing range.
            If we went with the 500Hz that woul be the default we would be hearing a very annoying high pitched sound coming from the motors.
@@ -236,19 +215,19 @@
       <!-- Setting the PWM interval to 36KHz -->
       <define name="SERVO_HZ" value="36000"/>
       <define name="USE_SERVOS_1AND2"/>
-    </subsystem>
+    </module>
 
-    <!--<subsystem name="telemetry" type="superbitrf"/>-->
+    <!--<module name="telemetry" type="superbitrf"/>-->
     <!-- Comment the previous line and uncomment the following one if you need
          to use the debug serial interface for telemetry. -->
-    <subsystem name="telemetry" type="bluegiga"/>
-    <subsystem name="imu" type="lisa_s_v1.0">
+    <module name="telemetry" type="bluegiga"/>
+    <module name="imu" type="lisa_s_v1.0">
       <define name="LISA_S_UPSIDE_DOWN"/> <!-- Upside down is a relative term. :) -->
-    </subsystem>
+    </module>
 	
-    <subsystem name="gps" type="datalink"/>
-    <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs" type="int_cmpl_quat"/>
-    <subsystem name="ins"/>
+    <module name="gps" type="datalink"/>
+    <module name="stabilization" type="int_quat"/>
+    <module name="ahrs" type="int_cmpl_quat"/>
+    <module name="ins"/>
   </firmware>
 </airframe>

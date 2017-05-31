@@ -28,6 +28,7 @@
 #include "firmwares/rotorcraft/guidance/guidance_v.h"
 #include "firmwares/rotorcraft/guidance/guidance_module.h"
 
+#include "firmwares/rotorcraft/guidance/guidance_hybrid.h"
 #include "subsystems/radio_control.h"
 #include "firmwares/rotorcraft/stabilization.h"
 #include "firmwares/rotorcraft/navigation.h"
@@ -101,8 +102,8 @@ int32_t guidance_v_fb_cmd;
 int32_t guidance_v_delta_t;
 
 float guidance_v_nominal_throttle;
-bool_t guidance_v_adapt_throttle_enabled;
-
+bool guidance_v_adapt_throttle_enabled;
+bool guidance_v_guided_vel_enabled;
 
 /** Direct throttle from radio control.
  *  range 0:#MAX_PPRZ
@@ -138,7 +139,7 @@ int32_t guidance_v_thrust_coeff;
   }
 
 static int32_t get_vertical_thrust_coeff(void);
-static void run_hover_loop(bool_t in_flight);
+static void run_hover_loop(bool in_flight);
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -184,6 +185,7 @@ void guidance_v_init(void)
 
   guidance_v_nominal_throttle = GUIDANCE_V_NOMINAL_HOVER_THROTTLE;
   guidance_v_adapt_throttle_enabled = GUIDANCE_V_ADAPT_THROTTLE_ENABLED;
+  guidance_v_guided_vel_enabled = false;
 
   gv_adapt_init();
 
@@ -228,11 +230,20 @@ void guidance_v_mode_changed(uint8_t new_mode)
   }
 
   switch (new_mode) {
-    case GUIDANCE_V_MODE_HOVER:
     case GUIDANCE_V_MODE_GUIDED:
-      guidance_v_z_sp = stateGetPositionNed_i()->z; // set current altitude as setpoint
+    case GUIDANCE_V_MODE_HOVER:
+      /* disable vertical velocity setpoints */
+      guidance_v_guided_vel_enabled = false;
+
+      /* set current altitude as setpoint */
+      guidance_v_z_sp = stateGetPositionNed_i()->z;
+
+      /* reset guidance reference */
       guidance_v_z_sum_err = 0;
       GuidanceVSetRef(stateGetPositionNed_i()->z, 0, 0);
+
+      /* reset speed setting */
+      guidance_v_zd_sp = 0;
       break;
 
     case GUIDANCE_V_MODE_RC_CLIMB:
@@ -261,7 +272,7 @@ void guidance_v_mode_changed(uint8_t new_mode)
 
 }
 
-void guidance_v_notify_in_flight(bool_t in_flight)
+void guidance_v_notify_in_flight(bool in_flight)
 {
   if (in_flight) {
     gv_adapt_init();
@@ -269,7 +280,7 @@ void guidance_v_notify_in_flight(bool_t in_flight)
 }
 
 
-void guidance_v_run(bool_t in_flight)
+void guidance_v_run(bool in_flight)
 {
 
   // FIXME... SATURATIONS NOT TAKEN INTO ACCOUNT
@@ -310,10 +321,18 @@ void guidance_v_run(bool_t in_flight)
       break;
 
     case GUIDANCE_V_MODE_HOVER:
+      guidance_v_guided_vel_enabled = false;
     case GUIDANCE_V_MODE_GUIDED:
-      guidance_v_zd_sp = 0;
-      gv_update_ref_from_z_sp(guidance_v_z_sp);
-      run_hover_loop(in_flight);
+      if (guidance_v_guided_vel_enabled) {
+        gv_update_ref_from_zd_sp(guidance_v_zd_sp, stateGetPositionNed_i()->z);
+        run_hover_loop(in_flight);
+        /* update z sp for telemetry/debuging */
+        guidance_v_z_sp = guidance_v_z_ref;
+      } else {
+        guidance_v_zd_sp = 0;
+        gv_update_ref_from_z_sp(guidance_v_z_sp);
+        run_hover_loop(in_flight);
+      }
 #if !NO_RC_THRUST_LIMIT
       /* use rc limitation if available */
       if (radio_control.status == RC_OK) {
@@ -347,6 +366,9 @@ void guidance_v_run(bool_t in_flight)
         guidance_v_z_sum_err = 0;
         guidance_v_delta_t = nav_throttle;
       }
+#if HYBRID_NAVIGATION
+      guidance_hybrid_vertical();
+#else
 #if !NO_RC_THRUST_LIMIT
       /* use rc limitation if available */
       if (radio_control.status == RC_OK) {
@@ -354,6 +376,7 @@ void guidance_v_run(bool_t in_flight)
       } else
 #endif
         stabilization_cmd[COMMAND_THRUST] = guidance_v_delta_t;
+#endif
       break;
     }
 
@@ -396,7 +419,7 @@ static int32_t get_vertical_thrust_coeff(void)
 
 #define FF_CMD_FRAC 18
 
-static void run_hover_loop(bool_t in_flight)
+static void run_hover_loop(bool in_flight)
 {
 
   /* convert our reference to generic representation */
@@ -433,6 +456,11 @@ static void run_hover_loop(bool_t in_flight)
   /* feed forward command */
   guidance_v_ff_cmd = (guidance_v_ff_cmd << INT32_TRIG_FRAC) / guidance_v_thrust_coeff;
 
+#if HYBRID_NAVIGATION
+  //FIXME: NOT USING FEEDFORWARD COMMAND BECAUSE OF QUADSHOT NAVIGATION
+  guidance_v_ff_cmd = guidance_v_nominal_throttle * MAX_PPRZ;
+#endif
+
   /* bound the nominal command to 0.9*MAX_PPRZ */
   Bound(guidance_v_ff_cmd, 0, 8640);
 
@@ -450,11 +478,22 @@ static void run_hover_loop(bool_t in_flight)
 
 }
 
-bool_t guidance_v_set_guided_z(float z)
+bool guidance_v_set_guided_z(float z)
 {
   if (guidance_v_mode == GUIDANCE_V_MODE_GUIDED) {
+    guidance_v_guided_vel_enabled = false;
     guidance_v_z_sp = POS_BFP_OF_REAL(z);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
+}
+
+bool guidance_v_set_guided_vz(float vz)
+{
+  if (guidance_v_mode == GUIDANCE_V_MODE_GUIDED) {
+    guidance_v_guided_vel_enabled = true;
+    guidance_v_zd_sp = SPEED_BFP_OF_REAL(vz);
+    return true;
+  }
+  return false;
 }

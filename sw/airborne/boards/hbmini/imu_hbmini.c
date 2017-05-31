@@ -38,7 +38,7 @@
 
 // Downlink
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 
@@ -60,7 +60,7 @@
 
 struct ImuHbmini imu_hbmini;
 
-void imu_impl_init(void)
+void imu_hbmini_init(void)
 {
   max1168_init();
 
@@ -69,7 +69,7 @@ void imu_impl_init(void)
   hmc58xx_init(&imu_hbmini.hmc, &(IMU_HBMINI_I2C_DEV), HMC58XX_ADDR);
 }
 
-void imu_periodic(void)
+void imu_hbmini_periodic(void)
 {
 
   Max1168Periodic();
@@ -117,7 +117,7 @@ void imu_hbmini_event(void)
     imu.mag_unscaled.y = imu_hbmini.hmc.data.value[IMU_MAG_Y_CHAN];
     imu.mag_unscaled.x = imu_hbmini.hmc.data.value[IMU_MAG_Z_CHAN];
 
-    imu_hbmini.hmc.data_available = FALSE;
+    imu_hbmini.hmc.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_BOARD_ID, now_ts, &imu.mag);
   }

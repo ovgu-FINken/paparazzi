@@ -35,7 +35,7 @@
 PRINT_CONFIG_VAR(AHRS_ICQ_OUTPUT_ENABLED)
 
 /** if TRUE with push the estimation results to the state interface */
-static bool_t ahrs_icq_output_enabled;
+static bool ahrs_icq_output_enabled;
 static uint32_t ahrs_icq_last_stamp;
 static uint8_t ahrs_icq_id = AHRS_COMP_ID_ICQ;
 
@@ -121,6 +121,13 @@ PRINT_CONFIG_VAR(AHRS_ICQ_IMU_ID)
 #define AHRS_ICQ_MAG_ID AHRS_ICQ_IMU_ID
 #endif
 PRINT_CONFIG_VAR(AHRS_ICQ_MAG_ID)
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef AHRS_ICQ_GPS_ID
+#define AHRS_ICQ_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(AHRS_ICQ_GPS_ID)
 static abi_event gyro_ev;
 static abi_event accel_ev;
 static abi_event mag_ev;
@@ -235,7 +242,7 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
   ahrs_icq_update_gps(gps_s);
 }
 
-static bool_t ahrs_icq_enable_output(bool_t enable)
+static bool ahrs_icq_enable_output(bool enable)
 {
   ahrs_icq_output_enabled = enable;
   return ahrs_icq_output_enabled;
@@ -276,7 +283,7 @@ void ahrs_icq_register(void)
   AbiBindMsgIMU_LOWPASSED(ABI_BROADCAST, &aligner_ev, aligner_cb);
   AbiBindMsgBODY_TO_IMU_QUAT(ABI_BROADCAST, &body_to_imu_ev, body_to_imu_cb);
   AbiBindMsgGEO_MAG(ABI_BROADCAST, &geo_mag_ev, geo_mag_cb);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(AHRS_ICQ_GPS_ID, &gps_ev, gps_cb);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_QUAT_INT, send_quat);

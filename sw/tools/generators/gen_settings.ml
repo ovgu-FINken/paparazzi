@@ -299,7 +299,7 @@ let join_xml_files = fun xml_files ->
     | [f; n] -> f, n
     | _ -> xml_file, ""
     in
-    let xml = Xml.parse_file xml_file in
+    let xml = ExtXml.parse_file xml_file in
     let these_rc_settings =
       try Xml.children (ExtXml.child xml "rc_settings") with
           Not_found -> [] in
@@ -317,7 +317,15 @@ let join_xml_files = fun xml_files ->
               end
               else false
               ) (Xml.children xml)
-            then List.filter (fun t -> Xml.tag t = "settings") (Xml.children xml)
+            then
+              List.filter (fun t ->
+                (* filter xml nodes and keep them if:
+                 * it is a settings node
+                 * the current target is supported in the 'target' attribute
+                 * if no 'target' attribute always keep it
+                 *)
+                Xml.tag t = "settings" && supports_target target (ExtXml.attrib_or_default t "target" target)
+              ) (Xml.children xml)
             else []
           end
           else begin

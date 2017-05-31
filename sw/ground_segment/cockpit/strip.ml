@@ -23,6 +23,7 @@
  *)
 
 open Printf
+
 module LL=Latlong
 
 let (//) = Filename.concat
@@ -204,7 +205,7 @@ let add = fun config strip_param (strips:GPack.box) ->
   let add_label = fun name value ->
     strip_labels := (name, value) :: !strip_labels in
 
-  let ac_name = Pprz.string_assoc "ac_name" config in
+  let ac_name = PprzLink.string_assoc "ac_name" config in
 
   let file = Env.paparazzi_src // "sw" // "ground_segment" // "cockpit" // "gcs.glade" in
   let strip = new Gtk_strip.eventbox_strip ~file () in
@@ -327,7 +328,7 @@ object
 
     (* add a button widget in a vertical box if it belongs to a group (create new group if needed) *)
   method add_widget ?(group="") w =
-    let (vbox, pack) = match String.length group with
+    let (vbox, pack) = match Compat.bytes_length group with
         0 -> (GPack.vbox ~show:true (), true)
       | _ -> try (Hashtbl.find button_tbl group, false) with
           Not_found ->

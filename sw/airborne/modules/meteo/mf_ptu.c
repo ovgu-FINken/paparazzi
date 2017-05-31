@@ -62,14 +62,13 @@ uint16_t temp_adc;
 uint32_t humid_period;
 
 #if LOG_PTU
-#include "sdLog.h"
-#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
-bool_t log_ptu_started;
+#include "modules/loggers/sdlog_chibios.h"
+bool log_ptu_started;
 #endif
 
 #if SEND_PTU
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #include "subsystems/gps.h"
 #endif
@@ -89,7 +88,7 @@ void mf_ptu_init(void)
   humid_period = 0;
 
 #if LOG_PTU
-  log_ptu_started = FALSE;
+  log_ptu_started = false;
 #endif
 }
 
@@ -107,7 +106,7 @@ void mf_ptu_periodic(void)
     if (!log_ptu_started) {
       sdLogWriteLog(pprzLogFile,
                     "P(adc) T(adc) H(usec) GPS_fix TOW(ms) Week Lat(1e7rad) Lon(1e7rad) HMSL(mm) gpseed(cm/s) course(1e7rad) climb(cm/s)\n");
-      log_ptu_started = TRUE;
+      log_ptu_started = true;
     } else {
       sdLogWriteLog(pprzLogFile, "%d %d %d %d %d %d %d %d %d %d %d %d\n",
                     pressure_adc, temp_adc, humid_period,

@@ -25,6 +25,7 @@
  */
 
 #include "throttle_curve.h"
+#include "subsystems/commands.h"
 
 /* The switching values for the Throttle Curve Mode switch */
 #define THROTTLE_CURVE_SWITCH_VAL (MAX_PPRZ*2/THROTTLE_CURVES_NB)
@@ -49,7 +50,7 @@ void throttle_curve_init(void)
  * Run the throttle curve and generate the output throttle and pitch
  * This depends on the FMODE(flight mode) and TRHUST command
  */
-void throttle_curve_run(bool_t motors_on, pprz_t in_cmd[])
+void throttle_curve_run(bool motors_on, pprz_t in_cmd[])
 {
   // Calculate the mode value from the switch
   int8_t mode = ((float)(in_cmd[COMMAND_FMODE] + MAX_PPRZ) / THROTTLE_CURVE_SWITCH_VAL);
@@ -79,4 +80,12 @@ void throttle_curve_run(bool_t motors_on, pprz_t in_cmd[])
   if (!motors_on) {
     throttle_curve.throttle = 0;
   }
+}
+
+/**
+ * Set a specific throttle curve based on the mode given with this function
+ */
+void nav_throttle_curve_set(uint8_t mode)
+{
+  commands[COMMAND_FMODE] = mode * THROTTLE_CURVE_SWITCH_VAL - MAX_PPRZ;
 }

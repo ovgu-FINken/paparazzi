@@ -45,19 +45,12 @@
 
 // Generated
 #include "generated/airframe.h"
-#include "generated/flight_plan.h"
 
 // Systime
 #include "mcu_periph/sys_time.h"
 
 // Abi
 #include "subsystems/abi.h"
-
-#if GPS_USE_LATLONG
-/* currently needed to get nav_utm_zone0 */
-#include "subsystems/navigation/common_nav.h"
-#include "math/pprz_geodetic_float.h"
-#endif
 
 
 #if !defined INS_VN_BODY_TO_IMU_PHI && !defined INS_VN_BODY_TO_IMU_THETA && !defined INS_VN_BODY_TO_IMU_PSI
@@ -70,7 +63,7 @@
 // Ins implementation state (fixed point)
 struct InsVectornav {
   struct LtpDef_i  ltp_def; // initial position
-  bool_t           ltp_initialized; // status indicator
+  bool           ltp_initialized; // status indicator
 
   // output LTP NED for telemetry messages
   struct NedCoor_i ltp_pos_i;
@@ -134,6 +127,5 @@ extern void ins_vectornav_set_sacc(void);
 extern void ins_vectornav_set_pacc(void);
 extern void ins_vectornav_propagate(void);
 extern void ins_vectornav_yaw_pitch_roll_to_attitude(struct FloatEulers *vn_attitude);
-extern void ins_init_origin_from_flightplan(void);
 
 #endif /* INS_VECTORNAV_H */

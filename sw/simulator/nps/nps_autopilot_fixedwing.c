@@ -56,8 +56,8 @@
 #include "subsystems/datalink/datalink.h"
 
 struct NpsAutopilot autopilot;
-bool_t nps_bypass_ahrs;
-bool_t nps_bypass_ins;
+bool nps_bypass_ahrs;
+bool nps_bypass_ins;
 
 #ifndef NPS_BYPASS_AHRS
 #define NPS_BYPASS_AHRS FALSE
@@ -126,6 +126,18 @@ void nps_autopilot_run_step(double time)
     Fbw(event_task);
     Ap(event_task);
   }
+
+  if (nps_sensors_temperature_available()) {
+    AbiSendMsgTEMPERATURE(BARO_SIM_SENDER_ID, (float)sensors.temp.value);
+  }
+
+#if USE_AIRSPEED
+  if (nps_sensors_airspeed_available()) {
+    stateSetAirspeed_f((float)sensors.airspeed.value);
+    Fbw(event_task);
+    Ap(event_task);
+  }
+#endif
 
   if (nps_sensors_gps_available()) {
     gps_feed_value();
@@ -196,9 +208,19 @@ void sim_overwrite_ahrs(void)
 void sim_overwrite_ins(void)
 {
 
-  struct NedCoor_f ltp_pos;
-  VECT3_COPY(ltp_pos, fdm.ltpprz_pos);
-  stateSetPositionNed_f(&ltp_pos);
+  if (state.ned_initialized_i || state.ned_initialized_f) {
+    struct NedCoor_f ltp_pos;
+    VECT3_COPY(ltp_pos, fdm.ltpprz_pos);
+    stateSetPositionNed_f(&ltp_pos);
+  }
+  else if (state.utm_initialized_f) {
+    struct LlaCoor_f lla;
+    LLA_COPY(lla, fdm.lla_pos);
+    struct UtmCoor_f utm;
+    utm.zone = (lla.lon / 1e7 + 180) / 6 + 1;
+    utm_of_lla_f(&utm, &lla);
+    stateSetPositionUtm_f(&utm);
+  }
 
   struct NedCoor_f ltp_speed;
   VECT3_COPY(ltp_speed, fdm.ltpprz_ecef_vel);

@@ -57,7 +57,7 @@ def bebop_status():
 
 
 # Parse the arguments
-parser = argparse.ArgumentParser(description='Bebop python helper. Use bebop.py -h for help')
+parser = argparse.ArgumentParser(description='Bebop helper tool. Use bebop.py -h for help')
 parser.add_argument('--host', metavar='HOST', default='192.168.42.1',
                     help='the ip address of bebop')
 subparsers = parser.add_subparsers(title='Command to execute', metavar='command', dest='command')
@@ -122,16 +122,22 @@ elif args.command == 'upload_file_and_run':
     # Split filename and path
     f = parrot_utils.split_into_path_and_file(args.file)
 
-    print("Kill running " + f[1] + " and make folder " + args.folder)
-    parrot_utils.execute_command(tn,"killall -9 " + f[1])
-    sleep(1)
-    parrot_utils.execute_command(tn, "mkdir -p /data/ftp/" + args.folder)
-    print('Uploading \'' + f[1] + "\' from " + f[0] + " to " + args.folder)
-    parrot_utils.uploadfile(ftp, args.folder + "/" + f[1], file(args.file, "rb"))
-    sleep(0.5)
-    parrot_utils.execute_command(tn, "chmod 777 /data/ftp/" + args.folder + "/" + f[1])
-    parrot_utils.execute_command(tn, "/data/ftp/" + args.folder + "/" + f[1] + " > /dev/null 2>&1 &")
-    print("#pragma message: Upload and Start of ap.elf to Bebop Succes!")
+    #check firmware version
+    v = parrot_utils.check_version(tn, '').strip()
+    print("Checking Bebop firmware version... " + v )
+    if ((v < '3.2.0') or (v > '3.4.0-RC2')):
+        print("Error: please upgrade your Bebop firmware to version between 3.2.0 and 3.4.0!")
+    else:
+        print("Kill running " + f[1] + " and make folder " + args.folder)
+        parrot_utils.execute_command(tn,"killall -9 " + f[1])
+        sleep(1)
+        parrot_utils.execute_command(tn, "mkdir -p /data/ftp/" + args.folder)
+        print('Uploading \'' + f[1] + "\' from " + f[0] + " to " + args.folder)
+        parrot_utils.uploadfile(ftp, args.folder + "/" + f[1], file(args.file, "rb"))
+        sleep(0.5)
+        parrot_utils.execute_command(tn, "chmod 777 /data/ftp/" + args.folder + "/" + f[1])
+        parrot_utils.execute_command(tn, "/data/ftp/" + args.folder + "/" + f[1] + " > /dev/null 2>&1 &")
+        print("#pragma message: Upload and Start of ap.elf to Bebop succesful !")
 
 elif args.command == 'upload_file':
     # Split filename and path
@@ -140,7 +146,7 @@ elif args.command == 'upload_file':
     parrot_utils.execute_command(tn, "mkdir -p /data/ftp/" + args.folder)
     print('Uploading \'' + f[1] + "\' from " + f[0] + " to /data/ftp/" + args.folder)
     parrot_utils.uploadfile(ftp, args.folder + "/" + f[1], file(args.file, "rb"))
-    print("#pragma message: Upload of " + f[1] + " to Bebop Succes!")
+    print("#pragma message: Upload of " + f[1] + " to Bebop succesful !")
 
 elif args.command == 'download_file':
     # Split filename and path

@@ -145,7 +145,6 @@ void imu_init(void)
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_IMU_MAG, send_mag);
 #endif // DOWNLINK
 
-  imu_impl_init();
 }
 
 
@@ -192,7 +191,7 @@ void imu_SetBodyToImuCurrent(float set)
       AbiSendMsgBODY_TO_IMU_QUAT(1, orientationGetQuat_f(&imu.body_to_imu));
     } else {
       // indicate that we couldn't set to current roll/pitch
-      imu.b2i_set_current = FALSE;
+      imu.b2i_set_current = false;
     }
   } else {
     // reset to BODY_TO_IMU as defined in airframe file
@@ -205,10 +204,6 @@ void imu_SetBodyToImuCurrent(float set)
 
 
 // weak functions, used if not explicitly provided by implementation
-
-void WEAK imu_periodic(void)
-{
-}
 
 void WEAK imu_scale_gyro(struct Imu *_imu)
 {
@@ -232,7 +227,7 @@ void WEAK imu_scale_accel(struct Imu *_imu)
                    IMU_ACCEL_Z_SENS_NUM) / IMU_ACCEL_Z_SENS_DEN;
 }
 
-#if defined IMU_MAG_X_CURRENT_COEF && defined IMU_MAG_Y_CURRENT_COEF && defined IMU_MAG_Z_CURRENT_COEF
+#if !defined SITL && defined IMU_MAG_X_CURRENT_COEF && defined IMU_MAG_Y_CURRENT_COEF && defined IMU_MAG_Z_CURRENT_COEF
 #include "subsystems/electrical.h"
 void WEAK imu_scale_mag(struct Imu *_imu)
 {

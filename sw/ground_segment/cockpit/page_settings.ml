@@ -24,6 +24,7 @@
 
 open Printf
 
+
 let (//) = Filename.concat
 
 
@@ -36,11 +37,11 @@ object
     match last_known_value with
     | None -> raise Not_found
     | Some v ->
-        let auc = Pprz.alt_unit_coef_of_xml xml in
+        let auc = PprzLink.alt_unit_coef_of_xml xml in
         let (alt_a, alt_b) = Ocaml_tools.affine_transform auc in
         (v -. alt_b) /. alt_a
   method current_value =
-    let auc = Pprz.alt_unit_coef_of_xml xml in
+    let auc = PprzLink.alt_unit_coef_of_xml xml in
     let (alt_a, alt_b) = Ocaml_tools.affine_transform auc in
     (float_of_string current_value#text -. alt_b) /. alt_a
   method update = fun s ->
@@ -74,7 +75,7 @@ let search_index = fun value array ->
 
 
 let add_key = fun xml do_change keys ->
-  let key, modifiers = GtkData.AccelGroup.parse (Pprz.key_modifiers_of_string (Xml.attrib xml "key"))
+  let key, modifiers = GtkData.AccelGroup.parse (Env.key_modifiers_of_string (Xml.attrib xml "key"))
   and value = ExtXml.float_attrib xml "value" in
   keys := (key, (modifiers, fun () -> do_change value)) :: !keys
 
@@ -90,11 +91,11 @@ let one_setting = fun (i:int) (do_change:int -> float -> unit) ac_id packing dl_
       1.
   in
   (* get number of digits after decimal dot *)
-  let digits = try String.length (ExtXml.attrib dl_setting "step") - String.index (ExtXml.attrib dl_setting "step") '.' - 1 with _ -> 0 in
+  let digits = try Compat.bytes_length (ExtXml.attrib dl_setting "step") - Compat.bytes_index (ExtXml.attrib dl_setting "step") '.' - 1 with _ -> 0 in
   let page_incr = step_incr
   and page_size = step_incr
   and show_auto = try ExtXml.attrib dl_setting "auto" = "true" with _ -> false in
-  let auc = Pprz.alt_unit_coef_of_xml dl_setting in
+  let auc = PprzLink.alt_unit_coef_of_xml dl_setting in
   let (alt_a, alt_b) = Ocaml_tools.affine_transform auc in
 
   let hbox = GPack.hbox ~packing () in
@@ -248,7 +249,7 @@ let one_setting = fun (i:int) (do_change:int -> float -> unit) ac_id packing dl_
 
   (** Insert the related buttons in the strip and prepare the papgets DnD *)
   List.iter (fun x ->
-    match String.lowercase (Xml.tag x) with
+    match Compat.bytes_lowercase (Xml.tag x) with
         "strip_button" ->
           let label = ExtXml.attrib x "name"
           and sp_value = ExtXml.float_attrib x "value"
@@ -292,7 +293,7 @@ let same_tag_for_all = function
   | x::xs ->
     let tag_first = Xml.tag x in
     List.iter (fun y -> assert(ExtXml.tag_is y tag_first)) xs;
-    String.lowercase tag_first
+    Compat.bytes_lowercase tag_first
 
 
 (** Build the tree of settings *)
@@ -345,7 +346,7 @@ object (self)
         | None -> "?", -1
         | Some x ->
           let v = try float_of_string x with _ -> failwith (sprintf "Pages.settings#set:wrong values.(%d) = %s" i x) in
-          let auc = Pprz.alt_unit_coef_of_xml setting#xml in
+          let auc = PprzLink.alt_unit_coef_of_xml setting#xml in
           let (alt_a, alt_b) = Ocaml_tools.affine_transform auc in
           let v = alt_a *. v +. alt_b in
           string_of_float v, truncate v
@@ -365,4 +366,3 @@ object (self)
     let settings = Array.fold_right (fun setting r -> try (setting#index, setting#xml, setting#last_known_value)::r with _ -> r) variables [] in
     SaveSettings.popup airframe_filename (Array.of_list settings) do_change
 end
-

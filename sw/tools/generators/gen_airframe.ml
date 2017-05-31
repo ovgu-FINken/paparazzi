@@ -24,6 +24,7 @@
 
 let max_pprz = 9600. (* !!!! MAX_PPRZ From paparazzi.h !!!! *)
 
+
 open Printf
 open Xml2h
 
@@ -86,14 +87,14 @@ let convert_value_with_code_unit_coef_of_xml = function xml ->
   (* if unit equals code unit, don't convert as that would always result in a float *)
   if u = cu then failwith "Not converting";
   (* default value for code_unit is rad[/s] when unit is deg[/s] *)
-  let conv = try Pprz.scale_of_units u cu with
-  | Pprz.Unit_conversion_error s ->
+  let conv = try PprzLink.scale_of_units u cu with
+  | PprzLink.Unit_conversion_error s ->
       eprintf "Unit conversion error: %s\n%!" s;
       exit 1
-  | Pprz.Unknown_conversion (su, scu) ->
+  | PprzLink.Unknown_conversion (su, scu) ->
       eprintf "Warning: unknown unit conversion: from %s to %s\n%!" su scu;
       failwith "Unknown unit conversion"
-  | Pprz.No_automatic_conversion _ | _ -> failwith "Unit conversion error" in
+  | PprzLink.No_automatic_conversion _ | _ -> failwith "Unit conversion error" in
   let v =
     try ExtXml.float_attrib xml "value"
     with _ -> prerr_endline (sprintf "Error: Unit conversion of parameter %s impossible because '%s' is not a float" (Xml.attrib xml "name") (Xml.attrib xml "value")); flush stderr; exit 1 in
@@ -104,7 +105,7 @@ let rec string_from_type = fun name v t ->
   let sprint_array = fun v t ->
     let vs = Str.split array_sep v in
     let sl = List.map (fun vl -> string_from_type name vl t) vs in
-    "{ "^(String.concat " , " sl)^" }"
+    "{ "^(Compat.bytes_concat " , " sl)^" }"
   in
   let rm_leading_trailing_spaces = fun s ->
     let s = Str.global_replace (Str.regexp "^ *") "" s in
@@ -291,8 +292,8 @@ let rec parse_section = fun ac_id s ->
       let servos = Xml.children s in
       let nb_servos = List.fold_right (fun s m -> Pervasives.max (int_of_string (ExtXml.attrib s "no")) m) servos min_int + 1 in
 
-      define (sprintf "SERVOS_%s_NB" (String.uppercase driver)) (string_of_int nb_servos);
-      printf "#include \"subsystems/actuators/actuators_%s.h\"\n" (String.lowercase driver);
+      define (sprintf "SERVOS_%s_NB" (Compat.bytes_uppercase driver)) (string_of_int nb_servos);
+      printf "#include \"subsystems/actuators/actuators_%s.h\"\n" (Compat.bytes_lowercase driver);
       nl ();
       List.iter (parse_servo driver) servos;
       nl ()
@@ -344,7 +345,7 @@ let rec parse_section = fun ac_id s ->
       printf "}\n\n";
     | "include" ->
       let filename = Str.global_replace (Str.regexp "\\$AC_ID") ac_id (ExtXml.attrib s "href") in
-      let subxml = Xml.parse_file filename in
+      let subxml = ExtXml.parse_file filename in
       printf "/* XML %s */" filename;
       nl ();
       List.iter (parse_section ac_id) (Xml.children subxml)
@@ -357,14 +358,14 @@ let rec parse_section = fun ac_id s ->
 let h_name = "AIRFRAME_H"
 
 let hex_to_bin = fun s ->
-  let n = String.length s in
+  let n = Compat.bytes_length s in
   assert(n mod 2 = 0);
-  let b = String.make (2*n) 'x' in
+  let b = Compat.bytes_make (2*n) 'x' in
   for i = 0 to n/2 - 1 do
-    b.[4*i] <- '\\';
-    Scanf.sscanf (String.sub s (2*i) 2) "%2x"
+    Compat.bytes_set b (4*i) '\\';
+    Scanf.sscanf (Compat.bytes_sub s (2*i) 2) "%2x"
       (fun x ->
-        String.blit (sprintf "%03o" x) 0 b (4*i+1) 3)
+        Compat.bytes_blit (sprintf "%03o" x) 0 b (4*i+1) 3)
   done;
   b
 
