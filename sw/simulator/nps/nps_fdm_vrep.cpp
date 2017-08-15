@@ -41,20 +41,22 @@ class VRepClient {
           }
     }
   public:
-      void update() {
+      void update(double *commands, const int& commands_nb) {
         connect();
-        static unsigned int seqNr = 0;
         try {
           {
             boost::archive::text_oarchive out(s);
-            out << seqNr;
+            out << commands_nb;
+            for(int i=0;i<commands_nb;i++) {
+	        	  out << commands[i];
+            }
           }
-          vrepLog << "Query is: " << seqNr++ << std::endl;
+          vrepLog << "Query is: " << commands[0] << std::endl;
 
           boost::archive::text_iarchive in(s);
-          unsigned int i;
-          in >> i;
-          vrepLog << "Reply is: " << i << std::endl;
+          double d;
+          in >> d;
+          vrepLog << "Reply is: " << d << std::endl;
 
         }catch(const std::exception& e) {
             vrepLog << "Exception: " << e.what() << "\n";
@@ -99,7 +101,7 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
   vrepLog << "]" << endl;
 
-  client.update();
+  client.update(commands, commands_nb);
 }
 
 void nps_fdm_set_wind(double speed, double dir) {
