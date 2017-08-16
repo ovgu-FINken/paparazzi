@@ -1886,7 +1886,7 @@
 
 
     <message name="COPTER_INS" id="217">
-      <field name="AC_Id"     type="int32" />
+      <field name="ac_id"     type="int32" />
       <field name="ins_x"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>
       <field name="ins_y"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>
       <field name="ins_z"     type="int32" alt_unit="m"    alt_unit_coef="0.0039063"/>

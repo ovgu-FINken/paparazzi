@@ -1,0 +1,19 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="copter_swarm">
+  <doc>
+    <description>
+	Module that takes other copters INS data to create swarm behaviour.
+    </description>
+  </doc>
+  <header>
+    <file name="copter_swarm.h"/>
+  </header>
+  <init fun="copter_swarm_init()"/>
+  <periodic fun="copter_swarm_periodic()" freq="5"/>
+  <datalink message="COPTER_INS" fun="copter_ins_action()"/>
+  <makefile>
+    <file name="copter_swarm.c"/>
+  </makefile>
+</module>
+
