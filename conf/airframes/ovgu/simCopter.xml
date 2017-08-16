@@ -54,6 +54,7 @@
     </load-->
     <load name="geo_mag.xml"/>
     <load name="air_data.xml"/>
+    <load name="virt_baro_ir_adc.xml"/>
   </modules>
 
   <servos driver="Pwm">
