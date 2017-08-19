@@ -19,11 +19,16 @@ typedef struct ins_node {
     int ins_ydd;
     int ins_zdd;
 
-    struct ins_node* next;
+    struct ins_node *next;
 }ins_node_t;
+
 
 // returns the node with the given ac_id or a newly created one
 ins_node_t* find_ins_node(int ac_id, ins_node_t* list);
+
+
+//function to calculate the force
+void calcForce(ins_node_t* copter0, ins_node_t* copter1);
 
 
 #endif
