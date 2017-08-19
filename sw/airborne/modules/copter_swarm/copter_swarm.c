@@ -6,17 +6,21 @@
 #include <dl_protocol.h>
 
 
-//ins_node_t* list;
+ins_node_t* list;
 
 void copter_swarm_init( void ) {
-    //list = NULL;
+    list = NULL;
 }
 
 
 void copter_ins_action(void) {
+
+	list->ac_id = 24;
+	list->ac_id = DL_COPTER_INS_ac_id(dl_buffer);
 	// we already know own position so skip this.
 	if(DL_COPTER_INS_ac_id(dl_buffer) == AC_ID)
 		return;
+
 /*
 	// gather all recieved INS values and store them in the list
 	int ac_id = DL_COPTER_INS_ac_id(dl_buffer);
