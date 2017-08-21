@@ -34,7 +34,7 @@ void copter_ins_action(void) {
 	// gather all recieved INS values and store them in the list
 	int ac_id = DL_COPTER_INS_ac_id(dl_buffer);
 	//To use call by reference manage memory
-	ins_node_t* copter_ins = find_ins_node(ac_id, list);
+	ins_node_t* copter_ins = find_ins_node(ac_id, & list);
 /*
 	
 	copter_ins->ins_x = DL_COPTER_INS_ins_x(dl_buffer);
@@ -83,8 +83,8 @@ void calcForce(ins_node_t* copter0, ins_node_t* copter1){
 ins_node_t* find_ins_node(int ac_id, ins_node_t* copter_ins)
 {
 
-	//ins_node_t* ins = &copter_ins;
-	/*
+	ins_node_t* ins = &copter_ins;
+
 	//Value of the address 
 	while (((ins)->ac_id) != ac_id && &(ins)->next != NULL)
 		ins =&(ins)->next;		
@@ -106,9 +106,8 @@ ins_node_t* find_ins_node(int ac_id, ins_node_t* copter_ins)
 
 			
 	return copter_ins;
-*/
 	
-	
+	/*
 	if(copter_ins == NULL){
 		// TODO ask christoph where to free this memory if needed
 		//first = malloc(sizeof(ins_node_t));
@@ -141,6 +140,7 @@ ins_node_t* find_ins_node(int ac_id, ins_node_t* copter_ins)
 	new_node->ac_id = ac_id;
 	node->next = new_node;
 	return new_node;
+*/
 
 }
 
