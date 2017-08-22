@@ -24,7 +24,7 @@ typedef struct ins_node {
 
 
 // returns the node with the given ac_id or a newly created one
-ins_node_t* find_ins_node(int ac_id, ins_node_t* list);
+void fill_ins_node(int ac_id, ins_node_t* list);
 
 
 //function to calculate the force
