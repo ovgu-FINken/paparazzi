@@ -2,6 +2,8 @@
 #ifndef COPTER_SWARM_H
 #define COPTER_SWARM_H
 
+#define SWARM_SIZE 5
+
 void copter_swarm_init(void);
 void copter_ins_action(void);
 void copter_swarm_periodic(void);
@@ -19,7 +21,6 @@ typedef struct ins_node {
     int ins_ydd;
     int ins_zdd;
 
-    struct ins_node *next;
 }ins_node_t;
 
 

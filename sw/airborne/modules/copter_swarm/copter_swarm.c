@@ -8,52 +8,57 @@
 #include <math.h>
 
 
-static ins_node_t list;
+static ins_node_t swarm[SWARM_SIZE];
 
 void copter_swarm_init( void ) {
-
-    //list = NULL;
+	int i = 0;
+	for( ; i < SWARM_SIZE; i++){
+		swarm[i].ac_id=-1;
+	}
 }
 
 
 void copter_ins_action(void) {
 
 
-	// 
+	
 	//To get the current copter id
 	int copter_ac_id = DL_COPTER_INS_ac_id(dl_buffer);
 	// we already know own position so skip this.
 	if(DL_COPTER_INS_copter_id(dl_buffer) == AC_ID)
 		return;
-
+	
 
 	// gather all recieved INS values and store them in the list
 	int ac_id = DL_COPTER_INS_copter_id(dl_buffer);
-	//To use call by reference manage memory
-	fill_ins_node(ac_id, &list);
+	// To use call by reference manage memory
+	fill_ins_node(ac_id, swarm);
 
 }
 
 
 void fill_ins_node(int ac_id, ins_node_t* copter_ins)
 {
-	
+	int i=0;
 	if(copter_ins == NULL){
-		// TODO ask christoph where to free this memory if needed
-		//copter_ins = malloc(sizeof(ins_node_t));
-		copter_ins->ac_id = ac_id;
+		return;
 	}
 
-	while (copter_ins->next != NULL){
+	while (copter_ins->ac_id != -1 && i < SWARM_SIZE){
 		if(ac_id == copter_ins->ac_id)
 		{
 			break;
 		}
-		copter_ins = copter_ins->next;
+		i++;
+		copter_ins++;
 	}
 
-	if(ac_id == copter_ins->ac_id)
+	
+
+	
+	if(i < SWARM_SIZE)
 	{
+		copter_ins->ac_id = ac_id;
 		copter_ins->ins_x = DL_COPTER_INS_ins_x(dl_buffer);
 		copter_ins->ins_y = DL_COPTER_INS_ins_y(dl_buffer);
 		copter_ins->ins_z = DL_COPTER_INS_ins_z(dl_buffer);
@@ -66,19 +71,15 @@ void fill_ins_node(int ac_id, ins_node_t* copter_ins)
 		copter_ins->ins_ydd = DL_COPTER_INS_ins_ydd(dl_buffer);
 		copter_ins->ins_zdd = DL_COPTER_INS_ins_zdd(dl_buffer);
 		
-		return copter_ins;
 	}
 
-	struct ins_node *new_node ;//= malloc (sizeof(ins_node_t));
-	new_node->ac_id = ac_id;
-	new_node->next = NULL;
-	copter_ins->next = new_node;
-	return new_node;	
+	
+	return;	
 }
 
 void copter_swarm_periodic(void)
 {
-	list.ac_id++;
+	
 }
 
 //function to calculate the force
