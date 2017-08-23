@@ -31,9 +31,12 @@
       <define name="SERVO_HZ" value="400"/>
     </subsystem>
 
-    <subsystem name="telemetry"     type="transparent_usb">
-      <!--<configure name="MODEM_BAUD"  value="B38400"/>
-      <configure name="MODEM_PORT" value="UART3"/>-->
+<!-- comment the below three lines and use
+	<subsystem name="telemetry"     type="transparent_usb">-->
+    <subsystem name="telemetry"     type="transparent">
+      <configure name="MODEM_BAUD"  value="B38400"/>
+      <configure name="MODEM_PORT" value="UART3"/>
+
     </subsystem>
     <subsystem name="imu"           type="lisa_mx_v2.1"/>
     <subsystem name="gps"           type="datalink"/>

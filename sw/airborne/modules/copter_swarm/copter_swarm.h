@@ -2,7 +2,9 @@
 #ifndef COPTER_SWARM_H
 #define COPTER_SWARM_H
 
+#ifndef SWARM_SIZE
 #define SWARM_SIZE 5
+#endif
 
 void copter_swarm_init(void);
 void copter_ins_action(void);
@@ -29,7 +31,7 @@ void fill_ins_node(int ac_id, ins_node_t* list);
 
 
 //function to calculate the force
-void calcForce(ins_node_t* copter0, ins_node_t* copter1);
+void calcForce(ins_node_t* copter0, double* fx_out, double* fy_out);
 
 
 #endif

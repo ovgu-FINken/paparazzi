@@ -6,6 +6,8 @@
 #include <messages.h>
 #include <dl_protocol.h>
 #include <math.h>
+#include <subsystems/ins/ins_int.h>
+
 
 
 static ins_node_t swarm[SWARM_SIZE];
@@ -79,30 +81,51 @@ void fill_ins_node(int ac_id, ins_node_t* copter_ins)
 
 void copter_swarm_periodic(void)
 {
+	ins_node_t* copter = swarm;
+	int i = 0;	
+	double fx_sum = 0;
+	double fy_sum = 0;
+	double fx = 0;
+	double fy = 0;
+	for ( ; i < SWARM_SIZE; i++){
+		if (copter->ac_id == -1)
+			break;		
+		fx = 0;
+		fy = 0;
+		calcForce(copter, &fx, &fy);
+		fx_sum += fx;
+		fy_sum += fy;
+		copter++;
+	}
+
+	// TODO transform forces to speed command
 	
 }
 
 //function to calculate the force
+void calcForce(ins_node_t* copter0, double* fx_out, double* fy_out){
+	ins_node_t copter1;
+	copter1.ac_id = AC_ID;
+	copter1.ins_x = ins_int.ltp_pos.x;
+	copter1.ins_y = ins_int.ltp_pos.y;
+	copter1.ins_z = ins_int.ltp_pos.z;
 
-void calcForce(ins_node_t* copter0, ins_node_t* copter1){
-	int cons = 0.5;
-	int d = 0.9;
-	int diff_x;
-	int diff_y;
+	float cons = 0.5;
+	float d = 0.9;
+	float diff_x;
+	float diff_y;
 	double dist;
-	double fx;
-	double fy;
 
-	diff_x = copter0->ins_x - copter1->ins_x;
-	diff_y = copter0->ins_y - copter1->ins_y; 
+	diff_x = copter0->ins_x - copter1.ins_x;
+	diff_y = copter0->ins_y - copter1.ins_y; 
 	dist = sqrt((diff_x*diff_x) + (diff_y*diff_y));	
 
 	if(dist < d){
 		cons = 3.0;
 	}
 
-    	fx = - cons*(dist-d) * diff_x;
-    	fy = - cons*(dist-d) * diff_y;
+    	*fx_out = - cons*(dist-d) * diff_x;
+    	*fy_out = - cons*(dist-d) * diff_y;
 
 	// To return fx and fy
 }
