@@ -29,20 +29,20 @@
       <define name="SERVO_HZ" value="400"/>
     </subsystem>
 
-    <subsystem name="telemetry"     type="transparent">
-      <configure name="MODEM_BAUD"  value="B38400"/>
-      <configure name="MODEM_PORT" value="UART3"/>
+    <subsystem name="telemetry"     type="transparent_usb">
+      <!--<configure name="MODEM_BAUD"  value="B38400"/>
+      <configure name="MODEM_PORT" value="UART3"/>-->
     </subsystem>
     <subsystem name="imu"           type="lisa_mx_v2.1"/>
     <subsystem name="gps"           type="datalink"/>
     <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs"          type="float_mlkf">
+    <subsystem name="ahrs"          type="float_cmpl_quat">
 	    <!-- Uncomment to enable all axis update from the Magnetometer. Do
 		 it only if you have a very well calibrated and tested
 		 magnetometer otherwise your attitude will drift. -->
 	    <!--define name="AHRS_MAG_UPDATE_ALL_AXES" value="1"/-->
     </subsystem>
-    <subsystem name="ins" type="hff"/>
+    <subsystem name="ins" type="extended"/>
 
     <!--define name="KILL_ON_GROUND_DETECT" value="TRUE"/-->
   </firmware>
@@ -54,7 +54,12 @@
     </load-->
     <load name="geo_mag.xml"/>
     <load name="air_data.xml"/>
-    <load name="virt_baro_ir_adc.xml"/>
+    <load name="virt_baro_ir_adc.xml">
+      <configure name="ADC_IR" value="ADC_3"/>
+    </load>
+    <!--<load name="finken_ir_adc.xml">
+      <configure name="ADC_IR" value="ADC_3"/>
+    </load>-->
   </modules>
 
   <servos driver="Pwm">
