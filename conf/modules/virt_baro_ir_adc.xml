@@ -6,18 +6,21 @@
       Virtual barometer fed by a distance sensor looking towards ground.
       Sends the BARO_ABS ABI message with the current height converted to absolute pressure.
     </description>
+    <configure name="ADC_IR" value="ADCX" description="choose which ADC is used for ir sensor"/>
   </doc>
 
   <header>
     <file name="virt_baro_ir_adc.h"/>
   </header>
   <init fun="virt_baro_ir_adc_init()"/>
-  <periodic fun="virt_baro_ir_adc_periodic()" freq="10."/>
+  <periodic fun="virt_baro_ir_adc_periodic()" freq="30."/>
 
   <makefile target="ap">
     <file name="virt_baro_ir_adc.c"/>
     <define name="USE_BARO_BOARD" value="FALSE"/>
-    <define name="ADC_CHANNEL_IR" value="3"/>
+    <define name="ADC_CHANNEL_IR" value="$(ADC_IR)"/>
+    <define name="USE_$(ADC_IR)"/>
+    <define name="USE_IR"/>
   </makefile>
 
 </module>

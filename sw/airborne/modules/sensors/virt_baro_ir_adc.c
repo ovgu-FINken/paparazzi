@@ -75,6 +75,6 @@ void virt_baro_ir_adc_periodic(void)
     update_ir_distance_from_measurement();
     update_ir_distance_equalized_from_ir_distance();
     float pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
-    AbiSendMsgBARO_ABS(BARO_SIM_SENDER_ID, pressure);
+    AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
 
 }
