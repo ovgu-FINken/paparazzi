@@ -7,6 +7,8 @@
 #include <dl_protocol.h>
 #include <math.h>
 #include <subsystems/ins/ins_int.h>
+//#include <firmwares/rotorcraft/guidance/guidance_h.h>
+//#include <firmwares/rotorcraft/autopilot_guided.h>
 
 
 
@@ -97,8 +99,14 @@ void copter_swarm_periodic(void)
 		fy_sum += fy;
 		copter++;
 	}
+	// TODO limit speed
 
 	// TODO transform forces to speed command
+
+	// speed command?
+	//guidance_h_set_guided_vel(float vx, float vy)
+	// bool guidance_h_set_guided_vel 	( 	float  	vx,		float  	vy 	) 	
+	
 	
 }
 
@@ -110,18 +118,18 @@ void calcForce(ins_node_t* copter0, double* fx_out, double* fy_out){
 	copter1.ins_y = ins_int.ltp_pos.y;
 	copter1.ins_z = ins_int.ltp_pos.z;
 
-	float cons = 0.5;
-	float d = 0.9;
+	float cons = 0.1;
+	float d = 1.0;
 	float diff_x;
 	float diff_y;
 	double dist;
 
-	diff_x = copter0->ins_x - copter1.ins_x;
-	diff_y = copter0->ins_y - copter1.ins_y; 
+	diff_x = copter1.ins_x - copter0->ins_x;
+	diff_y = copter1.ins_y - copter0->ins_y; 
 	dist = sqrt((diff_x*diff_x) + (diff_y*diff_y));	
 
 	if(dist < d){
-		cons = 3.0;
+		cons = 0.6;
 	}
 
     	*fx_out = - cons*(dist-d) * diff_x;
