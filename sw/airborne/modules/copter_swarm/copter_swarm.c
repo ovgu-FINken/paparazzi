@@ -7,8 +7,7 @@
 #include <dl_protocol.h>
 #include <math.h>
 #include <subsystems/ins/ins_int.h>
-//#include <firmwares/rotorcraft/guidance/guidance_h.h>
-//#include <firmwares/rotorcraft/autopilot_guided.h>
+#include <firmwares/rotorcraft/navigation.h>
 
 
 
@@ -102,6 +101,11 @@ void copter_swarm_periodic(void)
 	// TODO limit speed
 
 	// TODO transform forces to speed command
+	struct EnuCoor_i myPos = *(stateGetPositionEnu_i());
+	
+
+	navigation_carrot.x = myPos.x + fx_sum;
+	navigation_carrot.y = myPos.y + fy_sum;
 
 	// speed command?
 	//guidance_h_set_guided_vel(float vx, float vy)
