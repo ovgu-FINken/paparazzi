@@ -20,7 +20,9 @@
     </target>
 
     <subsystem name="radio_control" type="spektrum">
-      <define name="RADIO_MODE" value="RADIO_AUX1"/>
+	<define name="RADIO_CONTROL_SPEKTRUM_OLD_SIGNS"/>
+	<define name="RADIO_MODE" value="RADIO_FLAP"/>
+	<define name="RADIO_KILL_SWITCH" value="RADIO_GEAR"/>
       <configure name="USE_SECONDARY_SPEKTRUM_RECEIVER" value="0"/>
     </subsystem>
 
@@ -29,9 +31,12 @@
       <define name="SERVO_HZ" value="400"/>
     </subsystem>
 
-    <subsystem name="telemetry"     type="transparent_usb">
-      <!--<configure name="MODEM_BAUD"  value="B38400"/>
-      <configure name="MODEM_PORT" value="UART3"/>-->
+<!-- comment the below three lines and use
+	<subsystem name="telemetry"     type="transparent_usb">-->
+    <subsystem name="telemetry"     type="transparent">
+      <configure name="MODEM_BAUD"  value="B38400"/>
+      <configure name="MODEM_PORT" value="UART3"/>
+
     </subsystem>
     <subsystem name="imu"           type="lisa_mx_v2.1"/>
     <subsystem name="gps"           type="datalink"/>
@@ -54,19 +59,22 @@
     </load-->
     <load name="geo_mag.xml"/>
     <load name="air_data.xml"/>
+
     <load name="virt_baro_ir_adc.xml">
       <configure name="ADC_IR" value="ADC_3"/>
     </load>
+    <load name="copter_swarm.xml"/>
     <!--<load name="finken_ir_adc.xml">
       <configure name="ADC_IR" value="ADC_3"/>
-    </load>-->
+    </load>
+    -->
   </modules>
 
   <servos driver="Pwm">
-    <servo name="FL" no="2" min="1000" neutral="1100" max="1900"/>
-    <servo name="FR" no="3" min="1000" neutral="1100" max="1900"/>
-    <servo name="BR" no="4" min="1000" neutral="1100" max="1900"/>
-    <servo name="BL" no="5" min="1000" neutral="1100" max="1900"/>
+    <servo name="FRONT"   no="2" min="1000" neutral="1100" max="1900"/>
+    <servo name="BACK"    no="3" min="1000" neutral="1100" max="1900"/>
+    <servo name="LEFT"   no="4" min="1000" neutral="1100" max="1900"/>
+    <servo name="RIGHT"    no="5" min="1000" neutral="1100" max="1900"/>
   </servos>
 
   <commands>
@@ -78,15 +86,24 @@
 
   <section name="MIXING" prefix="MOTOR_MIXING_">
     <!-- front left (CW), front right (CCW), back right (CW), back left (CCW) -->
-    <define name="TYPE" value="QUAD_X"/>
+    <define name="TRIM_ROLL" value="0"/>
+    <define name="TRIM_PITCH" value="0"/>
+    <define name="TRIM_YAW" value="0"/>
+    <define name="NB_MOTOR" value="4"/>
+    <define name="SCALE" value="256"/>
+    <!--according to http://paparazzi.enac.fr/wiki/Rotorcraft_Configuration -->
+    <define name="ROLL_COEF"   value="{ -256, -256,  256,  256 }"/>
+    <define name="PITCH_COEF"  value="{  256, -256, -256,  256 }"/>
+    <define name="YAW_COEF"    value="{ -256,  256, -256,  256 }"/>
+    <define name="THRUST_COEF" value="{  256,  256,  256,  256 }"/>
   </section>
 
   <command_laws>
     <call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
-    <set servo="FL" value="motor_mixing.commands[MOTOR_FRONT_LEFT]"/>
-    <set servo="FR" value="motor_mixing.commands[MOTOR_FRONT_RIGHT]"/>
-    <set servo="BR" value="motor_mixing.commands[MOTOR_BACK_RIGHT]"/>
-    <set servo="BL" value="motor_mixing.commands[MOTOR_BACK_LEFT]"/>
+    <set servo="FRONT"  value="motor_mixing.commands[0]"/>
+    <set servo="BACK"   value="motor_mixing.commands[1]"/>
+    <set servo="LEFT"  value="motor_mixing.commands[2]"/>
+    <set servo="RIGHT"   value="motor_mixing.commands[3]"/>
   </command_laws>
 
   <section name="IMU" prefix="IMU_">
@@ -209,10 +226,12 @@
     <define name="JS_AXIS_MODE" value="4"/>
   </section>
 
+
   <section name="AUTOPILOT">
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
-    <define name="MODE_AUTO1"  value="AP_MODE_HOVER_Z_HOLD"/>
-    <define name="MODE_AUTO2"  value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO1"  value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO2"  value="AP_MODE_HOVER_Z_HOLD"/>
+    <define name="USE_KILL_SWITCH_FOR_MOTOR_ARMING" value="TRUE"/>
   </section>
 
   <section name="BAT">

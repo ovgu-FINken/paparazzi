@@ -1883,8 +1883,6 @@
     <field name="g2_r" type="float"/>
   </message>
 
-  <!--217 is free -->
-
   <message name="BEBOP_ACTUATORS" id="218">
     <field name="cmd_thrust" type="int32"/>
     <field name="cmd_roll" type="int32"/>
@@ -2269,6 +2267,21 @@
    <field name="ac_id" type="uint8"/>
    <field name="length" type="uint8"/>
    <field name="rtcm" type="uint8[]"/>
+ </message>
+
+ <message name="COPTER_INS" id="14" link="forwarded">
+   <field name="ac_id" type="uint8"/>
+   <field name="copter_id" type="uint8"/>
+   <field name="ins_x" type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+   <field name="ins_y" type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+   <field name="ins_z" type="int32" alt_unit="m" alt_unit_coef="0.0039063"/>
+   <field name="ins_xd" type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+   <field name="ins_yd" type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+   <field name="ins_zd" type="int32" alt_unit="m/s" alt_unit_coef="0.0000019"/>
+   <field name="ins_xdd" type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+   <field name="ins_ydd" type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+   <field name="ins_zdd" type="int32" alt_unit="m/s2" alt_unit_coef="0.0009766"/>
+   
  </message>
 
  <message name="GET_SETTING" id="16" link="forwarded">
