@@ -182,23 +182,23 @@
     <define name="REF_MAX_R"    value="180." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
 
-    <!-- feedback -->
-    <define name="PHI_PGAIN"  value="1000"/>
-    <define name="PHI_DGAIN"  value="400"/>
-    <define name="PHI_IGAIN"  value="200"/>
+		<!-- feedback -->
+		<define name="PHI_PGAIN"  value="650"/>
+		<define name="PHI_DGAIN"  value="300"/>
+		<define name="PHI_IGAIN"  value="0"/>
 
-    <define name="THETA_PGAIN"  value="1000"/>
-    <define name="THETA_DGAIN"  value="400"/>
-    <define name="THETA_IGAIN"  value="200"/>
+		<define name="THETA_PGAIN"  value="650"/>
+		<define name="THETA_DGAIN"  value="300"/>
+		<define name="THETA_IGAIN"  value="0"/>
 
-    <define name="PSI_PGAIN"  value="500"/>
-    <define name="PSI_DGAIN"  value="300"/>
-    <define name="PSI_IGAIN"  value="10"/>
+		<define name="PSI_PGAIN"  value="4000"/>
+		<define name="PSI_DGAIN"  value="350"/>
+		<define name="PSI_IGAIN"  value="0"/>
 
-    <!-- feedforward -->
-    <define name="PHI_DDGAIN"   value="300"/>
-    <define name="THETA_DDGAIN" value="300"/>
-    <define name="PSI_DDGAIN"   value="300"/>
+		<!-- feedforward -->
+		<define name="PHI_DDGAIN"   value=" 0"/>
+		<define name="THETA_DDGAIN" value=" 0"/>
+		<define name="PSI_DDGAIN"   value=" 0"/>
   </section>
 
   <section name="GUIDANCE_V" prefix="GUIDANCE_V_">
