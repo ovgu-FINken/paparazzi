@@ -102,14 +102,15 @@ void copter_swarm_periodic(void)
 	// TODO transform forces to speed command
 	struct EnuCoor_i myPos = *(stateGetPositionEnu_i());
 	
-	//guidance_h_mode_changed(GUIDANCE_H_MODE_NAV);
+	navigation_carrot.x = myPos.x + fx_sum + 1000;
+	navigation_carrot.y = myPos.y + fy_sum + 1000;
+	navigation_target.x = myPos.x + fx_sum;
+	navigation_target.y = myPos.y + fy_sum;
+
 	autopilot_set_mode(AP_MODE_NAV);
 
-	//navigation_carrot.x = myPos.x + fx_sum;
-	//navigation_carrot.y = myPos.y + fy_sum;
-
-	guidance_h_pos_sp.x = myPos.x + fx_sum;
-	guidance_h_pos_sp.y = myPos.y + fy_sum;
+	//guidance_h_pos_sp.x = myPos.x + fx_sum;
+	//guidance_h_pos_sp.y = myPos.y + fy_sum;
 
 	// speed command?
 	//guidance_h_set_guided_vel(float vx, float vy)
