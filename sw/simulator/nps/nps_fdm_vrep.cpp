@@ -26,6 +26,8 @@ ofstream vrepLog(current_path()/"vrep.log");
 class VRepClient {
   private:
     tcp::iostream s;
+    std::unique_ptr<boost::archive::text_oarchive> outPtr;
+    std::unique_ptr<boost::archive::text_iarchive> inPtr;
     bool connected=false;
     void connect() {
         while(!connected)
@@ -33,6 +35,8 @@ class VRepClient {
           {
             s.connect("localhost", "50013");
             connected=true;
+            outPtr.reset(new boost::archive::text_oarchive(s, boost::archive::no_header));
+            inPtr.reset(new boost::archive::text_iarchive(s, boost::archive::no_header));
           }
           catch (std::exception& e)
           {
@@ -43,20 +47,20 @@ class VRepClient {
   public:
       void update(double *commands, const int& commands_nb) {
         connect();
+        boost::archive::text_oarchive& out=*outPtr;
+        boost::archive::text_iarchive& in=*inPtr;
         try {
-          {
-            boost::archive::text_oarchive out(s);
             out << commands_nb;
             for(int i=0;i<commands_nb;i++) {
 	        	  out << commands[i];
             }
-          }
-          vrepLog << "Query is: " << commands[0] << std::endl;
-
-          boost::archive::text_iarchive in(s);
-          double d;
-          in >> d;
-          vrepLog << "Reply is: " << d << std::endl;
+            double bogus=0;
+            out << bogus;
+          
+            vrepLog << "Query is: " << commands[0] << std::endl;
+            double d;
+            in >> d;
+            vrepLog << "Reply is: " << d << std::endl;
 
         }catch(const std::exception& e) {
             vrepLog << "Exception: " << e.what() << "\n";
