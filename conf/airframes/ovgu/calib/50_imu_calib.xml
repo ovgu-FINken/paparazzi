@@ -1,0 +1,36 @@
+
+<airframe>
+
+
+  <section name="IMU" prefix="IMU_">
+    <!-- these gyro and accel calib values are the defaults for aspirin2.1/2.2 -->
+    <define name="GYRO_X_NEUTRAL" value="0"/>
+    <define name="GYRO_Y_NEUTRAL" value="0"/>
+    <define name="GYRO_Z_NEUTRAL" value="0"/>
+
+    <define name="GYRO_X_SENS" value="4.359" integer="16"/>
+    <define name="GYRO_Y_SENS" value="4.359" integer="16"/>
+    <define name="GYRO_Z_SENS" value="4.359" integer="16"/>
+
+    <define name="ACCEL_X_NEUTRAL" value="10"/>
+    <define name="ACCEL_Y_NEUTRAL" value="12"/>
+    <define name="ACCEL_Z_NEUTRAL" value="34"/>
+    <define name="ACCEL_X_SENS" value="4.86375969658" integer="16"/>
+    <define name="ACCEL_Y_SENS" value="4.86831208708" integer="16"/>
+    <define name="ACCEL_Z_SENS" value="4.90201085317" integer="16"/>
+
+    <!-- Magdeburg measured by Martin -->
+    <define name="MAG_X_NEUTRAL" value="89"/>
+    <define name="MAG_Y_NEUTRAL" value="-22"/>
+    <define name="MAG_Z_NEUTRAL" value="-17"/>
+    <define name="MAG_X_SENS" value="3.77692801468" integer="16"/>
+    <define name="MAG_Y_SENS" value="3.69776945422" integer="16"/>
+    <define name="MAG_Z_SENS" value="4.28606437287" integer="16"/>
+
+    <define name="BODY_TO_IMU_PHI"   value="0.9" unit="deg"/>
+    <define name="BODY_TO_IMU_THETA" value="-0.6" unit="deg"/>
+    <define name="BODY_TO_IMU_PSI"   value="0." unit="deg"/>
+  </section>
+
+</airframe>
+
