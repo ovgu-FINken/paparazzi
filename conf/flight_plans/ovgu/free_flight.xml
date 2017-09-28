@@ -28,7 +28,7 @@
 		<block name="start">
 			<set value="0.6" var="finken_system_set_point.z"/> 
 			<set value="0" var="finken_system_model_control_height"/> 
-			<attitude pitch="finken_actuators_set_point.pitch" roll="finken_actuators_set_point.roll" yaw="finken_actuators_set_point.yaw" throttle="compensate_battery_drop_on_start(0.34287)" 				until="pos_z > 0.5" vmode="throttle"/>
+			<attitude pitch="finken_actuators_set_point.pitch" roll="finken_actuators_set_point.roll" yaw="finken_actuators_set_point.yaw" throttle="compensate_battery_drop_on_start(0.55)" 				until="pos_z > 0.3" vmode="throttle"/>
 			<deroute block="inair"/>
 		</block> 
 

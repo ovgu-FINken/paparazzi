@@ -36,7 +36,6 @@
 		<!--define name="KILL_ON_GROUND_DETECT" value="TRUE"/-->
 	</firmware>
 	<modules>
-		<load name="sensor_filter.xml" />
 		<load name="sonar_array_i2c.xml">
 			<define name="SONAR_I2C_DEV" value="i2c1"/>
 			<define name="USE_I2C1" />
@@ -144,9 +143,9 @@
 		<define name="GAIN_Q" value="100"/>
 		<define name="GAIN_R" value="75"/>
 
-		<define name="IGAIN_P" value="0"/>
-		<define name="IGAIN_Q" value="0"/>
-		<define name="IGAIN_R" value="0"/>
+		<define name="IGAIN_P" value="10"/>
+		<define name="IGAIN_Q" value="10"/>
+		<define name="IGAIN_R" value="7"/>
 
 		<!-- feedforward -->
 		<define name="DDGAIN_P" value="0"/>
@@ -181,17 +180,17 @@
 		<define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
 
 		<!-- feedback -->
-		<define name="PHI_PGAIN"  value="650"/>
-		<define name="PHI_DGAIN"  value="300"/>
-		<define name="PHI_IGAIN"  value="0"/>
+		<define name="PHI_PGAIN"  value="1000"/>
+		<define name="PHI_DGAIN"  value="500"/>
+		<define name="PHI_IGAIN"  value="10"/>
 
-		<define name="THETA_PGAIN"  value="650"/>
-		<define name="THETA_DGAIN"  value="300"/>
-		<define name="THETA_IGAIN"  value="0"/>
+		<define name="THETA_PGAIN"  value="1000"/>
+		<define name="THETA_DGAIN"  value="500"/>
+		<define name="THETA_IGAIN"  value="10"/>
 
 		<define name="PSI_PGAIN"  value="4000"/>
 		<define name="PSI_DGAIN"  value="350"/>
-		<define name="PSI_IGAIN"  value="0"/>
+		<define name="PSI_IGAIN"  value="10"/>
 
 		<!-- feedforward -->
 		<define name="PHI_DDGAIN"   value=" 0"/>

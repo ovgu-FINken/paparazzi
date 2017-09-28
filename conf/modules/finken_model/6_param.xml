@@ -1,8 +1,8 @@
 <airframe>
 	<section name="FINKEN" prefix="FINKEN_">
 
-		<define name="THRUST_DEFAULT"             value="0.32" />
-		<define name="THRUST_LOW"                 value="0.40" />
+		<define name="THRUST_DEFAULT"             value="0.45" />
+		<define name="THRUST_LOW"                 value="0.50" />
 		<define name="SYSTEM_UPDATE_FREQ"         value="30"   />
 		<!--Hoehenregler 2 -->
 		<!--

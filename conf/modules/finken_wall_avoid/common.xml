@@ -1,8 +1,8 @@
 <airframe>
 	<section name="FINKEN_WALL_AVOID" prefix="FINKEN_WALL_AVOID_">
-		<define name="MAX_CONTROL" value="15.0"/>
-		<define name="GUARD_DIST"  value="0.7"/>
-		<define name="MAX_DIST"    value="1.5"/>
+		<define name="MAX_CONTROL" value="8.0"/>
+		<define name="GUARD_DIST"  value="0.70"/>
+		<define name="MAX_DIST"    value="1.2"/>
 		<!-- original 
 		<define name="UPDATE_FREQ"         value="5.0" />
 		<define name="CONTROL_HOLD_TIME"   value="5.7864" />

@@ -53,7 +53,7 @@
  * 	same as RIGHT, LEFT, BACK ...
  */
 #ifndef SONAR_ADDR_START
-#define SONAR_ADDR_START 0x71
+#define SONAR_ADDR_START 0x70
 #endif
 
 struct sonar_values_s sonar_values;
