@@ -11,6 +11,7 @@
 
 #include <thread>
 #include <chrono>
+#include <dataPacket.h>
 
 using std::endl;
 using std::ostream;
@@ -20,14 +21,13 @@ using boost::asio::ip::tcp;
 
 struct NpsFdm fdm;
 struct LtpDef_d ltpRef;
+DataPacket packet;
 
 ofstream vrepLog(current_path()/"vrep.log");
 
 class VRepClient {
   private:
     tcp::iostream s;
-    std::unique_ptr<boost::archive::text_oarchive> outPtr;
-    std::unique_ptr<boost::archive::text_iarchive> inPtr;
     bool connected=false;
     void connect() {
         while(!connected)
@@ -35,8 +35,6 @@ class VRepClient {
           {
             s.connect("localhost", "50013");
             connected=true;
-            outPtr.reset(new boost::archive::text_oarchive(s, boost::archive::no_header));
-            inPtr.reset(new boost::archive::text_iarchive(s, boost::archive::no_header));
           }
           catch (std::exception& e)
           {
@@ -46,27 +44,31 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-        connect();
-        boost::archive::text_oarchive& out=*outPtr;
-        boost::archive::text_iarchive& in=*inPtr;
-        try {
-            out << commands_nb;
-            for(int i=0;i<commands_nb;i++) {
-	        	  out << commands[i];
-            }
-            double bogus=0;
-            out << bogus;
-          
-            vrepLog << "Query is: " << commands[0] << std::endl;
-            double d;
-            in >> d;
-            vrepLog << "Reply is: " << d << std::endl;
+	packet.x = commands[0];
+	packet.y = commands[1];
+	packet.z = commands[2];
+	packet.s = commands[3];
 
-        }catch(const std::exception& e) {
+        connect();
+        try {
+            {
+                boost::archive::text_oarchive out(s);
+                out << packet;
+                       
+            }
+            vrepLog << "Query is: " << commands[0] << std::endl;
+            {
+                boost::archive::text_iarchive in(s);
+                in >> packet;
+            }
+            vrepLog << "Reply is: " << packet.x << std::endl;
+         
+        }
+        catch(const std::exception& e) {
             vrepLog << "Exception: " << e.what() << "\n";
             vrepLog << "Error: " << s.error().message() << std::endl;
         }
-      }
+    }
 };
 
 VRepClient client;
