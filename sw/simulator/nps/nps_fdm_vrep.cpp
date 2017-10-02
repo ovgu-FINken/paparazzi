@@ -24,7 +24,7 @@ struct LtpDef_d ltpRef;
 DataPacket packet;
 
 ofstream vrepLog(current_path()/"vrep.log");
-
+int iTest = 1;
 class VRepClient {
   private:
     tcp::iostream s;
@@ -44,11 +44,11 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-	packet.x = commands[0];
-	packet.y = commands[1];
-	packet.z = commands[2];
-	packet.s = commands[3];
-
+	packet.x = 0.005 * iTest;
+	packet.y = 0.005 * iTest;
+	packet.z = 0.005 * iTest;
+	packet.s = 0.005 * iTest;
+	iTest++;
         connect();
         try {
             {
@@ -56,13 +56,16 @@ class VRepClient {
                 out << packet;
                        
             }
-            vrepLog << "Query is: " << commands[0] << std::endl;
+            vrepLog << "Query is: " << packet.x << " | " << packet.y << " | " << packet.z << " | " << packet.s << std::endl;
             {
                 boost::archive::text_iarchive in(s);
                 in >> packet;
             }
-            vrepLog << "Reply is: " << packet.x << std::endl;
-         
+            vrepLog << "Reply is: " << packet.x << " | " << packet.y << " | " << packet.z << " | " << packet.s << std::endl;
+            if(packet.s != 1){
+		    vrepLog <<  "received data identical to saved data" << std::endl;
+	    }
+
         }
         catch(const std::exception& e) {
             vrepLog << "Exception: " << e.what() << "\n";
@@ -106,7 +109,7 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   for(int i=0;i<commands_nb;i++)
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
   vrepLog << "]" << endl;
-
+ 
   client.update(commands, commands_nb);
 }
 
