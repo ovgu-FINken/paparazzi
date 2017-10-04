@@ -4,11 +4,16 @@
 #include "math/pprz_isa.h"
 #include "subsystems/gps.h"
 #include "subsystems/abi.h"
+#include "messages.h"
+#include "subsystems/datalink/telemetry.h"
+#include "autopilot.h"
+
 
 uint16_t ir_measurement;
 float ir_distance;
 float ir_distance_equalized;
 bool_t ir_data_available;
+static float pressure;
 
 #ifndef EQ_RANGE
 #define EQ_RANGE 3
@@ -19,6 +24,15 @@ uint8_t eq_idx = 0;
 
 static struct adc_buf ir_adc;
 
+static void send_virt_baro(struct transport_tx* trans, struct link_device* dev)
+{
+    pprz_msg_send_VIRT_BARO(trans, dev, AC_ID,
+                         &ir_adc.sum,
+    			 &ir_distance,
+    			 &ir_distance_equalized,
+    			 &pressure);
+}
+
 void virt_baro_ir_adc_init(void)
 {
     ir_measurement = 0;
@@ -27,6 +41,7 @@ void virt_baro_ir_adc_init(void)
     ir_distance_equalized = 0;
 
     adc_buf_channel(ADC_CHANNEL_IR, &ir_adc, DEFAULT_AV_NB_SAMPLE);
+    register_periodic_telemetry(DefaultPeriodic, "VIRT_BARO", send_virt_baro);
 }
 
 #define IR_SAMPLE_SIZE 6
@@ -74,7 +89,10 @@ void virt_baro_ir_adc_periodic(void)
     ir_data_available = TRUE;
     update_ir_distance_from_measurement();
     update_ir_distance_equalized_from_ir_distance();
-    float pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
+    if (!kill_throttle)	
+	pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
+    else 
+	pressure = pprz_isa_pressure_of_altitude(0);
     AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
 
 }

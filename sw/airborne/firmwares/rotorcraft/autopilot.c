@@ -511,7 +511,7 @@ void autopilot_check_in_flight(bool_t motors_on)
     if (autopilot_in_flight_counter < AUTOPILOT_IN_FLIGHT_TIME &&
         motors_on) {
       /* if thrust above min threshold, assume in_flight.
-       * Don't check for velocity and acceleration above threshold here...
+       * Don't check for velocity and acceleration above threshold here...le
        */
       if (stabilization_cmd[COMMAND_THRUST] > AUTOPILOT_IN_FLIGHT_MIN_THRUST) {
         autopilot_in_flight_counter++;

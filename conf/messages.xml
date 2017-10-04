@@ -1945,7 +1945,12 @@
     <field name="AMSL_GPS" type="float" unit="ft" alt_unit="m"/>
   </message>
 
- <!--224 is free -->
+ <message name="VIRT_BARO" id="224">
+    <field name="ADC" type="uint32" />
+    <field name="HEIGHT" type="float" />
+    <field name="FILT_HEIGHT" type="float" />
+    <field name="PRESSURE" type="float" />
+  </message>
 
   <message name="VIDEO_SYNC" id="225">
     <field name="id" type="uint8"/>
