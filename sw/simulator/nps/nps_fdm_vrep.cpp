@@ -21,7 +21,8 @@ using boost::asio::ip::tcp;
 
 struct NpsFdm fdm;
 struct LtpDef_d ltpRef;
-DataPacket packet;
+paparazziPacket outPacket;
+vrepPacket inPacket;
 
 ofstream vrepLog(current_path()/"vrep.log");
 int iTest = 1;
@@ -44,27 +45,24 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-	packet.x = 0.005 * iTest;
-	packet.y = 0.005 * iTest;
-	packet.z = 0.005 * iTest;
-	packet.s = 0.005 * iTest;
+	outPacket.nw = 0.01 * iTest;
+	outPacket.ne = 0.01 * iTest;
+	outPacket.se = 0.01 * iTest;
+    outPacket.sw = 0.01 * iTest;
 	iTest++;
         connect();
         try {
             {
                 boost::archive::text_oarchive out(s);
-                out << packet;
+                out << outPacket;
                        
             }
-            vrepLog << "Query is: " << packet.x << " | " << packet.y << " | " << packet.z << " | " << packet.s << std::endl;
+            vrepLog << "Commands sent: " << outPacket.nw << " | " << outPacket.ne << " | " << outPacket.se << " | " << outPacket.sw << std::endl;
             {
                 boost::archive::text_iarchive in(s);
-                in >> packet;
+                in >> inPacket;
             }
-            vrepLog << "Reply is: " << packet.x << " | " << packet.y << " | " << packet.z << " | " << packet.s << std::endl;
-            if(packet.s != 1){
-		    vrepLog <<  "received data identical to saved data" << std::endl;
-	    }
+            vrepLog << "Position received " << inPacket.x << " | " << inPacket.y << " | " << inPacket.z << " | "  << std::endl;
 
         }
         catch(const std::exception& e) {
