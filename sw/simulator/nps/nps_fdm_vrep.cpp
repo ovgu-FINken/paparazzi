@@ -45,11 +45,10 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-	outPacket.nw = 0.01 * iTest;
-	outPacket.ne = 0.01 * iTest;
-	outPacket.se = 0.01 * iTest;
-    outPacket.sw = 0.01 * iTest;
-	iTest++;
+	    outPacket.pitch = 0;
+	    outPacket.roll = 0;
+	    outPacket.yaw = 0;
+        outPacket.thrust = 0.8;
         connect();
         try {
             {
@@ -57,7 +56,7 @@ class VRepClient {
                 out << outPacket;
                        
             }
-            vrepLog << "Commands sent: " << outPacket.nw << " | " << outPacket.ne << " | " << outPacket.se << " | " << outPacket.sw << std::endl;
+            vrepLog << "Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
             {
                 boost::archive::text_iarchive in(s);
                 in >> inPacket;

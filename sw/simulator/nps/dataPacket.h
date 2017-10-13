@@ -1,17 +1,17 @@
 
 
 typedef struct{
-    double nw;
-    double ne;
-    double se;
-    double sw;
+    double pitch;
+    double roll;
+    double yaw;
+    double thrust;
 
     template <typename Archive>
     void serialize( Archive & ar, const unsigned int version){
-        ar & nw;
-        ar & ne;
-        ar & se;
-        ar & sw;
+        ar & pitch;
+        ar & roll;
+        ar & yaw;
+        ar & thrust;
     }
 } paparazziPacket;
 
