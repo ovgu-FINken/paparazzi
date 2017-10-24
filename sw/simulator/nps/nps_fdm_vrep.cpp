@@ -45,7 +45,8 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-	    outPacket.pitch = 0;
+	    outPacket.ac_id = 1;
+        outPacket.pitch = 0;
 	    outPacket.roll = 0;
 	    outPacket.yaw = 0;
         outPacket.thrust = 0.8;
