@@ -2,6 +2,9 @@
 # SITL Simulator
 #
 
+JSBSIM_ROOT ?= /opt/jsbsim
+JSBSIM_INC = $(JSBSIM_ROOT)/include/JSBSim
+JSBSIM_LIB = $(JSBSIM_ROOT)/lib
 VREP_PATH=home/dom/swarmlab/Simulation
 
 SRC_FIRMWARE=firmwares/rotorcraft
@@ -19,6 +22,18 @@ nps.LDFLAGS += $(shell pkg-config glib-2.0 --libs) -lm -lglibivy $(shell pcre-co
 nps.CFLAGS  += -I$(SRC_FIRMWARE) -I$(SRC_BOARD) -I$(PAPARAZZI_SRC)/sw/simulator -I$(PAPARAZZI_SRC)/sw/simulator/nps -I$(PAPARAZZI_HOME)/conf/simulator/nps -I$(VREP_PATH)/FinkenBehaviour/
 nps.LDFLAGS += $(shell sdl-config --libs)
 nps.CXXFLAGS += -std=c++11 -I$(VREP_PATH)/FinkenBehaviour/
+
+
+# use the paparazzi-jsbsim package if it is installed, otherwise look for JSBsim under /opt/jsbsim
+JSBSIM_PKG ?= $(shell pkg-config JSBSim --exists && echo 'yes')
+ifeq ($(JSBSIM_PKG), yes)
+	nps.CFLAGS  += $(shell pkg-config JSBSim --cflags)
+	nps.LDFLAGS += $(shell pkg-config JSBSim --libs)
+else
+	JSBSIM_PKG = no
+	nps.CFLAGS  += -I$(JSBSIM_INC)
+	nps.LDFLAGS += -L$(JSBSIM_LIB) -lJSBSim
+endif
 
 #
 # add the simulator directory to the make searchpath
