@@ -49,7 +49,7 @@ class VRepClient {
         outPacket.pitch = 0;
 	    outPacket.roll = 0;
 	    outPacket.yaw = 0;
-        outPacket.thrust = 0.8;
+        outPacket.thrust = commands[0];
         connect();
         try {
             {
@@ -99,7 +99,7 @@ void nps_fdm_init(double dt) {
   fdm.time=0;
   fdm.init_dt=dt;
   vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
-}
+} 
 
 void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   fdm.time+=fdm.init_dt;
@@ -107,8 +107,10 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   for(int i=0;i<commands_nb;i++)
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
   vrepLog << "]" << endl;
- 
+  auto then = std::chrono::high_resolution_clock::now();
   client.update(commands, commands_nb);
+  auto now = std::chrono::high_resolution_clock::now();
+  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms";
 }
 
 void nps_fdm_set_wind(double speed, double dir) {
