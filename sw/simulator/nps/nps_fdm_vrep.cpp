@@ -6,8 +6,8 @@
 #include <boost/asio.hpp>
 
 #include <fstream>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
 
 #include <thread>
 #include <chrono>
@@ -45,23 +45,31 @@ class VRepClient {
     }
   public:
       void update(double *commands, const int& commands_nb) {
-	    outPacket.ac_id = 1;
+        outPacket.ac_id = 1;
         outPacket.pitch = 0;
 	    outPacket.roll = 0;
 	    outPacket.yaw = 0;
         outPacket.thrust = commands[0];
         connect();
         try {
-            {
-                boost::archive::text_oarchive out(s);
+            { 
+                auto then = std::chrono::high_resolution_clock::now();
+                boost::archive::binary_oarchive out(s);
                 out << outPacket;
-                       
+                auto now = std::chrono::high_resolution_clock::now();
+                vrepLog << "sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;                      
             }
+            
             vrepLog << "Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
+            
+            
+            auto then = std::chrono::high_resolution_clock::now();
             {
-                boost::archive::text_iarchive in(s);
+                boost::archive::binary_iarchive in(s);
                 in >> inPacket;
             }
+            auto now = std::chrono::high_resolution_clock::now();
+            vrepLog << "reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             vrepLog << "Position received " << inPacket.x << " | " << inPacket.y << " | " << inPacket.z << " | "  << std::endl;
 
         }
@@ -110,7 +118,7 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   auto then = std::chrono::high_resolution_clock::now();
   client.update(commands, commands_nb);
   auto now = std::chrono::high_resolution_clock::now();
-  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms";
+  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
 }
 
 void nps_fdm_set_wind(double speed, double dir) {
