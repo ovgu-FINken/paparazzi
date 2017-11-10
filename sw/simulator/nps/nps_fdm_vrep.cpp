@@ -23,6 +23,9 @@ struct NpsFdm fdm;
 struct LtpDef_d ltpRef;
 paparazziPacket outPacket;
 vrepPacket inPacket;
+using Clock = std::chrono::high_resolution_clock;
+Clock::time_point lastUpdate;
+const std::chrono::milliseconds timeout(10);
 
 ofstream vrepLog(current_path()/"vrep.log");
 int iTest = 1;
@@ -107,9 +110,14 @@ void nps_fdm_init(double dt) {
   fdm.time=0;
   fdm.init_dt=dt;
   vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
+  lastUpdate = Clock::now();
 } 
 
 void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
+  Clock::time_point now = Clock::now();
+  if(now-lastUpdate < timeout) return;
+
+  lastUpdate = now;
   fdm.time+=fdm.init_dt;
   vrepLog << "[" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
   for(int i=0;i<commands_nb;i++)
@@ -117,8 +125,8 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   vrepLog << "]" << endl;
   auto then = std::chrono::high_resolution_clock::now();
   client.update(commands, commands_nb);
-  auto now = std::chrono::high_resolution_clock::now();
-  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
+  auto after = std::chrono::high_resolution_clock::now();
+  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
 }
 
 void nps_fdm_set_wind(double speed, double dir) {
