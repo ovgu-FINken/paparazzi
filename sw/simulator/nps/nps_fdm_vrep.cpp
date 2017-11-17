@@ -49,9 +49,9 @@ class VRepClient {
   public:
       void update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
-        outPacket.pitch = 0;
-	    outPacket.roll = 0;
-	    outPacket.yaw = 0;
+        outPacket.pitch = commands[1];
+	    outPacket.roll = commands[2  ];
+	    outPacket.yaw = commands[3];
         outPacket.thrust = commands[0];
         connect();
         try {
@@ -70,6 +70,12 @@ class VRepClient {
             {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
+                fdm.ecef_pos.x = inPacket.x;
+                fdm.ecef_pos.y = inPacket.y;
+                fdm.ecef_pos.z = inPacket.z;
+                ltpRef.ecef.z = inPacket.z;
+                ltp_def_from_ecef_d(&ltpRef, &ltpRef.ecef);
+
             }
             auto now = std::chrono::high_resolution_clock::now();
             vrepLog << "reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
