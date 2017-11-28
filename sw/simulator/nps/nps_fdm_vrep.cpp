@@ -19,8 +19,12 @@ using boost::filesystem::ofstream;
 using boost::filesystem::current_path;
 using boost::asio::ip::tcp;
 
-struct NpsFdm fdm;
+/*initlializing ecef, lla and ltpref bases*/
+LlaCoor_d lla_base;
+EcefCoor_d ecef_base;
+
 struct LtpDef_d ltpRef;
+struct NpsFdm fdm;
 paparazziPacket outPacket;
 vrepPacket inPacket;
 using Clock = std::chrono::high_resolution_clock;
@@ -49,10 +53,10 @@ class VRepClient {
   public:
       void update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
-        outPacket.pitch = commands[1];
-	    outPacket.roll = commands[2  ];
+        outPacket.pitch = commands[0];
+	    outPacket.roll = commands[1];
 	    outPacket.yaw = commands[3];
-        outPacket.thrust = commands[0];
+        outPacket.thrust = commands[2];
         connect();
         try {
             { 
@@ -70,13 +74,21 @@ class VRepClient {
             {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
+                EnuCoor_d enu;
+                enu.x = inPacket.x;
+                enu.y = inPacket.y;
+                enu.z = inPacket.z;
+                ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
+                /*
                 fdm.ecef_pos.x = inPacket.x;
                 fdm.ecef_pos.y = inPacket.y;
                 fdm.ecef_pos.z = inPacket.z;
-                ltpRef.ecef.z = inPacket.z;
-                ltp_def_from_ecef_d(&ltpRef, &ltpRef.ecef);
-
+                */
+                lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
+                ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
+                fdm.hmsl = fdm.lla_pos.alt - 6;
             }
+
             auto now = std::chrono::high_resolution_clock::now();
             vrepLog << "reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             vrepLog << "Position received " << inPacket.x << " | " << inPacket.y << " | " << inPacket.z << " | "  << std::endl;
@@ -92,7 +104,13 @@ class VRepClient {
 VRepClient client;
 
 void nps_fdm_init(double dt) {
+  lla_base.lat = 52;
+  lla_base.lon = 11;
+  lla_base.alt = 50;
+  ecef_of_lla_d(&ecef_base, &lla_base);
+  ltp_def_from_ecef_d(&ltpRef, &ecef_base);
 
+  ltpRef.hmsl = 44;
   fdm.on_ground=1;
   fdm.ecef_pos.x=0.0;
   fdm.ecef_pos.y=0.0;
@@ -106,13 +124,6 @@ void nps_fdm_init(double dt) {
   fdm.ecef_ecef_accel.x=0.0f;
   fdm.ecef_ecef_accel.y=0.0f;
   fdm.ecef_ecef_accel.z=0.0f;
-  ltpRef.ecef.x=0.0;
-  ltpRef.ecef.y=0.0;
-  ltpRef.ecef.z=0.0;
-  ltpRef.lla.lat=0.0;
-  ltpRef.lla.lon=0.0;
-  ltpRef.lla.alt=0.0;
-  ltp_def_from_ecef_d(&ltpRef, &ltpRef.ecef);
   fdm.time=0;
   fdm.init_dt=dt;
   vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
