@@ -62,7 +62,7 @@
     <!--load name="gps_ubx_ucenter.xml">
       <configure name="UBX_GPS_PORT" value="UART2"/>
     </load-->
-    <load name="geo_mag.xml"/>
+    <!--load name="geo_mag.xml"/-->
     <load name="air_data.xml"/>
 
     <load name="virt_baro_ir_adc.xml">
