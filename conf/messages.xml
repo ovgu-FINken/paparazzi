@@ -1945,7 +1945,7 @@
     <field name="AMSL_GPS" type="float" unit="ft" alt_unit="m"/>
   </message>
 
- <message name="VIRT_BARO" id="224">
+  <message name="VIRT_BARO" id="224">
     <field name="ADC" type="uint32" />
     <field name="HEIGHT" type="float" />
     <field name="FILT_HEIGHT" type="float" />
@@ -1981,9 +1981,16 @@
     <field name="cmd_theta"   type="int32" alt_unit="deg" alt_unit_coef="0.0139882"/>
   </message>
 
-  <!--229 is free -->
+  <!--message name="CAMERA_THETA" id="229">
+      <field name="theta"     type="float" />
+  </message-->
 
-  <!--230 is free -->
+  <message name="VIRT_MAG" id="230">
+    <field name="CAM_HEADING" type="float"/>
+    <field name="MAG_X" type="float" />
+    <field name="MAG_Y" type="float" />
+    <field name="MAG_Z" type="float" />
+  </message>
 
   <message name="ROTORCRAFT_STATUS" id="231">
     <field name="link_imu_nb_err" type="uint32"/>
@@ -2289,9 +2296,15 @@
    <field name="rtcm" type="uint8[]"/>
  </message>
 
+ <message name="CAMERA_THETA" id="14" link="forwarded">
+   <field name="ac_id" type="uint8"/>
+   <field name="dummy" type="uint8"/>
+   <field name="theta" type="float"/>
+ </message>
+
  <message name="GET_SETTING" id="16" link="forwarded">
-  <field name="index" type="uint8"/>
-  <field name="ac_id" type="uint8"/>
+   <field name="index" type="uint8"/>
+   <field name="ac_id" type="uint8"/>
  </message>
 
   <message name="TCAS_RESOLVE" id="17" link="forwarded">

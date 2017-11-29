@@ -22,7 +22,7 @@ void copter_swarm_init( void ) {
 	}	
 }
 
-void copter_ins_action(void) {
+void copter_ins_action(void) { // if this does not get called, put the COPTER_INS message into the datalink section of messages.xml
 
 	//To get the current copter id
 	int copter_ac_id = DL_COPTER_INS_ac_id(dl_buffer);

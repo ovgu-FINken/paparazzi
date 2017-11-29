@@ -1,11 +1,11 @@
 <!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
 
-<flight_plan alt="152" ground_alt="147" lat0="43 33 50.83" lon0="1 28 52.61" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="2">
+<flight_plan alt="1" ground_alt="0" lat0="52 7 13.92" lon0="11 37 39.45" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="0">
   <header>
 #include "autopilot.h"
   </header>
   <waypoints>
-    <waypoint name="HOME" x="0.0" y="0.0" alt="1.0"/>
+    <waypoint name="HOME" x="0.0" y="0.0" alt="-0.6"/>
     <waypoint name="CLIMB" x="0.0" y="5.0"/>
     <waypoint name="STDBY" x="-2.0" y="-5.0"/>
     <waypoint name="p1" x="3.6" y="-13.9"/>
@@ -39,7 +39,7 @@
       <stay vmode="climb" climb="nav_climb_vspeed" wp="HOME"/>
     </block>
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
-      <stay wp="HOME" alt="0.6"/>
+      <stay wp="HOME" /> <!-- alt="0.6"/> -->
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>
