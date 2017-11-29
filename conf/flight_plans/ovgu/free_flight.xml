@@ -10,6 +10,7 @@
 		#include "modules/finken_model/finken_model_system.h"
 		#include "subsystems/electrical.h"
 		#include "modules/ws2801/ws2801.h"
+		#include "modules/uart_board_manager/uart_board_manager.h"
 	</header>
 	<blocks>
 		<block name="default">

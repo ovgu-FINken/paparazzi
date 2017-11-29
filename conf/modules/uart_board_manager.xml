@@ -1,0 +1,24 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="uart board manager">
+  <doc>
+    <description>
+      Manager of UART communication with the board
+    </description>
+  </doc>
+  <header>
+    <file name="uart_board_manager.h" />
+  </header>
+  <init fun="sendMessages()" />
+  <init fun="setLEDDefault()" />
+  <init fun="setLEDALL" />
+  <init fun="setLEDAllRed()" />
+  <init fun="setLEDAllBlue()" />
+  <init fun="setLEDAllGreen()" />
+  <init fun="setLEDAllDark()" />
+  <init fun="setLEDAllCustom()" />
+  <init fun="setLEDCustom()" />
+  <makefile>
+    <file name="uart_board_manager.c" />
+  </makefile>
+</module>
