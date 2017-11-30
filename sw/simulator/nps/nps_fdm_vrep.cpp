@@ -75,18 +75,35 @@ class VRepClient {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
                 EnuCoor_d enu;
-                enu.x = inPacket.x;
-                enu.y = inPacket.y;
-                enu.z = inPacket.z;
+                EnuCoor_d enu_vel;
+                EnuCoor_d enu_accel;
+                EnuCoor_d enu_rotVel;
+                EnuCoor_d enu_rotAccel;
+                enu.x = inPacket.pos[0];
+                enu.y = inPacket.pos[1];
+                enu.z = inPacket.pos[2];
+                enu_vel.x = inPacket.vel[0];
+                enu_vel.y = inPacket.vel[1];
+                enu_vel.z = inPacket.vel[2];
+                enu_accel.x = inPacket.accel[0];
+                enu_accel.y = inPacket.accel[1];
+                enu_accel.z = inPacket.accel[2];
+                enu_rotVel.x = inPacket.rotVel[0];
+                enu_rotVel.y = inPacket.rotVel[1];
+                enu_rotVel.z = inPacket.rotVel[2];
+                enu_rotAccel.x = inPacket.rotAccel[0];
+                enu_rotAccel.y = inPacket.rotAccel[1];
+                enu_rotAccel.z = inPacket.rotAccel[2];
+
+                ltp_to_body_eulers.phi = inPacket.euler[0];
+                ltp_to_body_eulers.theta = inPacket.euler[1];
+                ltp_to_body_eulers.psi = inPacket.euler[2];
+
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
-                /*
-                fdm.ecef_pos.x = inPacket.x;
-                fdm.ecef_pos.y = inPacket.y;
-                fdm.ecef_pos.z = inPacket.z;
-                */
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt - 6;
+                
             }
 
             auto now = std::chrono::high_resolution_clock::now();

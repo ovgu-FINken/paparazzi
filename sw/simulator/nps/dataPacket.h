@@ -1,4 +1,4 @@
-
+#include <boost/serialization/vector.hpp>
 
 typedef struct{
     int ac_id;
@@ -19,14 +19,20 @@ typedef struct{
 
 
 typedef struct{
-    double x;
-    double y;
-    double z;
-
+    std::vector<double> pos = {0,0,0};
+    std::vector<double> euler = {0,0,0};
+    std::vector<double> vel = {0,0,0};
+    std::vector<double> rotVel ={0,0,0};
+    std::vector<double> accel = {0,0,0};
+    std::vector<double> rotAccel ={0,0,0};
+    
     template <typename Archive>
     void serialize( Archive & ar, const unsigned int version){
-        ar & x;
-        ar & y;
-        ar & z;
+        ar & pos;
+        ar & euler;
+        ar & vel;
+        ar & rotVel;
+        ar & accel;
+        ar & rotAccel;
     }
 } vrepPacket;
