@@ -13,6 +13,9 @@
 #include <chrono>
 #include <dataPacket.h>
 
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
 using std::endl;
 using std::ostream;
 using boost::filesystem::ofstream;
@@ -30,6 +33,9 @@ vrepPacket inPacket;
 using Clock = std::chrono::high_resolution_clock;
 Clock::time_point lastUpdate;
 const std::chrono::milliseconds timeout(10);
+
+Eigen::Matrix3d rotMatrix;
+
 
 ofstream vrepLog(current_path()/"vrep.log");
 int iTest = 1;
@@ -94,15 +100,36 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
+                Eigen::Quaternion quat(inPacket.quat[3], inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
+                Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
+                body_vel = body_Vel * quat;
+                body_accel = body_accel * quat;
 
-                ltp_to_body_eulers.phi = inPacket.euler[0];
-                ltp_to_body_eulers.theta = inPacket.euler[1];
-                ltp_to_body_eulers.psi = inPacket.euler[2];
-
+                
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt - 6;
+
+                //convert velocties and accelerations rom enu to ecef or body:
+
+                ecef_of_enu_vect_d(&fdm.ecef_ecef_vel, &ltpRef, &enu_vel);
+                ecef_of_enu_vect_d(&fdm.ecef_ecef_accel, &ltpRef, &enu_accel);
+                fdm.body_ecef_vel.x = body_vel[0];
+                fdm.body_ecef_vel.y = body_vel[1];
+                fdm.body_ecef_vel.z = body_vel[2];
+                fdm.body_ecef_accel.x = body_vel[0];
+                fdm.body_ecef_accel.y = body_vel[1];
+                fdm.body_ecef_accel.z = body_vel[2];
+
+
+
+
+
+                
+                
+
                 
             }
 

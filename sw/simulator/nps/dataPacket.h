@@ -20,7 +20,7 @@ typedef struct{
 
 typedef struct{
     std::vector<double> pos = {0,0,0};
-    std::vector<double> euler = {0,0,0};
+    std::vector<double> quat = {0,0,0,0};
     std::vector<double> vel = {0,0,0};
     std::vector<double> rotVel ={0,0,0};
     std::vector<double> accel = {0,0,0};
@@ -29,7 +29,7 @@ typedef struct{
     template <typename Archive>
     void serialize( Archive & ar, const unsigned int version){
         ar & pos;
-        ar & euler;
+        ar & quat;
         ar & vel;
         ar & rotVel;
         ar & accel;
