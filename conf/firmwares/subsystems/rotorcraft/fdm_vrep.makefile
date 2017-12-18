@@ -16,7 +16,7 @@ nps.MAKEFILE = nps
 nps.CFLAGS  += -DSITL -DUSE_NPS
 nps.CFLAGS  += $(shell pkg-config glib-2.0 --cflags)
 nps.LDFLAGS += $(shell pkg-config glib-2.0 --libs) -lm -lglibivy $(shell pcre-config --libs) -lgsl -lgslcblas -lboost_system -lboost_filesystem -lboost_serialization -pthread
-nps.CFLAGS  += -I$(SRC_FIRMWARE) -I$(SRC_BOARD) -I$(PAPARAZZI_SRC)/sw/simulator -I$(PAPARAZZI_SRC)/sw/simulator/nps -I$(PAPARAZZI_HOME)/conf/simulator/nps -I$(VREP_PATH)/FinkenBehaviour/ -I
+nps.CFLAGS  += -I$(SRC_FIRMWARE) -I$(SRC_BOARD) -I$(PAPARAZZI_SRC)/sw/simulator -I$(PAPARAZZI_SRC)/sw/simulator/nps -I$(PAPARAZZI_HOME)/conf/simulator/nps -I$(VREP_PATH)/FinkenBehaviour/
 nps.LDFLAGS += $(shell sdl-config --libs)
 nps.CXXFLAGS += -std=c++11 -I$(VREP_PATH)/FinkenBehaviour/ -I/usr/include/eigen3
 
