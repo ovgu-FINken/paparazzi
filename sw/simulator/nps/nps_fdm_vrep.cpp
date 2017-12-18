@@ -16,6 +16,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
+
 using std::endl;
 using std::ostream;
 using boost::filesystem::ofstream;
@@ -60,22 +61,22 @@ class VRepClient {
       void update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
         outPacket.pitch = commands[0];
-	    outPacket.roll = commands[1];
-	    outPacket.yaw = commands[3];
+	      outPacket.roll = commands[1];
+	      outPacket.yaw = commands[3];
         outPacket.thrust = commands[2];
         connect();
         try {
-            { 
+            {
                 auto then = std::chrono::high_resolution_clock::now();
                 boost::archive::binary_oarchive out(s);
                 out << outPacket;
                 auto now = std::chrono::high_resolution_clock::now();
-                vrepLog << "sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;                      
+                vrepLog << "sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             }
-            
+
             vrepLog << "Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
-            
-            
+
+
             auto then = std::chrono::high_resolution_clock::now();
             {
                 boost::archive::binary_iarchive in(s);
@@ -100,13 +101,15 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaternion quat(inPacket.quat[3], inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
+
+                //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
-                body_vel = body_Vel * quat;
-                body_accel = body_accel * quat;
+                body_vel = quat.inverse() *  body_vel;
+                body_accel = quat.inverse() * body_accel;
 
-                
+                //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
@@ -125,17 +128,65 @@ class VRepClient {
 
 
 
+                /** velocity in LTP frame, wrt ECEF frame */
+                //struct NedCoor_d ltp_ecef_vel;
+                //ltp_def_from_ecef_d(&fdm.ltp_ecef_vel, &fdm.ecef_ecef_vel)
+
+                /** acceleration in LTP frame, wrt ECEF frame */
+                //struct NedCoor_d ltp_ecef_accel;
+                //ltp_def_from_ecef_d(&fdm.ltp_ecef_accel, &fdm.ecef_ecef_vel)
+
+                /** velocity in ltppprz frame, wrt ECEF frame */
+                //struct NedCoor_d ltpprz_ecef_vel;
+
+                /** accel in ltppprz frame, wrt ECEF frame */
+                //struct NedCoor_d ltpprz_ecef_accel;
+
+                /** acceleration in body frame, wrt ECI inertial frame */
+                //struct DoubleVect3 body_inertial_accel;
+                /** acceleration in body frame as measured by an accelerometer (incl. gravity) */
+                Eigen::Vector3d gravity(0,0,-9.81);
+                body_accel = body_accel + quat.inverse()*gravity;
+                fdm.body_accel.x = body_accel[0];
+                fdm.body_accel.y = body_accel[1];
+                fdm.body_accel.z= body_accel[2];
 
 
-                
-                
+                //attitude
+                Eigen::Quaterniond ecef_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ecef_pos.x, fdm.ecef_pos.y, fdm.ecef_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
+                Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat;
+                fdm.ecef_to_body_quat.qi = ecef_to_body_quat.w();
+                fdm.ecef_to_body_quat.qx = ecef_to_body_quat.x();
+                fdm.ecef_to_body_quat.qy = ecef_to_body_quat.y();
+                fdm.ecef_to_body_quat.qz = ecef_to_body_quat.z();
 
-                
+                Eigen::Quaterniond ltp_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
+                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat;
+                fdm.ltp_to_body_quat.qi = ltp_to_body_quat.w();
+                fdm.ltp_to_body_quat.qx = ltp_to_body_quat.x();
+                fdm.ltp_to_body_quat.qy = ltp_to_body_quat.y();
+                fdm.ltp_to_body_quat.qz = ltp_to_body_quat.z();
+                double_eulers_of_quat(&fdm.ltp_to_body_eulers, &fdm.ltp_to_body_quat);
+
+
+                Eigen::Quaterniond ltpprz_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
+                Eigen::Quaterniond ltpprz_to_body_quat = ltp_to_enu_quat * quat;
+                fdm.ltpprz_to_body_quat.qi = ltpprz_to_body_quat.w();
+                fdm.ltpprz_to_body_quat.qx = ltpprz_to_body_quat.x();
+                fdm.ltpprz_to_body_quat.qy = ltpprz_to_body_quat.y();
+                fdm.ltpprz_to_body_quat.qz = ltpprz_to_body_quat.z();
+                double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);
+
+
+
+
+
+
             }
 
             auto now = std::chrono::high_resolution_clock::now();
             vrepLog << "reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
-            vrepLog << "Position received " << inPacket.x << " | " << inPacket.y << " | " << inPacket.z << " | "  << std::endl;
+            vrepLog << "Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
 
         }
         catch(const std::exception& e) {
@@ -172,7 +223,7 @@ void nps_fdm_init(double dt) {
   fdm.init_dt=dt;
   vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
   lastUpdate = Clock::now();
-} 
+}
 
 void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   Clock::time_point now = Clock::now();
