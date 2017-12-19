@@ -106,8 +106,12 @@ class VRepClient {
                 //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
+		Eigen::Vector3d body_rotVel(enu_rotVel.x, enu_rotVel.y, enu_rotVel.z);
+		Eigen::Vector3d body_rotAccel(enu_rotAccel.x, enu_rotAccel.y, enu_rotAccel.z);
                 body_vel = quat.inverse() *  body_vel;
                 body_accel = quat.inverse() * body_accel;
+		body_rotVel = quat.inverse() * body_rotVel;
+		body_rotAccel = quat.inverse() * body_rotVel;
 
                 //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
@@ -177,8 +181,10 @@ class VRepClient {
                 fdm.ltpprz_to_body_quat.qz = ltpprz_to_body_quat.z();
                 double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);
 
-
-
+		
+		//angular rates in body frame wrt ECEF:
+		struct DoubleRates  body_ecef_rotvel;
+	      	struct DoubleRates  body_ecef_rotaccel;
 
 
 
