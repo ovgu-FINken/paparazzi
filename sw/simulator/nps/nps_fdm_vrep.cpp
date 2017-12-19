@@ -33,7 +33,8 @@ paparazziPacket outPacket;
 vrepPacket inPacket;
 using Clock = std::chrono::high_resolution_clock;
 Clock::time_point lastUpdate;
-const std::chrono::milliseconds timeout(10);
+Clock::time_point runEnd;
+const std::chrono::milliseconds timeout(34);
 
 Eigen::Matrix3d rotMatrix;
 
@@ -183,10 +184,10 @@ class VRepClient {
 
 		
 		//angular rates in body frame wrt ECEF:
-		struct DoubleRates  body_ecef_rotvel;
-	      	struct DoubleRates  body_ecef_rotaccel;
+		RATES_ASSIGN(fdm.body_ecef_rotvel, body_rotVel[0], body_rotVel[1], body_rotVel[2]);
+		RATES_ASSIGN(fdm.body_ecef_rotaccel, body_rotAccel[0], body_rotAccel[1], body_rotAccel[2]);
 
-
+	
 
             }
 
@@ -229,11 +230,17 @@ void nps_fdm_init(double dt) {
   fdm.init_dt=dt;
   vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
   lastUpdate = Clock::now();
+  runEnd = Clock::now();
 }
 
 void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
+  	
   Clock::time_point now = Clock::now();
+  
   if(now-lastUpdate < timeout) return;
+  auto runStart = Clock::now();
+  vrepLog << "time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
+
 
   lastUpdate = now;
   fdm.time+=fdm.init_dt;
@@ -244,17 +251,18 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   auto then = std::chrono::high_resolution_clock::now();
   client.update(commands, commands_nb);
   auto after = std::chrono::high_resolution_clock::now();
-  vrepLog << "Client coomputation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
+  vrepLog << "Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
+  runEnd = Clock::now();
 }
 
 void nps_fdm_set_wind(double speed, double dir) {
-  vrepLog << "[" << fdm.time << "] vrep fdm set wind: speed=" << speed << " dir=" << dir << endl;
+  //vrepLog << "[" << fdm.time << "] vrep fdm set wind: speed=" << speed << " dir=" << dir << endl;
 }
 
 void nps_fdm_set_wind_ned(double wind_north, double wind_east, double wind_down) {
-  vrepLog << "[" << fdm.time << "] vrep fdm init ned wind_north=" << wind_north << " wind_east=" <<  wind_east << " wind_down=" <<  wind_down << endl;
+  //vrepLog << "[" << fdm.time << "] vrep fdm set ned wind_north=" << wind_north << " wind_east=" <<  wind_east << " wind_down=" <<  wind_down << endl;
 }
 
 void nps_fdm_set_turbulence(double wind_speed, int turbulence_severity) {
-  vrepLog << "[" << fdm.time << "] vrep fdm set turbulance: wind_speed=" << wind_speed << " severity=" << turbulence_severity << endl;
+  //vrepLog << "[" << fdm.time << "] vrep fdm set turbulance: wind_speed=" << wind_speed << " severity=" << turbulence_severity << endl;
 }
