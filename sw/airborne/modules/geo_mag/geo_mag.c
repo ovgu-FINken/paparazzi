@@ -84,7 +84,7 @@ void geo_mag_event(void)
                             .y = geo_mag.vect.y,
                             .z = geo_mag.vect.z };
     float_vect3_normalize(&h);
-    //AbiSendMsgGEO_MAG(GEO_MAG_SENDER_ID, &h);
+    AbiSendMsgGEO_MAG(GEO_MAG_SENDER_ID, &h);
 
     geo_mag.ready = TRUE;
   }

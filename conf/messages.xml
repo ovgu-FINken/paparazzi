@@ -1987,9 +1987,9 @@
 
   <message name="VIRT_MAG" id="230">
     <field name="CAM_HEADING" type="float"/>
-    <field name="MAG_X" type="float" />
-    <field name="MAG_Y" type="float" />
-    <field name="MAG_Z" type="float" />
+    <field name="MAG_X" type="int32" />
+    <field name="MAG_Y" type="int32" />
+    <field name="MAG_Z" type="int32" />
   </message>
 
   <message name="ROTORCRAFT_STATUS" id="231">

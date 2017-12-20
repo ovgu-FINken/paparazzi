@@ -5,7 +5,7 @@
 #include "autopilot.h"
   </header>
   <waypoints>
-    <waypoint name="HOME" x="0.0" y="0.0" alt="-0.6"/>
+    <waypoint name="HOME" x="0.0" y="0.0" alt="0.6"/>
     <waypoint name="CLIMB" x="0.0" y="5.0"/>
     <waypoint name="STDBY" x="-2.0" y="-5.0"/>
     <waypoint name="p1" x="3.6" y="-13.9"/>
@@ -39,7 +39,7 @@
       <stay vmode="climb" climb="nav_climb_vspeed" wp="HOME"/>
     </block>
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
-      <stay wp="HOME" /> <!-- alt="0.6"/> -->
+      <stay wp="HOME" alt="0.4"/> <!-- alt="0.6"/> -->
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>
