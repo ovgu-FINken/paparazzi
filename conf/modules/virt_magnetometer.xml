@@ -1,0 +1,22 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="virt_magnetometer" dir="sensors">
+  <doc>
+    <description>
+      Virtual magnetotemer fed by the heading of the cameraTracking.
+      <!--Sends the BARO_ABS ABI message with the current heading.-->
+    </description>
+  </doc>
+
+  <header>
+    <file name="virt_magnetometer.h"/>
+  </header>
+  <init fun="virt_magnetometer_init()"/>
+  <periodic fun="virt_magnetometer_periodic()" freq="30."/>
+  <datalink message="CAMERA_THETA" fun="getTheta()"/>
+
+  <makefile target="ap">
+    <file name="virt_magnetometer.c"/>
+  </makefile>
+
+</module>

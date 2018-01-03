@@ -81,7 +81,7 @@ $(OBJDIR)/simsitl : $($(TARGET).objs)
 	$(CC) $(CFLAGS) -S -o $@ $<
 
 %.s: %.cpp
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CXX) $(CXXFLAGS) -S -o $@ $<
 
 $(OBJDIR)/%.s: %.c
 	@echo CC $@

@@ -84,6 +84,10 @@ void mcu_init(void)
   board_init();
 
   mcu_arch_init();
+  /* If we have a board specific init function, call it.
+   * Otherwise it will simply call the empty weak function.
+   */
+  board_init();
 
   /* First enable the power of the MCU if needed */
 #if defined MCU_PWR

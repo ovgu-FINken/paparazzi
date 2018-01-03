@@ -106,6 +106,14 @@ int32_t nav_cmd_roll, nav_cmd_pitch, nav_cmd_yaw;
 float nav_radius;
 float nav_climb_vspeed, nav_descend_vspeed;
 
+#ifndef NAV_CLIMB_VSPEED
+#define NAV_CLIMB_VSPEED 0.5
+#endif
+
+#ifndef NAV_DESCEND_VSPEED
+#define NAV_DESCEND_VSPEED -0.8
+#endif
+
 uint8_t vertical_mode;
 uint32_t nav_throttle;
 int32_t nav_climb, nav_altitude, nav_flight_altitude;

@@ -1,0 +1,34 @@
+\chapter{Project Document}\label{ch:ch2label}
+
+This part is about the conceptual work of this project. ...
+
+\section{Local vs. Global Positioning}
+- discussion of local (through sonar) and global (through camera tracking) 
+- discussion of object differentiation techniques + crosstalk between copters
+- decision 
+
+\section{Camera Tracking}
+- where to find and what branch to use
+- obtaining positions using copter tracking
+- use of bag files
+- visualization for the positions and forces in RVIZ
+- what 
+
+\section{Communication with the copter}
+- Camera Tracking position into GPS (GPS Injection)
+- Structure of GPS message
+- IVY communication and how it works and why we use it? + link
+- Receiving and Broadcasting INS data
+- Structure of INS message 
+
+\section{Swarming}
+
+\subsection{Forces}
+- Distance and Force Calculation for and from each copter
+- debugging the Swarming code
+- structure of Swarming module (callback, periodic processing)
+
+\subsection{Movement}
+- Setting way-points
+- Navigation (switching flight Modes)
+- trying to control cmd\_roll cmd\_pitch (In Progress) 

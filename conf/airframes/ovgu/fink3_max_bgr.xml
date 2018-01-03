@@ -1,0 +1,250 @@
+<!DOCTYPE airframe SYSTEM "../airframe.dtd">
+
+<!-- this is a quadrotor frame equiped with
+-->
+
+<airframe name="Fink3">
+
+	<firmware name="rotorcraft">
+		<target name="ap" board="lisa_mx_2.1">
+			<define name="USE_LED_6" value="1"/>
+			<define name="USE_LED_7" value="1"/>
+			<subsystem name="radio_control" type="spektrum">
+				<define name="RADIO_CONTROL_SPEKTRUM_OLD_SIGNS"/>
+				<define name="RADIO_MODE" value="RADIO_FLAP"/>
+				<define name="RADIO_KILL_SWITCH" value="RADIO_GEAR"/>
+				<define name="WALL_AVOID_RC_SWITCH" value="RADIO_AUX3"/>
+
+			</subsystem>
+		</target>
+
+		<subsystem name="motor_mixing"/>
+		<subsystem name="actuators"     type="pwm">
+			<define name="SERVO_HZ" value="400"/>
+		</subsystem>
+		<subsystem name="telemetry"     type="transparent">
+			<configure name="MODEM_BAUD"  value="B38400"/>
+			<configure name="MODEM_PORT"  value="UART3"/>
+		</subsystem>
+		<subsystem name="imu"           type="aspirin_v2.1"/>
+		<subsystem name="stabilization" type="int_quat"/>
+		<subsystem name="ahrs"          type="float_cmpl_quat">
+			<define name="AHRS_GRAVITY_HEURISTIC_FACTOR" value="0"/>
+		</subsystem>
+		<subsystem name="ins"/>
+
+		<!--define name="KILL_ON_GROUND_DETECT" value="TRUE"/-->
+	</firmware>
+	<modules>
+		<load name="sensor_filter.xml" />
+		<load name="sonar_array_i2c.xml">
+			<define name="SONAR_I2C_DEV" value="i2c1"/>
+			<define name="USE_I2C1" />
+			<define name="I2C1_CLOCK_SPEED" value="5000" />
+			<define name="DISABLE_SONAR_IN_RC_PASSTHROUGH" value="TRUE"/>
+		</load>
+		<load name="finken_model.xml" >
+			<define name="USE_SONAR_TOWER"/>
+			<define name="NO_GPS_NEEDED_FOR_NAV" value="TRUE"/>
+			<!--<define name="USE_FLOW"/>-->
+		</load>
+		<load name="finken_ir_adc.xml">
+			<configure name="ADC_IR" value="ADC_3"/>
+		</load>
+		<load name="finken_wall_avoid.xml"/>
+		<load name="ws2801.xml">
+                  <define name="LEDS" value="5"/>
+                  <define name="ID_COLOR" value="255,0,0"/>
+                  <define name="COLOR_FORMAT_BGR"/>
+		</load>
+		<!--<load name="finken_rc_passthrough.xml"/>-->
+		<load name="logger_sd_spi_direct.xml">
+			<configure name="LOGGER_LED" value="5"/>
+			<configure name="SDLOGGER_DIRECT_CONTROL_SWITCH" value="RADIO_AUX2"/>
+			<configure name="SDLOGGER_DIRECT_SPI" value="SPI1"/>
+			<configure name="SDLOGGER_DIRECT_SPI_SLAVE" value="SPI_SLAVE1"/>
+		</load>
+	</modules>
+
+	<section name="FINKEN_WALL_AVOID" prefix="FINKEN_WALL_AVOID_"/>
+	<include href="conf/modules/finken_wall_avoid/common.xml"/>
+
+	<!--
+		^Front^
+	NW			NE
+
+			 L
+
+	SW			SW
+	/-->
+	<servos driver="Pwm">
+		<servo name="FRONT"   no="2" min="1000" neutral="1100" max="1900"/>
+		<servo name="BACK"    no="3" min="1000" neutral="1100" max="1900"/>
+		<servo name="LEFT"   no="4" min="1000" neutral="1100" max="1900"/>
+		<servo name="RIGHT"    no="5" min="1000" neutral="1100" max="1900"/>
+	</servos>
+
+	<commands>
+		<axis name="ROLL"   failsafe_value="0"/>
+		<axis name="PITCH"  failsafe_value="0"/>
+		<axis name="YAW"    failsafe_value="0"/>
+		<axis name="THRUST" failsafe_value="0"/>
+	</commands>
+
+	<section name="FINKEN" prefix="FINKEN_"/>
+	<include href="conf/modules/finken_model/$AC_ID_param.xml"/>
+	<include href="conf/modules/finken_model/common.xml"/>
+	<include href="conf/airframes/ovgu/calib/$AC_ID_imu_calib.xml"/>
+
+	<section name="MIXING" prefix="MOTOR_MIXING_">
+		<define name="TRIM_ROLL" value="0"/>
+		<define name="TRIM_PITCH" value="0"/>
+		<define name="TRIM_YAW" value="0"/>
+		<define name="NB_MOTOR" value="4"/>
+		<define name="SCALE" value="256"/>
+		<!--according to http://paparazzi.enac.fr/wiki/Rotorcraft_Configuration -->
+		<define name="ROLL_COEF"   value="{ -256, -256,  256,  256 }"/>
+		<define name="PITCH_COEF"  value="{  256, -256, -256,  256 }"/>
+		<define name="YAW_COEF"    value="{ -256,  256, -256,  256 }"/>
+		<define name="THRUST_COEF" value="{  256,  256,  256,  256 }"/>
+	</section>
+
+	<command_laws>
+		<call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
+		<set servo="FRONT"  value="motor_mixing.commands[0]"/>
+		<set servo="BACK"   value="motor_mixing.commands[1]"/>
+		<set servo="LEFT"  value="motor_mixing.commands[2]"/>
+		<set servo="RIGHT"   value="motor_mixing.commands[3]"/>
+	</command_laws>
+	<section name="IMU" prefix="IMU_">
+		<!-- these gyro and accel calib values are the defaults for aspirin2.1/2.2 -->
+	</section>
+
+
+	<section name="AHRS" prefix="AHRS_">
+		<define name="H_X" value="0.382425"/>
+		<define name="H_Y" value="0.0191013"/>
+		<define name="H_Z" value="0.923789"/>
+	</section>
+
+	<section name="INS" prefix="INS_">
+	</section>
+
+	<section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
+		<!-- setpoints -->
+		<define name="SP_MAX_P" value="10000"/>
+		<define name="SP_MAX_Q" value="10000"/>
+		<define name="SP_MAX_R" value="10000"/>
+		<define name="DEADBAND_P" value="20"/>
+		<define name="DEADBAND_Q" value="20"/>
+		<define name="DEADBAND_R" value="200"/>
+		<define name="REF_TAU" value="4"/>
+
+		<!-- feedback -->
+		<define name="GAIN_P" value="100"/>
+		<define name="GAIN_Q" value="100"/>
+		<define name="GAIN_R" value="75"/>
+
+		<define name="IGAIN_P" value="0"/>
+		<define name="IGAIN_Q" value="0"/>
+		<define name="IGAIN_R" value="0"/>
+
+		<!-- feedforward -->
+		<define name="DDGAIN_P" value="0"/>
+		<define name="DDGAIN_Q" value="0"/>
+		<define name="DDGAIN_R" value="0"/>
+	</section>
+
+
+	<section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
+		<!-- setpoints -->
+		<define name="SP_MAX_PHI"     value="45." unit="deg"/>
+		<define name="SP_MAX_THETA"   value="45." unit="deg"/>
+		<define name="SP_MAX_R"       value="90." unit="deg/s"/>
+		<define name="DEADBAND_A"     value="0"/>
+		<define name="DEADBAND_E"     value="0"/>
+		<define name="DEADBAND_R"     value="250"/>
+
+		<!-- reference -->
+		<define name="REF_OMEGA_P"  value="800" unit="deg/s"/>
+		<define name="REF_ZETA_P"   value="0.85"/>
+		<define name="REF_MAX_P"    value="400." unit="deg/s"/>
+		<define name="REF_MAX_PDOT" value="RadOfDeg(8000.)"/>
+
+		<define name="REF_OMEGA_Q"  value="800" unit="deg/s"/>
+		<define name="REF_ZETA_Q"   value="0.85"/>
+		<define name="REF_MAX_Q"    value="400." unit="deg/s"/>
+		<define name="REF_MAX_QDOT" value="RadOfDeg(8000.)"/>
+
+		<define name="REF_OMEGA_R"  value="800" unit="deg/s"/>
+		<define name="REF_ZETA_R"   value="0.85"/>
+		<define name="REF_MAX_R"    value="360." unit="deg/s"/>
+		<define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
+
+		<!-- feedback -->
+		<define name="PHI_PGAIN"  value="650"/>
+		<define name="PHI_DGAIN"  value="300"/>
+		<define name="PHI_IGAIN"  value="0"/>
+
+		<define name="THETA_PGAIN"  value="650"/>
+		<define name="THETA_DGAIN"  value="300"/>
+		<define name="THETA_IGAIN"  value="0"/>
+
+		<define name="PSI_PGAIN"  value="4000"/>
+		<define name="PSI_DGAIN"  value="350"/>
+		<define name="PSI_IGAIN"  value="0"/>
+
+		<!-- feedforward -->
+		<define name="PHI_DDGAIN"   value=" 0"/>
+		<define name="THETA_DDGAIN" value=" 0"/>
+		<define name="PSI_DDGAIN"   value=" 0"/>
+	</section>
+
+	<section name="GUIDANCE_V" prefix="GUIDANCE_V_">
+		<define name="MIN_ERR_Z"   value="POS_BFP_OF_REAL(-10.)"/>
+		<define name="MAX_ERR_Z"   value="POS_BFP_OF_REAL( 10.)"/>
+		<define name="MIN_ERR_ZD"  value="SPEED_BFP_OF_REAL(-10.)"/>
+		<define name="MAX_ERR_ZD"  value="SPEED_BFP_OF_REAL( 10.)"/>
+		<define name="MAX_SUM_ERR" value="2000000"/>
+		<define name="HOVER_KP"    value="150"/>
+		<define name="HOVER_KD"    value="80"/>
+		<define name="HOVER_KI"    value="20"/>
+		<define name="NOMINAL_HOVER_THROTTLE" value="0.5"/>
+		<define name="ADAPT_THROTTLE_ENABLED" value="TRUE"/>
+	</section>
+
+	<section name="GUIDANCE_H" prefix="GUIDANCE_H_">
+		<define name="MAX_BANK" value="20" unit="deg"/>
+		<define name="USE_SPEED_REF" value="TRUE"/>
+		<define name="PGAIN" value="50"/>
+		<define name="DGAIN" value="100"/>
+		<define name="AGAIN" value="100"/>
+		<define name="IGAIN" value="20"/>
+	</section>
+
+	<section name="SIMULATOR" prefix="NPS_">
+		<define name="ACTUATOR_NAMES"  value="{&quot;front_motor&quot;, &quot;back_motor&quot;, &quot;right_motor&quot;, &quot;left_motor&quot;}"/>
+		<define name="JSBSIM_INIT" value="&quot;reset00&quot;"/>
+		<define name="JSBSIM_MODEL" value="&quot;simple_quad&quot;"/>
+		<define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_default.h&quot;"/>
+		<!-- mode switch on joystick channel 5 (axis numbering starting at zero) -->
+		<define name="JS_AXIS_MODE" value="4"/>
+	</section>
+
+	<section name="AUTOPILOT">
+		<define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
+		<define name="MODE_AUTO1"  value="AP_MODE_NAV"/>
+		<define name="MODE_AUTO2"  value="AP_MODE_RATE_DIRECT"/>
+		<define name="USE_KILL_SWITCH_FOR_MOTOR_ARMING" value="TRUE"/>
+
+	</section>
+
+	<!-- 2S /-->
+	<section name="BAT">
+		<define name="CATASTROPHIC_BAT_LEVEL" value="8.5" unit="V"/>
+		<define name="CRITIC_BAT_LEVEL" value="9.0" unit="V"/>
+		<define name="LOW_BAT_LEVEL" value="9.5" unit="V"/>
+		<define name="MAX_BAT_LEVEL" value="12.4" unit="V"/>
+	</section>
+
+</airframe>
