@@ -62,9 +62,9 @@ class VRepClient {
       void update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
         outPacket.pitch = commands[0];
-	      outPacket.roll = commands[1];
-	      outPacket.yaw = commands[3];
-        outPacket.thrust = commands[2];
+	outPacket.roll = commands[1];
+	outPacket.yaw = commands[2];
+        outPacket.thrust = commands[3];
         connect();
         try {
             {
@@ -102,8 +102,10 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+		
 
+		
                 //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
