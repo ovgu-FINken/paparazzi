@@ -110,7 +110,7 @@ class VRepClient {
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt - 6;
                 
-		        /*
+		        
 
                 //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
@@ -124,6 +124,7 @@ class VRepClient {
 
                 //convert velocties and accelerations rom enu to ecef or body:
 
+                /*
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_vel, &ltpRef, &enu_vel);
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_accel, &ltpRef, &enu_accel);
                 fdm.body_ecef_vel.x = body_vel[0];
@@ -132,7 +133,7 @@ class VRepClient {
                 fdm.body_ecef_accel.x = body_vel[0];
                 fdm.body_ecef_accel.y = body_vel[1];
                 fdm.body_ecef_accel.z = body_vel[2];
-
+                */
                 
 
                 // velocity in LTP frame, wrt ECEF frame 
@@ -155,14 +156,13 @@ class VRepClient {
                 // acceleration in body frame as measured by an accelerometer (incl. gravity)                
                 
                 Eigen::Vector3d gravity(0,0,-9.81);
-                body_accel = body_accel + quat.inverse()*gravity;
+                //body_accel = body_accel + quat*gravity;
+                body_accel = quat*gravity;
                 fdm.body_accel.x = body_accel[0];
                 fdm.body_accel.y = body_accel[1];
                 fdm.body_accel.z= body_accel[2];
                 
-                */
                 
-                fdm.body_accel.z= -9.81;
                 //attitude
                 Eigen::Quaterniond ecef_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ecef_pos.x, fdm.ecef_pos.y, fdm.ecef_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
                 Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat;
