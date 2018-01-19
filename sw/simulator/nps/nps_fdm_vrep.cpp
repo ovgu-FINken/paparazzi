@@ -162,6 +162,7 @@ class VRepClient {
                 
                 */
                 
+                fdm.body_accel.z= -9.81;
                 //attitude
                 Eigen::Quaterniond ecef_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ecef_pos.x, fdm.ecef_pos.y, fdm.ecef_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
                 Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat;
@@ -211,6 +212,7 @@ class VRepClient {
 VRepClient client;
 
 void nps_fdm_init(double dt) {
+  bzero(&fdm, sizeof(&fdm));
   lla_base.lat = 52;
   lla_base.lon = 11;
   lla_base.alt = 50;
