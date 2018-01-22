@@ -46,9 +46,9 @@ class VRepClient {
     tcp::iostream s;
     bool connected=false;
     void connect() {
-        while(!connected)
+        while(!connected){
           try
-          {
+          { 
             s.connect("localhost", "50013");
             connected=true;
           }
@@ -57,6 +57,8 @@ class VRepClient {
             vrepLog << "Exception: " << e.what() << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(60));
           }
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
   public:
       void update(double *commands, const int& commands_nb) {
