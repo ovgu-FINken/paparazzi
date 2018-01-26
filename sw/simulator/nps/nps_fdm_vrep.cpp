@@ -104,7 +104,7 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
 		        
                 //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
@@ -124,17 +124,16 @@ class VRepClient {
 		        body_rotVel = quat.inverse() * body_rotVel;
 		        body_rotAccel = quat.inverse() * body_rotVel;
 
-                //convert velocties and accelerations rom enu to ecef or body:
-
+                //convert velocties and accelerations from enu to ecef:
                 /*
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_vel, &ltpRef, &enu_vel);
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_accel, &ltpRef, &enu_accel);
                 fdm.body_ecef_vel.x = body_vel[0];
                 fdm.body_ecef_vel.y = body_vel[1];
                 fdm.body_ecef_vel.z = body_vel[2];
-                fdm.body_ecef_accel.x = body_vel[0];
-                fdm.body_ecef_accel.y = body_vel[1];
-                fdm.body_ecef_accel.z = body_vel[2];
+                fdm.body_ecef_accel.x = body_accel[0];
+                fdm.body_ecef_accel.y = body_accel[1];
+                fdm.body_ecef_accel.z = body_accel[2];
                 */
                 
 
@@ -158,8 +157,8 @@ class VRepClient {
                 // acceleration in body frame as measured by an accelerometer (incl. gravity)                
                 
                 Eigen::Vector3d gravity(0,0,-9.81);
-                //body_accel = body_accel + quat*gravity;
-                body_accel = quat*gravity;
+                body_accel = body_accel + quat*gravity;
+                //body_accel = quat*gravity;
                 fdm.body_accel.x = body_accel[0];
                 fdm.body_accel.y = body_accel[1];
                 fdm.body_accel.z= body_accel[2];
@@ -167,7 +166,7 @@ class VRepClient {
                 
                 //attitude
                 Eigen::Quaterniond ecef_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ecef_pos.x, fdm.ecef_pos.y, fdm.ecef_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat;
+                Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat.inverse();
                 fdm.ecef_to_body_quat.qi = ecef_to_body_quat.w();
                 fdm.ecef_to_body_quat.qx = ecef_to_body_quat.x();
                 fdm.ecef_to_body_quat.qy = ecef_to_body_quat.y();
@@ -175,7 +174,7 @@ class VRepClient {
                 
                 
                 Eigen::Quaterniond ltp_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat;
+                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat.inverse();
                 fdm.ltp_to_body_quat.qi = ltp_to_body_quat.w();
                 fdm.ltp_to_body_quat.qx = ltp_to_body_quat.x();
                 fdm.ltp_to_body_quat.qy = ltp_to_body_quat.y();
@@ -184,19 +183,19 @@ class VRepClient {
 
                 
                 Eigen::Quaterniond ltpprz_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ltpprz_to_body_quat = ltp_to_enu_quat * quat;
+                Eigen::Quaterniond ltpprz_to_body_quat = ltp_to_enu_quat * quat.inverse();
                 fdm.ltpprz_to_body_quat.qi = ltpprz_to_body_quat.w();
                 fdm.ltpprz_to_body_quat.qx = ltpprz_to_body_quat.x();
                 fdm.ltpprz_to_body_quat.qy = ltpprz_to_body_quat.y();
                 fdm.ltpprz_to_body_quat.qz = ltpprz_to_body_quat.z();
                 double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);
                 
-		        /*
+		        
 		        //angular rates in body frame wrt ECEF:
 		        RATES_ASSIGN(fdm.body_ecef_rotvel, body_rotVel[0], body_rotVel[1], body_rotVel[2]);
 		        RATES_ASSIGN(fdm.body_ecef_rotaccel, body_rotAccel[0], body_rotAccel[1], body_rotAccel[2]);
                 
-                */
+                
                 }
 
             auto now = std::chrono::high_resolution_clock::now();
