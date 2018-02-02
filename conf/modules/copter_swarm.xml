@@ -3,7 +3,7 @@
 <module name="copter_swarm">
   <doc>
     <description>
-	Module that takes other copters INS data to create swarm behaviour.
+	Module that takes other copters GPS data to create swarm behaviour.
     </description>
   </doc>
   <header>
@@ -11,7 +11,7 @@
   </header>
   <init fun="copter_swarm_init()"/>
   <periodic fun="copter_swarm_periodic()" freq="1"/>
-  <datalink message="COPTER_INS" fun="copter_ins_action()"/>
+  <datalink message="COPTER_GPS" fun="copter_gps_action()"/>
   <makefile>
     <file name="copter_swarm.c"/>
   </makefile>

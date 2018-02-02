@@ -5,6 +5,7 @@
 #include "autopilot.h"
   </header>
   <waypoints>
+    <waypoint name="SWARM" x="0.0" y="0.0" alt="0.4"/>
     <waypoint name="HOME" x="0.0" y="0.0" alt="0.6"/>
     <waypoint name="CLIMB" x="0.0" y="5.0"/>
     <waypoint name="STDBY" x="-2.0" y="-5.0"/>
@@ -39,7 +40,11 @@
       <stay vmode="climb" climb="nav_climb_vspeed" wp="HOME"/>
     </block>
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
-      <stay wp="HOME" alt="0.4"/> <!-- alt="0.6"/> -->
+	<call_once fun="enableCopterSwarm()"/>      	
+	<stay wp="SWARM" alt="0.4"/>
+	<while cond="stateGetPositionEnu_f()-> z > 0.1"/>
+	<!--stay alt="0.4"/-->	
+	<!--exception cond="0.1 > stateGetPositionEnu_f()->z" deroute="flare"/-->
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>

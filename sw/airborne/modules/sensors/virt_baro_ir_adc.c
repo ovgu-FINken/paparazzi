@@ -6,6 +6,7 @@
 #include "subsystems/abi.h"
 #include "pprzlink/messages.h"
 #include "autopilot.h"
+#include "subsystems/datalink/telemetry.h"
 
 
 uint16_t ir_measurement;
@@ -23,16 +24,14 @@ uint8_t eq_idx = 0;
 
 static struct adc_buf ir_adc;
 
-/*static void send_virt_baro(struct transport_tx* trans, struct link_device* dev)
+static void send_virt_baro(struct transport_tx* trans, struct link_device* dev)
 {
     pprz_msg_send_VIRT_BARO(trans, dev, AC_ID,
                          &ir_adc.sum,
     			 &ir_distance,
     			 &ir_distance_equalized,
     			 &pressure);
-}*/
-
-#define PERIODIC_SEND_VIRT_BARO DOWNLINK_SEND_VIRT_BARO(DefaultChannel, &ir_adc.sum, &ir_distance, &ir_distance_equalized, &pressure)
+}
 
 void virt_baro_ir_adc_init(void)
 {
@@ -42,7 +41,7 @@ void virt_baro_ir_adc_init(void)
     ir_distance_equalized = 0;
 
     adc_buf_channel(ADC_CHANNEL_IR, &ir_adc, DEFAULT_AV_NB_SAMPLE);
-    //register_periodic_telemetry(DefaultPeriodic, "VIRT_BARO", send_virt_baro);
+    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_VIRT_BARO, send_virt_baro);
 }
 
 #define IR_SAMPLE_SIZE 6
