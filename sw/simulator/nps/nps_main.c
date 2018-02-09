@@ -105,10 +105,11 @@ int main(int argc, char **argv)
   signal(SIGCONT, cont_hdl);
   signal(SIGTSTP, tstp_hdl);
   printf("Time factor is %f. (Press Ctrl-Z to change)\n", nps_main.host_time_factor);
-
-  GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
-  g_timeout_add(HOST_TIMEOUT_MS, nps_main_periodic, NULL);
-  g_main_loop_run(ml);
+  while(true)
+    nps_main_periodic(NULL);
+  /*GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
+  g_timeout_add(HOST_TIMEOUT_MS, , NULL);
+  g_main_loop_run(ml);*/
 
   return 0;
 }

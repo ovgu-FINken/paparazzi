@@ -112,7 +112,6 @@ class VRepClient {
                 enu_rotAccel.x = -inPacket.rotAccel[1];
                 enu_rotAccel.y = inPacket.rotAccel[0];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
                 Eigen::Quaterniond quat(inPacket.quat[3], -inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
 		        
                 //set copter Position:
