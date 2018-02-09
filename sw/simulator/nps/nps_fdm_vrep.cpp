@@ -84,27 +84,36 @@ class VRepClient {
             {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
+                /*
+                in vrep, X is North, Y is West and Z is Up
+                ->
+                ENU:
+                ENU.x(East) is -y
+                ENU.y(North) is x
+                ENU.z (up) is z
+                */
                 EnuCoor_d enu;
                 EnuCoor_d enu_vel;
                 EnuCoor_d enu_accel;
                 EnuCoor_d enu_rotVel;
                 EnuCoor_d enu_rotAccel;
-                enu.x = inPacket.pos[0];
-                enu.y = inPacket.pos[1];
+                enu.x = -inPacket.pos[1];
+                enu.y = inPacket.pos[0];
                 enu.z = inPacket.pos[2];
-                enu_vel.x = inPacket.vel[0];
-                enu_vel.y = inPacket.vel[1];
+                enu_vel.x = -inPacket.vel[1];
+                enu_vel.y = inPacket.vel[0];
                 enu_vel.z = inPacket.vel[2];
-                enu_accel.x = inPacket.accel[0];
-                enu_accel.y = inPacket.accel[1];
+                enu_accel.x = -inPacket.accel[1];
+                enu_accel.y = inPacket.accel[0];
                 enu_accel.z = inPacket.accel[2];
-                enu_rotVel.x = inPacket.rotVel[0];
-                enu_rotVel.y = inPacket.rotVel[1];
+                enu_rotVel.x = -inPacket.rotVel[1];
+                enu_rotVel.y = inPacket.rotVel[0];
                 enu_rotVel.z = inPacket.rotVel[2];
-                enu_rotAccel.x = inPacket.rotAccel[0];
-                enu_rotAccel.y = inPacket.rotAccel[1];
+                enu_rotAccel.x = -inPacket.rotAccel[1];
+                enu_rotAccel.y = inPacket.rotAccel[0];
                 enu_rotAccel.z = inPacket.rotAccel[2];
                 Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], -inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
 		        
                 //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
@@ -119,13 +128,13 @@ class VRepClient {
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
 		        Eigen::Vector3d body_rotVel(enu_rotVel.x, enu_rotVel.y, enu_rotVel.z);
 		        Eigen::Vector3d body_rotAccel(enu_rotAccel.x, enu_rotAccel.y, enu_rotAccel.z);
-                body_vel = quat.inverse() *  body_vel;
-                body_accel = quat.inverse() * body_accel;
-		        body_rotVel = quat.inverse() * body_rotVel;
-		        body_rotAccel = quat.inverse() * body_rotVel;
+                body_vel = quat *  body_vel;
+                body_accel = quat * body_accel;
+		        body_rotVel = quat * body_rotVel;
+		        body_rotAccel = quat * body_rotVel;
 
                 //convert velocties and accelerations from enu to ecef:
-                /*
+                
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_vel, &ltpRef, &enu_vel);
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_accel, &ltpRef, &enu_accel);
                 fdm.body_ecef_vel.x = body_vel[0];
@@ -134,22 +143,28 @@ class VRepClient {
                 fdm.body_ecef_accel.x = body_accel[0];
                 fdm.body_ecef_accel.y = body_accel[1];
                 fdm.body_ecef_accel.z = body_accel[2];
-                */
+                
                 
 
                 // velocity in LTP frame, wrt ECEF frame 
                 //struct NedCoor_d ltp_ecef_vel;
-                //ltp_def_from_ecef_d(&fdm.ltp_ecef_vel, &fdm.ecef_ecef_vel)
+                ned_of_ecef_vect_d(&fdm.ltp_ecef_vel, &ltpRef, &fdm.ecef_ecef_vel);
 
                 // acceleration in LTP frame, wrt ECEF frame 
                 //struct NedCoor_d ltp_ecef_accel;
-                //ltp_def_from_ecef_d(&fdm.ltp_ecef_accel, &fdm.ecef_ecef_vel)
+                ned_of_ecef_vect_d(&fdm.ltp_ecef_accel, &ltpRef, &fdm.ecef_ecef_accel);
 
                 // velocity in ltppprz frame, wrt ECEF frame 
                 //struct NedCoor_d ltpprz_ecef_vel;
+                ned_of_ecef_vect_d(&fdm.ltpprz_ecef_vel, &ltpRef, &fdm.ecef_ecef_vel);
+
 
                 //accel in ltppprz frame, wrt ECEF frame 
                 //struct NedCoor_d ltpprz_ecef_accel;
+                ned_of_ecef_vect_d(&fdm.ltpprz_ecef_accel, &ltpRef, &fdm.ecef_ecef_accel);
+
+
+
 
                 // acceleration in body frame, wrt ECI inertial frame 
                 //struct DoubleVect3 body_inertial_accel;
@@ -166,15 +181,15 @@ class VRepClient {
                 
                 //attitude
                 Eigen::Quaterniond ecef_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ecef_pos.x, fdm.ecef_pos.y, fdm.ecef_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat.inverse();
+                Eigen::Quaterniond ecef_to_body_quat = ecef_to_enu_quat * quat;
                 fdm.ecef_to_body_quat.qi = ecef_to_body_quat.w();
                 fdm.ecef_to_body_quat.qx = ecef_to_body_quat.x();
                 fdm.ecef_to_body_quat.qy = ecef_to_body_quat.y();
                 fdm.ecef_to_body_quat.qz = ecef_to_body_quat.z();
                 
                 
-                /*Eigen::Quaterniond ltp_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat.inverse();
+                Eigen::Quaterniond ltp_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
+                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat;
                 fdm.ltp_to_body_quat.qi = ltp_to_body_quat.w();
                 fdm.ltp_to_body_quat.qx = ltp_to_body_quat.x();
                 fdm.ltp_to_body_quat.qy = ltp_to_body_quat.y();
@@ -183,12 +198,12 @@ class VRepClient {
 
                 
                 Eigen::Quaterniond ltpprz_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ltpprz_to_body_quat = ltp_to_enu_quat * quat.inverse();
+                Eigen::Quaterniond ltpprz_to_body_quat = ltp_to_enu_quat * quat;
                 fdm.ltpprz_to_body_quat.qi = ltpprz_to_body_quat.w();
                 fdm.ltpprz_to_body_quat.qx = ltpprz_to_body_quat.x();
                 fdm.ltpprz_to_body_quat.qy = ltpprz_to_body_quat.y();
                 fdm.ltpprz_to_body_quat.qz = ltpprz_to_body_quat.z();
-                double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);*/
+                double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);
                 
 		        
 		        //angular rates in body frame wrt ECEF:
