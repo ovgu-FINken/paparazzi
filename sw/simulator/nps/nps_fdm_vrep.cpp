@@ -1,6 +1,8 @@
 #include "nps_fdm.h"
 
 #include <iostream>
+#include <string>
+#include <cstdlib>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/asio.hpp>
@@ -13,8 +15,10 @@
 #include <chrono>
 #include <dataPacket.h>
 
+#pragma GCC diagnostic ignored "-Wint-in-bool-context"
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#pragma GCC diagnostic pop
 
 
 using std::endl;
@@ -39,8 +43,39 @@ const std::chrono::milliseconds timeout(34);
 Eigen::Matrix3d rotMatrix;
 
 std::string homepath = getenv("HOME");
-ofstream vrepLog((homepath + "/software/vrep/vrep2.log").c_str());
+class LogLine {
+  private:
+    std::ostream& o;
 
+  public:
+    LogLine(std::ostream& o) : o(o) {}
+    ~LogLine(){
+      o <<  ";";
+    }
+    LogLine& operator<<(std::ostream&(*pf)(std::ostream&)) {
+      o << pf;
+      return *this;
+    }
+    template<typename T>
+    LogLine& operator<<(T t) {
+      o << t;
+      return *this;
+    }
+  friend class VrepLog;
+};
+class VrepLog {
+  private:
+    std::ofstream log;
+  public:
+    VrepLog() {
+      std::string pprzHome=std::getenv("PAPARAZZI_HOME");
+      log.open((pprzHome + "/paparazzi.log").c_str());
+    }
+    template<typename T>
+    LogLine operator<<(T& t) {
+      return log << Clock::now().time_since_epoch().count() << ", " << t;
+    }
+} vrepLog;
 
 int iTest = 1;
 class VRepClient {
