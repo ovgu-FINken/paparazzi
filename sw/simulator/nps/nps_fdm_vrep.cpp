@@ -38,8 +38,10 @@ const std::chrono::milliseconds timeout(34);
 
 Eigen::Matrix3d rotMatrix;
 
+std::string homepath = getenv("HOME");
+ofstream vrepLog((homepath + "/software/vrep/vrep2.log").c_str());
 
-ofstream vrepLog(current_path()/"vrep.log");
+
 int iTest = 1;
 class VRepClient {
   private:
@@ -54,7 +56,7 @@ class VRepClient {
           }
           catch (std::exception& e)
           {
-            vrepLog << "Exception: " << e.what() << "\n";
+            vrepLog << "[PPRZ] Exception: " << e.what() << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(60));
           }
           std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -74,43 +76,35 @@ class VRepClient {
                 boost::archive::binary_oarchive out(s);
                 out << outPacket;
                 auto now = std::chrono::high_resolution_clock::now();
-                vrepLog << "sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
+                vrepLog << "[PPRZ] sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             }
 
-            vrepLog << "Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
+            vrepLog << "[PPRZ] Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
 
 
             auto then = std::chrono::high_resolution_clock::now();
             {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
-                /*
-                in vrep, X is North, Y is West and Z is Up
-                ->
-                ENU:
-                ENU.x(East) is -y
-                ENU.y(North) is x
-                ENU.z (up) is z
-                */
                 EnuCoor_d enu;
                 EnuCoor_d enu_vel;
                 EnuCoor_d enu_accel;
                 EnuCoor_d enu_rotVel;
                 EnuCoor_d enu_rotAccel;
-                enu.x = -inPacket.pos[1];
-                enu.y = inPacket.pos[0];
+                enu.x = inPacket.pos[0];
+                enu.y = inPacket.pos[1];
                 enu.z = inPacket.pos[2];
-                enu_vel.x = -inPacket.vel[1];
-                enu_vel.y = inPacket.vel[0];
+                enu_vel.x = inPacket.vel[0];
+                enu_vel.y = inPacket.vel[1];
                 enu_vel.z = inPacket.vel[2];
-                enu_accel.x = -inPacket.accel[1];
-                enu_accel.y = inPacket.accel[0];
+                enu_accel.x = inPacket.accel[0];
+                enu_accel.y = inPacket.accel[1];
                 enu_accel.z = inPacket.accel[2];
-                enu_rotVel.x = -inPacket.rotVel[1];
-                enu_rotVel.y = inPacket.rotVel[0];
+                enu_rotVel.x = inPacket.rotVel[0];
+                enu_rotVel.y = inPacket.rotVel[1];
                 enu_rotVel.z = inPacket.rotVel[2];
-                enu_rotAccel.x = -inPacket.rotAccel[1];
-                enu_rotAccel.y = inPacket.rotAccel[0];
+                enu_rotAccel.x = inPacket.rotAccel[0];
+                enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
                 Eigen::Quaterniond quat(inPacket.quat[3], -inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
 		        
@@ -213,13 +207,13 @@ class VRepClient {
                 }
 
             auto now = std::chrono::high_resolution_clock::now();
-            vrepLog << "reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
-            vrepLog << "Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
+            vrepLog << "[PPRZ] reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
+            vrepLog << "[PPRZ] Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
 
         }
         catch(const std::exception& e) {
-            vrepLog << "Exception: " << e.what() << "\n";
-            vrepLog << "Error: " << s.error().message() << std::endl;
+            vrepLog << "[PPRZ] Exception: " << e.what() << "\n";
+            vrepLog << "[PPRZ] Error: " << s.error().message() << std::endl;
         }
     }
 };
@@ -250,7 +244,7 @@ void nps_fdm_init(double dt) {
   fdm.ecef_ecef_accel.z=0.0f;
   fdm.time=0;
   fdm.init_dt=dt;
-  vrepLog << "[" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
+  vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
   lastUpdate = Clock::now();
   runEnd = Clock::now();
 }
@@ -259,21 +253,25 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   	
   Clock::time_point now = Clock::now();
   
-  if(now-lastUpdate < timeout) return;
+  if(now-lastUpdate < timeout) {
+      vrepLog << "[PPRZ] skipping update due to timeout" << std::endl;
+      return;
+  }
   auto runStart = Clock::now();
-  vrepLog << "time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
+  vrepLog << "[PPRZ] time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
 
 
   lastUpdate = now;
   fdm.time+=fdm.init_dt;
-  vrepLog << "[" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
-  for(int i=0;i<commands_nb;i++)
+  vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
+  for(int i=0;i<commands_nb;i++) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
+  }
   vrepLog << "]" << endl;
   auto then = std::chrono::high_resolution_clock::now();
   client.update(commands, commands_nb);
   auto after = std::chrono::high_resolution_clock::now();
-  vrepLog << "Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
+  vrepLog << "[PPRZ] Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
   runEnd = Clock::now();
 }
 
