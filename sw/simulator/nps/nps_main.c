@@ -88,6 +88,12 @@ double time_to_double(struct timeval *t)
   return ((double)t->tv_sec + (double)(t->tv_usec * 1e-6));
 }
 
+static void* run_loop(void *  unused) {
+  GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
+  g_main_loop_run(ml);
+  return  NULL;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -105,11 +111,13 @@ int main(int argc, char **argv)
   signal(SIGCONT, cont_hdl);
   signal(SIGTSTP, tstp_hdl);
   printf("Time factor is %f. (Press Ctrl-Z to change)\n", nps_main.host_time_factor);
-  while(true)
+  pthread_t thread;
+  pthread_create(&thread, NULL, &run_loop, NULL);
+
+  while(true) {
+    usleep(40000);
     nps_main_periodic(NULL);
-  /*GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
-  g_timeout_add(HOST_TIMEOUT_MS, , NULL);
-  g_main_loop_run(ml);*/
+  }
 
   return 0;
 }
