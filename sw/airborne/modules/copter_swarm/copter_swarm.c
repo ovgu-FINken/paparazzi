@@ -20,11 +20,11 @@ float point;
 struct EnuCoor_f Target_waypoint;
 
 //Reminder: ecef is in cm from earth's centre
-const int wall_top_x = 384205118;
+const int wall_top_x = 384205148; //384205118
 const int wall_bottom_x = 384205341; //bigger value
 const int wall_left_y = 79184823;
 const int wall_right_y = 79185130; //bigger value
-const int safe_dist = 50;
+const int safe_dist = 60;
 
 void copter_swarm_init( void ) {
 	int i = 0;
@@ -132,7 +132,7 @@ void copter_swarm_periodic(void)
 
 //function for Wall Avoidance
 void wall_avoid(double* fx_out, double* fy_out){
-	float constant = 2.0;
+	float constant = 1.5;
 	float d = 0.0;
 	if (gps.ecef_pos.x < (wall_top_x + safe_dist) ){
 		d = (wall_top_x+safe_dist) - gps.ecef_pos.x;
@@ -165,7 +165,7 @@ void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out){
 	copter1.ecef_z = gps.ecef_pos.z;
 
 	float cons = 0.3;
-	float d = 0.5; //in metres
+	float d = 0.8; //in metres
 	float diff_x;
 	float diff_y;
 	double dist;
@@ -176,7 +176,7 @@ void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out){
 
 	// Repel when the copters are close
 	if(dist < d){
-		cons = 1;
+		cons = 1.5;
 	}
 
     	*fx_out = - cons*(dist-d) * diff_x;
