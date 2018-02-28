@@ -10,6 +10,8 @@
 #include "mcu_periph/sys_time.h"
 #include "subsystems/imu.h"
 
+#include "subsystems/datalink/telemetry.h"
+
 #ifndef GEO_MAG_SENDER_ID
 #define GEO_MAG_SENDER_ID 1
 #endif
@@ -19,16 +21,14 @@ struct Int32Vect3 mag;
 struct Imu virt_imu;
 float deg2rad = M_PI/180;
 
-/*static void send_virt_mag(struct transport_tx* trans, struct link_device* dev)
+static void send_virt_mag(struct transport_tx* trans, struct link_device* dev)
 {
     pprz_msg_send_VIRT_MAG(trans, dev, AC_ID,
 			 &cameraHeading,
                          &mag.x,
     			 &mag.y,
     			 &mag.z);
-}*/
-
-#define PERIODIC_SEND_VIRT_MAG DOWNLINK_SEND_VIRT_MAG(DefaultChannel, &cameraHeading, &mag.x, &mag.y, &mag.z)
+}
 
 //Still have to figure out...!!!
 void getTheta(void)
@@ -49,7 +49,7 @@ void virt_magnetometer_init(void)
     mag.y = 0;
     mag.z = 0;
 
-    //register_periodic_telemetry(DefaultPeriodic, "VIRT_MAG", send_virt_mag);
+    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_VIRT_MAG, send_virt_mag);
 }
 
 void virt_magnetometer_periodic(void)
