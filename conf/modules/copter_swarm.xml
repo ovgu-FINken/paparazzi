@@ -10,7 +10,7 @@
     <file name="copter_swarm.h"/>
   </header>
   <init fun="copter_swarm_init()"/>
-  <periodic fun="copter_swarm_periodic()" freq="5"/>
+  <periodic fun="copter_swarm_periodic()" freq="10"/>
   <datalink message="COPTER_GPS" fun="copter_gps_action()"/>
   <makefile>
     <file name="copter_swarm.c"/>

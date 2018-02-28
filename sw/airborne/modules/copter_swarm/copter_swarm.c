@@ -164,6 +164,10 @@ void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out){
 	copter1.ecef_y = gps.ecef_pos.y;
 	copter1.ecef_z = gps.ecef_pos.z;
 
+	// making prediction of own movement
+	copter1.ecef_x = copter1.ecef_x + gps.ecef_vel.x / 10;
+	copter1.ecef_y = copter1.ecef_y + gps.ecef_vel.y / 10;
+
 	float cons = 0.3;
 	float d = 0.8; //in metres
 	float diff_x;
