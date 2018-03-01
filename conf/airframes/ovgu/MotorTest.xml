@@ -1,20 +1,12 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
 
-<!-- this is a quadrotor frame in X-configuration equiped with
-     * Autopilot:   Lisa/MX 2.1 with STM32F4  http://wiki.paparazziuav.org/wiki/Lisa/M_v21
-     * IMU:         Integrated Aspirin 2.2    http://wiki.paparazziuav.org/wiki/AspirinIMU
-     * Actuators:   PWM motor controllers     http://wiki.paparazziuav.org/wiki/Subsystem/actuators#PWM
-     * GPS:         Ublox                     http://wiki.paparazziuav.org/wiki/Subsystem/gps
-     * RC:          two Spektrum sats         http://wiki.paparazziuav.org/wiki/Subsystem/radio_control#Spektrum
--->
-
-<airframe name="Quadrotor LisaMX_2.1 pwm">
+<airframe name="Testing Motors">
 
   <firmware name="rotorcraft">
     <target name="ap" board="lisa_mx_2.1">
-      <!-- MPU6000 is configured to output data at 2kHz, but polled at 512Hz PERIODIC_FREQUENCY -->
 	<define name="USE_ADC"/>
 	<define name="USE_ADC_2"/>
+	<define name="AUTOPILOT_DISABLE_AHRS_KILL"/>
     </target>
 
     <module name="radio_control" type="spektrum">
@@ -29,27 +21,24 @@
       <define name="SERVO_HZ" value="400"/>
     </module>
 
-    <!--module name="telemetry"     type="transparent">
-      <configure name="MODEM_BAUD"  value="B38400"/>
-      <configure name="MODEM_PORT" value="UART3"/>
-    </module-->
     <module name="telemetry"     type="transparent_usb"/>
     <module name="imu"           type="aspirin_v2.1"/>
-    
     <module name="stabilization" type="int_quat"/>
-    
     <module name="ahrs"          type="float_cmpl_quat">
-	<configure name="USE_MAGNETOMETER" value="TRUE"/>
+      <configure name="AUTOPILOT_DISABLE_AHRS_KILL" value="TRUE" />
     </module>
     <module name="ins"/>
 
-    <!--define name="KILL_ON_GROUND_DETECT" value="TRUE"/-->
   </firmware>
 
 
   <modules>
     <module name="air_data"/>
 
+   <module name="virt_baro_ir_adc.xml">
+      <configure name="ADC_IR" value="ADC_3"/>
+    </module>
+    <module name="virt_magnetometer.xml"/>
   </modules>
   
   <servos driver="Pwm">
@@ -105,7 +94,6 @@
   </section>
 
   <section name="AHRS" prefix="AHRS_">
-    <!-- values used if no GPS fix, on 3D fix is update by geo_mag module -->
     <define name="H_X" value="0.3770441"/>
     <define name="H_Y" value="0.0193986"/>
     <define name="H_Z" value="0.9259921"/>
@@ -194,9 +182,8 @@
   <section name="AUTOPILOT">
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
     <define name="MODE_AUTO1"  value="AP_MODE_NAV"/>
-    <!--<define name="MODE_AUTO2"  value="AP_MODE_HOVER_Z_HOLD"/>
-    <define name="MODE_AUTO1"  value="AP_MODE_ATTITUDE_Z_HOLD"/>!-->
-    <define name="MODE_AUTO2"  value="AP_MODE_HOVER_Z_HOLD"/>
+    <define name="MODE_AUTO2"  value="AP_MODE_NAV"/>
+    <!-- Activate to ?? -->
     <define name="USE_THROTTLE_FOR_MOTOR_ARMING" value="TRUE"/>
   </section>
 

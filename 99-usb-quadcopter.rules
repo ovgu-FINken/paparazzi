@@ -1,0 +1,2 @@
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6018", ATTRS{serial}=="BDE5A90B", SYMLINK+="magicprobe"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="603d", ATTRS{serial}=="35323930044732333C003700", SYMLINK+="uav"

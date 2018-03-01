@@ -1,0 +1,55 @@
+<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+
+<flight_plan name="Increment Motorpower" lat0="43 33 50.83" lon0="1 28 52.61" ground_alt="147" security_height="0.001" alt="150" max_dist_from_home="150" >
+  
+  <header>
+    #include "autopilot.h"
+  </header>
+  
+    <!-- Define only home way point, as we do not move-->	
+  <waypoints>
+    <waypoint name="HOME" x="0.0" y="0.0"/>
+  </waypoints>
+
+  <!-- Variales for motor testing -->
+  <variables>
+    <variable var="mtime" init="30" type="int" />
+    <variable var="nloop" init="10" type="int" />
+    <variable var="throttle_step" init="0.1" type="float" />
+  </variables>
+    
+  <blocks>
+
+    <!-- Wait until manually started -->
+   
+    <block name="Wait Forever">
+      <while cond="true"/>
+    </block>
+   
+    
+    <!-- Start Engine-->
+    <block name="Start Engine">
+      <!-- Start Motors -->
+      <call_once fun="NavResurrect()"/>
+
+      <!-- Immediately set motors to zero, as they are set high after starting motor -->
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="block_time > mtime" />
+    </block>
+
+    <!-- Periodically increase the motor throttle -->
+    <block name="Increase Throttle">
+      <for var="i" from="1" to="nloop">
+	<attitude pitch="0" roll="0" throttle="throttle_step * $i" vmode="throttle" until="stage_time > mtime"/>
+      </for>
+    </block>
+
+    <!-- Kill Engine -->
+    <block name="Kill Engine">
+      <call_once fun="NavKillThrottle()"/>
+    </block>
+
+
+  </blocks>
+
+  
+</flight_plan>

@@ -232,7 +232,7 @@
   />
   <aircraft
    name="EnergyCopter"
-   ac_id="12"
+   ac_id=""
    airframe="airframes/ovgu/VirtGPSFinken.xml"
    radio="radios/dummy.xml"
    telemetry="telemetry/ovgu_virtGPS.xml"
