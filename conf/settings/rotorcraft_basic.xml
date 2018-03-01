@@ -3,8 +3,7 @@
 <!-- dl_setting element associates buttons/sliders in the GCS interface to autopilot variables -->
 <!-- a notebook page will be associated to each dl_settings elemetn -->
 
-<settings
-    >
+<settings>
   <dl_settings>
 
     <dl_settings NAME="System">
@@ -22,6 +21,7 @@
     </dl_settings>
 
   </dl_settings>
+
 
   
 </settings>
