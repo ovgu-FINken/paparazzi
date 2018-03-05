@@ -88,6 +88,7 @@ class VRepClient {
           { 
             s.connect("localhost", "50013");
             connected=true;
+            return;
           }
           catch (std::exception& e)
           {
@@ -98,7 +99,7 @@ class VRepClient {
         }
     }
   public:
-      void update(double *commands, const int& commands_nb) {
+      double update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
         outPacket.pitch = commands[0];
 	    outPacket.roll = commands[1];
@@ -118,9 +119,11 @@ class VRepClient {
 
 
             auto then = std::chrono::high_resolution_clock::now();
+            double dt;
             {
                 boost::archive::binary_iarchive in(s);
                 in >> inPacket;
+                dt = inPacket.dt;
                 EnuCoor_d enu;
                 EnuCoor_d enu_vel;
                 EnuCoor_d enu_accel;
@@ -244,11 +247,13 @@ class VRepClient {
             auto now = std::chrono::high_resolution_clock::now();
             vrepLog << "[PPRZ] reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             vrepLog << "[PPRZ] Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
+            return dt;
 
         }
         catch(const std::exception& e) {
             vrepLog << "[PPRZ] Exception: " << e.what() << "\n";
             vrepLog << "[PPRZ] Error: " << s.error().message() << std::endl;
+            return 0;
         }
     }
 };
@@ -284,14 +289,10 @@ void nps_fdm_init(double dt) {
   runEnd = Clock::now();
 }
 
-void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
+double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   	
   Clock::time_point now = Clock::now();
   
-  if(now-lastUpdate < timeout) {
-      vrepLog << "[PPRZ] skipping update due to timeout" << std::endl;
-      return;
-  }
   auto runStart = Clock::now();
   vrepLog << "[PPRZ] time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
 
@@ -304,10 +305,11 @@ void nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   }
   vrepLog << "]" << endl;
   auto then = std::chrono::high_resolution_clock::now();
-  client.update(commands, commands_nb);
+  double dt = client.update(commands, commands_nb);
   auto after = std::chrono::high_resolution_clock::now();
   vrepLog << "[PPRZ] Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
   runEnd = Clock::now();
+  return dt;
 }
 
 void nps_fdm_set_wind(double speed, double dir) {

@@ -42,11 +42,8 @@
 #define HOST_TIMEOUT_MS 40
 
 static struct {
-  double real_initial_time;
-  double scaled_initial_time;
-  double host_time_factor;
   double sim_time;
-  double display_time;
+  double sim_timestep;
   char *fg_host;
   unsigned int fg_port;
   unsigned int fg_time_offset;
@@ -59,36 +56,12 @@ static struct {
 
 static bool_t nps_main_parse_options(int argc, char **argv);
 static void nps_main_init(void);
+void nps_set_time_factor(float time_factor __attribute__((unused))) {}
 static void nps_main_display(void);
 static void nps_main_run_sim_step(void);
 static gboolean nps_main_periodic(gpointer data __attribute__((unused)));
 
-int pauseSignal = 0;
-
-void tstp_hdl(int n __attribute__((unused)))
-{
-  if (pauseSignal) {
-    pauseSignal = 0;
-    signal(SIGTSTP, SIG_DFL);
-    raise(SIGTSTP);
-  } else {
-    pauseSignal = 1;
-  }
-}
-
-void cont_hdl(int n __attribute__((unused)))
-{
-  signal(SIGCONT, cont_hdl);
-  signal(SIGTSTP, tstp_hdl);
-  printf("Press <enter> to continue.\n");
-}
-
-double time_to_double(struct timeval *t)
-{
-  return ((double)t->tv_sec + (double)(t->tv_usec * 1e-6));
-}
-
-static void* run_loop(void *  unused) {
+static void* run_loop(void *  unused __attribute__((unused))) {
   GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
   g_main_loop_run(ml);
   return  NULL;
@@ -108,14 +81,11 @@ int main(int argc, char **argv)
 
   nps_main_init();
 
-  signal(SIGCONT, cont_hdl);
-  signal(SIGTSTP, tstp_hdl);
-  printf("Time factor is %f. (Press Ctrl-Z to change)\n", nps_main.host_time_factor);
   pthread_t thread;
   pthread_create(&thread, NULL, &run_loop, NULL);
 
   while(true) {
-    usleep(40000);
+    //usleep(40000);
     nps_main_periodic(NULL);
   }
 
@@ -127,17 +97,12 @@ static void nps_main_init(void)
 {
 
   nps_main.sim_time = 0.;
-  nps_main.display_time = 0.;
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  nps_main.real_initial_time = time_to_double(&t);
-  nps_main.scaled_initial_time = time_to_double(&t);
+  nps_main.sim_timestep  = SIM_DT;
 
   nps_ivy_init(nps_main.ivy_bus);
   nps_fdm_init(SIM_DT);
   nps_atmosphere_init();
   nps_sensors_init(nps_main.sim_time);
-  printf("Simulating with dt of %f\n", SIM_DT);
 
   enum NpsRadioControlType rc_type;
   char *rc_dev = NULL;
@@ -157,7 +122,7 @@ static void nps_main_init(void)
   }
 
 #if DEBUG_NPS_TIME
-  printf("host_time_factor,host_time_elapsed,host_time_now,scaled_initial_time,sim_time_before,display_time_before,sim_time_after,display_time_after\n");
+  printf("nps_main.sim_time, nps_main.sim_timestep\n");
 #endif
 
 }
@@ -168,15 +133,17 @@ static void nps_main_run_sim_step(void)
 {
   //  printf("sim at %f\n", nps_main.sim_time);
 
-  nps_atmosphere_update(SIM_DT);
+  nps_atmosphere_update(nps_main.sim_timestep);
 
   nps_autopilot_run_systime_step();
 
-  nps_fdm_run_step(autopilot.launch, autopilot.commands, NPS_COMMANDS_NB);
+  double dt = nps_fdm_run_step(autopilot.launch, autopilot.commands, NPS_COMMANDS_NB);
 
   nps_sensors_run_step(nps_main.sim_time);
 
   nps_autopilot_run_step(nps_main.sim_time);
+
+  nps_main.sim_timestep=dt;
 
 }
 
@@ -194,105 +161,18 @@ static void nps_main_display(void)
   }
 }
 
-
-void nps_set_time_factor(float time_factor)
-{
-  if (time_factor < 0.0 || time_factor > 100.0) {
-    return;
-  }
-  if (abs(nps_main.host_time_factor - time_factor) < 0.01) {
-    return;
-  }
-
-  struct timeval tv_now;
-  double t_now, t_elapsed;
-
-  gettimeofday(&tv_now, NULL);
-  t_now = time_to_double(&tv_now);
-
-  /* "virtual" elapsed time with old time factor */
-  t_elapsed = (t_now - nps_main.scaled_initial_time) * nps_main.host_time_factor;
-
-  /* set new time factor */
-  nps_main.host_time_factor = time_factor;
-  printf("Time factor is %f\n", nps_main.host_time_factor);
-  fflush(stdout);
-
-  /* set new "virtual" scaled initial time using new time factor*/
-  nps_main.scaled_initial_time = t_now - t_elapsed / nps_main.host_time_factor;
-}
-
-
 static gboolean nps_main_periodic(gpointer data __attribute__((unused)))
 {
-  struct timeval tv_now;
-  double  host_time_now;
-
-  if (pauseSignal) {
-    char line[128];
-    double tf = 1.0;
-    double t1, t2, irt;
-
-    gettimeofday(&tv_now, NULL);
-    t1 = time_to_double(&tv_now);
-    /* unscale to initial real time*/
-    irt = t1 - (t1 - nps_main.scaled_initial_time) * nps_main.host_time_factor;
-
-    printf("Press <enter> to continue (or CTRL-Z to suspend).\nEnter a new time factor if needed (current: %f): ",
-           nps_main.host_time_factor);
-    fflush(stdout);
-    if (fgets(line, 127, stdin)) {
-      if ((sscanf(line, " %le ", &tf) == 1)) {
-        if (tf > 0 && tf < 1000) {
-          nps_main.host_time_factor = tf;
-        }
-      }
-      printf("Time factor is %f\n", nps_main.host_time_factor);
-    }
-    gettimeofday(&tv_now, NULL);
-    t2 = time_to_double(&tv_now);
-    /* add the pause to initial real time */
-    irt += t2 - t1;
-    nps_main.real_initial_time += t2 - t1;
-    /* convert to scaled initial real time */
-    nps_main.scaled_initial_time = t2 - (t2 - irt) / nps_main.host_time_factor;
-    pauseSignal = 0;
-  }
-
-  gettimeofday(&tv_now, NULL);
-  host_time_now = time_to_double(&tv_now);
-  double host_time_elapsed = nps_main.host_time_factor * (host_time_now  - nps_main.scaled_initial_time);
-
 #if DEBUG_NPS_TIME
-  printf("%f,%f,%f,%f,%f,%f,", nps_main.host_time_factor, host_time_elapsed, host_time_now, nps_main.scaled_initial_time,
-         nps_main.sim_time, nps_main.display_time);
+  printf("pre %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
 #endif
 
-  int cnt = 0;
-  static int prev_cnt = 0;
-  static int grow_cnt = 0;
-  while (nps_main.sim_time <= host_time_elapsed) {
     nps_main_run_sim_step();
-    nps_main.sim_time += SIM_DT;
-    if (nps_main.display_time < (host_time_now - nps_main.real_initial_time)) {
-      nps_main_display();
-      nps_main.display_time += DISPLAY_DT;
-    }
-    cnt++;
-  }
-
-  /* Check to make sure the simulation doesn't get too far behind real time looping */
-  if (cnt > (prev_cnt)) {grow_cnt++;}
-  else { grow_cnt--;}
-  if (grow_cnt < 0) {grow_cnt = 0;}
-  prev_cnt = cnt;
-
-  if (grow_cnt > 10) {
-    printf("Warning: The time factor is too large for efficient operation! Please reduce the time factor.\n");
-  }
+    nps_main.sim_time += nps_main.sim_timestep;
+    nps_main_display();
 
 #if DEBUG_NPS_TIME
-  printf("%f,%f\n", nps_main.sim_time, nps_main.display_time);
+  printf("post %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
 #endif
 
   return TRUE;
@@ -310,7 +190,6 @@ static bool_t nps_main_parse_options(int argc, char **argv)
   nps_main.spektrum_dev = NULL;
   nps_main.rc_script = 0;
   nps_main.ivy_bus = NULL;
-  nps_main.host_time_factor = 1.0;
   nps_main.fg_fdm = 0;
 
   static const char *usage =
@@ -368,8 +247,6 @@ static bool_t nps_main_parse_options(int argc, char **argv)
             nps_main.rc_script = atoi(optarg); break;
           case 6:
             nps_main.ivy_bus = strdup(optarg); break;
-          case 7:
-            nps_main.host_time_factor = atof(optarg); break;
           case 8:
             nps_main.fg_fdm = 1;
             break;
