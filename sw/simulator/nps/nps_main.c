@@ -87,6 +87,7 @@ int main(int argc, char **argv)
   while(true) {
     //usleep(40000);
     nps_main_periodic(NULL);
+    printf("%d \n", SYS_TIME_FREQUENCY );
   }
 
   return 0;

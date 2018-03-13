@@ -46,12 +46,12 @@
  * sys_time.resolution is set from this define.
  */
 #ifndef SYS_TIME_FREQUENCY
-#if defined PERIODIC_FREQUENCY
-#define SYS_TIME_FREQUENCY (2 * PERIODIC_FREQUENCY)
-#else
-#define SYS_TIME_FREQUENCY 1000
+//#if defined PERIODIC_FREQUENCY
+//#define SYS_TIME_FREQUENCY (2 * PERIODIC_FREQUENCY)
+//#else
+#define SYS_TIME_FREQUENCY 100
 #endif
-#endif
+//#endif
 
 
 typedef uint8_t tid_t; ///< sys_time timer id type
