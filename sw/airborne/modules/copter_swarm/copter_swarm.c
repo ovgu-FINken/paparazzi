@@ -2,6 +2,7 @@
 
 #include <std.h>
 #include <subsystems/datalink/downlink.h>
+#include "subsystems/datalink/datalink.h"
 #include <subsystems/datalink/telemetry.h>
 #include <pprzlink/messages.h>
 #include <pprzlink/dl_protocol.h>
@@ -17,14 +18,29 @@
 static gps_node_t swarm[SWARM_SIZE];
 bool is_running;
 float point;
+double force_x;
+double force_y;
+
+bool setECEF_once = true;
+double test_x;
+double test_y;
+const float force_limit = 2.0; //kg* METERS per second^2  
+
 struct EnuCoor_f Target_waypoint;
 
 //Reminder: ecef is in cm from earth's centre
-const int wall_top_x = 384205148; //384205118
-const int wall_bottom_x = 384205341; //bigger value
-const int wall_left_y = 79184823;
-const int wall_right_y = 79185130; //bigger value
-const int safe_dist = 60;
+const int wall_top_x = 	384205148; 	//384205138; //At Height of standby values: 	//Ground_values..384205148
+const int wall_bottom_x = 384205341; 	//384205384; 	//384205341  	//bigger value
+const int wall_left_y = 79184823; 	//79184865; 	//79184823;
+const int wall_right_y = 79185130; 	//79185179; 	//79185130;	//bigger value
+const int safe_dist = 40;
+
+static void send_copter_force(struct transport_tx* trans, struct link_device* dev)
+{
+    pprz_msg_send_COPTER_FORCE(trans, dev, AC_ID,
+			 &test_x,
+                         &test_y);
+}
 
 void copter_swarm_init( void ) {
 	int i = 0;
@@ -32,6 +48,9 @@ void copter_swarm_init( void ) {
 		swarm[i].ac_id=-1;
 	}	
 	is_running = false;
+	force_x = 0;
+	force_y	= 0;
+	register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_COPTER_FORCE, send_copter_force);
 }
 
 void copter_gps_action(void) { // if this does not get called, put the COPTER_GPS message into the datalink section of messages.xml
@@ -96,9 +115,9 @@ void copter_swarm_periodic(void)
 {
     if(is_running){
 	gps_node_t* copter = swarm;
-	int i = 0;	
-	double fx_sum = 0;
-	double fy_sum = 0;
+	int i = 0;
+	force_x = 0;
+	force_y = 0;
 	double fx = 0;
 	double fy = 0;
 	for ( ; i < SWARM_SIZE; i++){
@@ -107,23 +126,32 @@ void copter_swarm_periodic(void)
 		fx = 0;
 		fy = 0;
 		calcForce(copter, &fx, &fy);
-		fx_sum += fx;
-		fy_sum += fy;
+		force_x += fx;
+		force_y += fy;
 		copter++;
 	}
-
-	wall_avoid(&fx_sum, &fy_sum);
+	
+	
+	wall_avoid(&force_x, &force_y);
 	
 	struct EnuCoor_f myPos = *(stateGetPositionEnu_f());
 
 	autopilot_set_mode(AP_MODE_NAV);
 	
-	Target_waypoint.x = (myPos.x + fy_sum);
-	Target_waypoint.y = (myPos.y + (-fx_sum));
+	//Limiting Force 
+	if (force_x > force_limit)
+		force_x = force_limit;
+	if (force_y > force_limit)
+		force_y = force_limit;
+	if (force_x < -force_limit)
+		force_x = -force_limit;
+	if (force_y < -force_limit)
+		force_y = -force_limit;
+	
+
+	Target_waypoint.x = (myPos.x + force_y);
+	Target_waypoint.y = (myPos.y + (-force_x));
 	Target_waypoint.z = 0.5;
-	//Target_waypoint.x = -1.5;
-	//Target_waypoint.y = 0;
-	//Target_waypoint.z = 0.4;
 
 	waypoint_set_enu(1, &Target_waypoint);
     }
@@ -131,25 +159,30 @@ void copter_swarm_periodic(void)
 }
 
 //function for Wall Avoidance
+
 void wall_avoid(double* fx_out, double* fy_out){
-	float constant = 1.5;
+	float constant = 1.0;
 	float d = 0.0;
+	float dist = 0.0;
+	
+
 	if (gps.ecef_pos.x < (wall_top_x + safe_dist) ){
 		d = (wall_top_x+safe_dist) - gps.ecef_pos.x;
-		*fx_out = *fx_out + (constant * d/100);
+		//dist = exp(d/100.0); //exponential
+		*fx_out = *fx_out + (constant * d/100.0);
 	}
 	else if (gps.ecef_pos.x > (wall_bottom_x - safe_dist) ){
 		d = gps.ecef_pos.x - (wall_bottom_x - safe_dist) ;
-		*fx_out = *fx_out - (constant * d/100);
+		*fx_out = *fx_out - (constant * d/100.0);
 	}
 
 	if (gps.ecef_pos.y < (wall_left_y + safe_dist) ){
 		d = (wall_left_y+safe_dist) - gps.ecef_pos.y;
-		*fy_out = *fy_out + (constant * d/100);
+		*fy_out = *fy_out + (constant * d/100.0);
 	}
 	else if (gps.ecef_pos.y > (wall_right_y - safe_dist) ){
 		d = gps.ecef_pos.y - (wall_right_y - safe_dist) ;
-		*fy_out = *fy_out - (constant * d/100);
+		*fy_out = *fy_out - (constant * d/100.0);
 	}
 
 
@@ -157,30 +190,38 @@ void wall_avoid(double* fx_out, double* fy_out){
 }
 
 //function to calculate the force
-void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out){
+void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out)
+{
 	gps_node_t copter1;
 	copter1.ac_id = AC_ID;
 	copter1.ecef_x = gps.ecef_pos.x;
 	copter1.ecef_y = gps.ecef_pos.y;
 	copter1.ecef_z = gps.ecef_pos.z;
 
+	//copter1.ecef_x = (*stateGetPositionEcef_i()).x;
+	//copter1.ecef_y = (*stateGetPositionEcef_i()).y;
+	//copter1.ecef_z = (*stateGetPositionEcef_i()).z;
+
+	test_x = (double)(*stateGetPositionEnu_f()).x;
+	test_y = (double)(*stateGetPositionEnu_f()).y;
+
 	// making prediction of own movement
-	copter1.ecef_x = copter1.ecef_x + gps.ecef_vel.x / 10;
-	copter1.ecef_y = copter1.ecef_y + gps.ecef_vel.y / 10;
+	//copter1.ecef_x = copter1.ecef_x + gps.ecef_vel.x / 10;
+	//copter1.ecef_y = copter1.ecef_y + gps.ecef_vel.y / 10;
 
 	float cons = 0.3;
-	float d = 0.8; //in metres
+	float d = 0.25; //in metres
 	float diff_x;
 	float diff_y;
 	double dist;
 
 	diff_x = (copter1.ecef_x - copter0->ecef_x) /100.0; //in metres (as ecef gets us cm)
-	diff_y = (copter1.ecef_y - copter0->ecef_y) /100.0;  
-		dist = sqrt((diff_x * diff_x) + (diff_y * diff_y));	
+	diff_y = (copter1.ecef_y - copter0->ecef_y) /100.0;
+	dist = sqrt((diff_x * diff_x) + (diff_y * diff_y));	
 
 	// Repel when the copters are close
 	if(dist < d){
-		cons = 1.5;
+		cons = 0.5;
 	}
 
     	*fx_out = - cons*(dist-d) * diff_x;
