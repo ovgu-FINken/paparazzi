@@ -6,6 +6,7 @@
 #include "subsystems/abi.h"
 #include "pprzlink/messages.h"
 #include "autopilot.h"
+#include "state.h"
 #include "subsystems/datalink/telemetry.h"
 
 
@@ -89,10 +90,15 @@ void virt_baro_ir_adc_periodic(void)
     ir_data_available = TRUE;
     update_ir_distance_from_measurement();
     update_ir_distance_equalized_from_ir_distance();
-    if (!autopilot.kill_throttle)	
-	pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
-    else 
+    if(state.ned_to_body_orientation.status & ORREP_EULER_F)
+	orientationCalcEulers_f(&state.ned_to_body_orientation);	
+    ir_distance_equalized*=cos(state.ned_to_body_orientation.eulers_f.phi)*cos(state.ned_to_body_orientation.eulers_f.theta);
+
+    pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
+#if 0
+    if(autopilot.kill_throttle)	
 	pressure = pprz_isa_pressure_of_altitude(0);
+#endif
     AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
 
 }
