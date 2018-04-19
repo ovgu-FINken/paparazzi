@@ -144,8 +144,12 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], -inPacket.quat[0], inPacket.quat[1], inPacket.quat[2]);
-		        
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+		
+		//set simTime
+		fdm.time = inPacket.simTime;
+		
+
                 //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
@@ -298,7 +302,7 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
 
 
   lastUpdate = now;
-  fdm.time+=fdm.init_dt;
+  //fdm.time+=fdm.init_dt;
   vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
   for(int i=0;i<commands_nb;i++) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
