@@ -144,7 +144,7 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
 		
 		//set simTime
 		fdm.time = inPacket.simTime;
@@ -155,18 +155,21 @@ class VRepClient {
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt - 6;
-                
+                vrepLog << "[pprz] copter position: " << std::endl
+			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
+			<< " LLA:  " << fdm.lla_pos.lat << " | " << fdm.lla_pos.lon << " | " << fdm.lla_pos.alt << std::endl
+			<< " ENU:  " << enu.x << " | " << enu.y << " | " << enu.z << std::endl;
 		        
 
                 //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
-		        Eigen::Vector3d body_rotVel(enu_rotVel.x, enu_rotVel.y, enu_rotVel.z);
-		        Eigen::Vector3d body_rotAccel(enu_rotAccel.x, enu_rotAccel.y, enu_rotAccel.z);
+		Eigen::Vector3d body_rotVel(enu_rotVel.x, enu_rotVel.y, enu_rotVel.z);
+		Eigen::Vector3d body_rotAccel(enu_rotAccel.x, enu_rotAccel.y, enu_rotAccel.z);
                 body_vel = quat *  body_vel;
                 body_accel = quat * body_accel;
-		        body_rotVel = quat * body_rotVel;
-		        body_rotAccel = quat * body_rotVel;
+		body_rotVel = quat * body_rotVel;
+		body_rotAccel = quat * body_rotVel;
 
                 //convert velocties and accelerations from enu to ecef:
                 
