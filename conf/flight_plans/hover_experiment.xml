@@ -6,38 +6,40 @@
   </header>
   <waypoints>
     <waypoint name="HOME" x="0.0" y="0.0"/>
-    <waypoint name="CLIMB" x="0.0" y="5.0"/>
-    <waypoint name="STDBY" x="-2.0" y="-5.0"/>
-    <waypoint name="p1" x="3.6" y="-13.9"/>
-    <waypoint name="p2" x="27.5" y="-48.2"/>
-    <waypoint name="p3" x="16.7" y="-19.6"/>
-    <waypoint name="p4" x="13.7" y="-40.7"/>
-    <waypoint name="CAM" x="-20" y="-50" height="2."/>
-    <waypoint name="TD" x="5.6" y="-10.9"/>
+    <waypoint name="START" x="0.0" y="5.0"/>
   </waypoints>
   <blocks>
+    <!-- Wait Until GPS Fix has been established -->
     <block name="Wait GPS">
       <call_once fun="NavKillThrottle()"/>
       <while cond="!GpsFixValid()"/>
     </block>
+
+    <!-- Update local waypoints with respect to UAV -->
     <block name="Geo init">
       <while cond="LessThan(NavBlockTime(), 10)"/>
       <call_once fun="NavSetGroundReferenceHere()"/>
-      <!--<call_once fun="NavSetAltitudeReferenceHere()"/>-->
     </block>
+
+    <!-- Prevent UAV from taking off until manual unkill -->
     <block name="Holding point">
       <call_once fun="NavKillThrottle()"/>
       <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
     </block>
+
+    <!-- Start Engine -->
     <block name="Start Engine">
       <call_once fun="NavResurrect()"/>
       <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
     </block>
-    <block name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
+
+    <!-- Fly up straight vertical until maximum height -->
+    <block name="Takeoff">
       <exception cond="stateGetPositionEnu_f()->z > 2.0" deroute="Standby"/>
       <call_once fun="NavSetWaypointHere(WP_CLIMB)"/>
       <stay vmode="climb" climb="nav_climb_vspeed" wp="CLIMB"/>
     </block>
+    
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
       <stay wp="STDBY"/>
     </block>
