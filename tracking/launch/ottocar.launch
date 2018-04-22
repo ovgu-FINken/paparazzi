@@ -1,0 +1,10 @@
+<launch>
+  <node name="track0" pkg="tracking" type="pose.py">
+        <param name="homography_file" value="/home/ottocar/catkin_ws/camera0.npy" />
+	<remap to="/camera/0" from="/camera/image"/>
+  </node>
+  <node name="track1" pkg="tracking" type="pose.py">
+        <param name="homography_file" value="/home/ottocar/catkin_ws/camera1.npy" />
+	<remap to="/camera/1" from="/camera/image"/>
+  </node>
+</launch>
