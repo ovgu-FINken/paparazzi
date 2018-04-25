@@ -26,6 +26,8 @@
  *
  */
 
+#include "modules/sensors/virt_baro_ir_adc.h"
+
 #include "subsystems/ins/ins_float_invariant.h"
 
 #include "subsystems/ahrs/ahrs_int_utils.h"
@@ -106,11 +108,11 @@ bool log_started = false;
 #endif
 // Tuning parameter of vertical position error on position
 #ifndef INS_INV_NXZ
-#define INS_INV_NXZ 0.5
+#define INS_INV_NXZ 15
 #endif
 // Tuning parameter of baro error on vertical position
 #ifndef INS_INV_NH
-#define INS_INV_NH 1.2
+#define INS_INV_NH 0.01
 #endif
 // Tuning parameter of speed error on gyro biases (e-3)
 #ifndef INS_INV_OV
@@ -126,7 +128,7 @@ bool log_started = false;
 #endif
 // Tuning parameter of baro error on accel biases (vertical projection) (e-8)
 #ifndef INS_INV_RH
-#define INS_INV_RH 8.
+#define INS_INV_RH 0.5
 #endif
 // Tuning parameter of baro error on baro bias
 #ifndef INS_INV_SH

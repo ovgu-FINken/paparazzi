@@ -37,6 +37,7 @@ const int safe_dist = 40;
 
 static void send_copter_force(struct transport_tx* trans, struct link_device* dev)
 {
+    test_x = (double)stateGetPositionNed_i()->z;
     pprz_msg_send_COPTER_FORCE(trans, dev, AC_ID,
 			 &test_x,
                          &test_y);
@@ -209,8 +210,8 @@ void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out)
 	//copter1.ecef_x = copter1.ecef_x + gps.ecef_vel.x / 10;
 	//copter1.ecef_y = copter1.ecef_y + gps.ecef_vel.y / 10;
 
-	float cons = 0.3;
-	float d = 0.25; //in metres
+	float cons = 0.8;
+	float d = 0.15; //in metres
 	float diff_x;
 	float diff_y;
 	double dist;
@@ -221,7 +222,7 @@ void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out)
 
 	// Repel when the copters are close
 	if(dist < d){
-		cons = 0.5;
+		cons = 1;
 	}
 
     	*fx_out = - cons*(dist-d) * diff_x;

@@ -1,12 +1,12 @@
 <!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
 
-<flight_plan alt="1" ground_alt="0" lat0="52 7 13.92" lon0="11 37 39.45" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="0">
+<flight_plan alt="44" ground_alt="43" lat0="52 7 13.92" lon0="11 37 39.45" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="0">
   <header>
 #include "autopilot.h"
   </header>
   <waypoints>
-    <waypoint name="SWARM" x="0.0" y="0.0" alt="0.4"/>
-    <waypoint name="HOME" x="0.0" y="0.0" alt="0.6"/>
+    <waypoint name="SWARM" x="0.0" y="0.0" alt="43.4"/>
+    <waypoint name="HOME" x="0.0" y="0.0" alt="43.6"/>
     <waypoint name="CLIMB" x="0.0" y="5.0"/>
     <waypoint name="STDBY" x="-2.0" y="-5.0"/>
     <waypoint name="p1" x="3.6" y="-13.9"/>
@@ -41,7 +41,7 @@
     </block>
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
 	<call_once fun="enableCopterSwarm()"/>      	
-	<stay wp="SWARM" alt="0.4"/>
+	<stay wp="SWARM" alt="43.4"/>
 	<while cond="stateGetPositionEnu_f()-> z > 0.1"/>
 	<!--stay alt="0.4"/-->	
 	<!--exception cond="0.1 > stateGetPositionEnu_f()->z" deroute="flare"/-->

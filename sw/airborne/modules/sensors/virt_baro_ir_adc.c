@@ -88,11 +88,15 @@ void virt_baro_ir_adc_periodic(void)
     ir_measurement = ir_adc.sum / ir_adc.av_nb_sample;
     ir_data_available = TRUE;
     update_ir_distance_from_measurement();
-    update_ir_distance_equalized_from_ir_distance();
-    if (!autopilot.kill_throttle)	
+    if (!autopilot.kill_throttle){	
 	pressure = pprz_isa_pressure_of_altitude(ir_distance_equalized);
-    else 
+	update_ir_distance_equalized_from_ir_distance();
+    }
+    else {
 	pressure = pprz_isa_pressure_of_altitude(0);
+	ir_distance = 0;
+	ir_distance_equalized = 0;
+    }
     AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
 
 }
