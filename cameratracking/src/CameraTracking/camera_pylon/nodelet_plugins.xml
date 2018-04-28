@@ -1,7 +1,0 @@
-<library path="lib/libcam_node">
-  <class name="camera_pylon/Camera" type="camera_pylon::Camera" base_class_type="nodelet::Nodelet">
-  <description>
-  This is my nodelet.
-  </description>
-  </class>
-</library>

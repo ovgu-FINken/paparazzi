@@ -1,0 +1,14 @@
+#! /usr/bin/env python
+
+import argparse
+from send_gps.gps_node import GPSNode
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', help='RosTopic:QuadcopterID Config File in Json-Format')
+
+    args = parser.parse_args()
+
+    gps_node = GPSNode(config_path=args.config)
+    gps_node.run()

@@ -1,6 +1,0 @@
-<launch>
-  <arg name="twoCams" default="false"/>
-  <node name="camera_manager" pkg="nodelet" type="nodelet" args="manager"/><!-- launch-prefix="gdbserver once :1234 "/-->
-  <node name="cam0" pkg="nodelet" type="nodelet" args="load camera_pylon/Camera camera_manager"/>
-  <node name="cam1" pkg="nodelet" type="nodelet" args="load camera_pylon/Camera camera_manager" if="$(arg twoCams)"/>
-</launch>
