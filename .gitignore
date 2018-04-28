@@ -1,3 +1,7 @@
+/cameratracking/devel
+/cameratracking/build
+
+
 # ignore html dir for github pages
 /doc/generated
 /doc/manual/generated
