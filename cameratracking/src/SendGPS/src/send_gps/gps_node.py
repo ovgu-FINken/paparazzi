@@ -23,10 +23,14 @@ LOGGER.addHandler(ch)
 # global values
 DEG2RAD = math.pi / 180
 RAD2DEG = 180 / math.pi
-FIN_LATITUDE = 52.138821 * DEG2RAD  # Latitude of FIN
-FIN_LONGITUDE = 11.645634 * DEG2RAD # Longitude of FIN
+FIN_LATITUDE = 52.138821 * DEG2RAD   # Latitude of FIN
+FIN_LONGITUDE = 11.645634 * DEG2RAD  # Longitude of FIN
 GPS_LATITUDE = FIN_LATITUDE * 10000000
 GPS_LONGITUDE = FIN_LONGITUDE * 10000000
+# ECEF Coordinates of FIN (umgerechnete LAT/Longitude) in cm
+FIN_ECEF_X = 384205200
+FIN_ECEF_Y = 79184900
+FIN_ECEF_Z = 501233200
 WEEK_MILLISECONDS = 604800000
 EARTH_RADIUS = 636485000
 
@@ -35,10 +39,9 @@ class CopterData:
 
     def __init__(self):
         self.time = rospy.get_rostime()
-        self.data = TaggedPose2D()
-        self.x = 0
-        self.y = 0
-        self.z = 0
+        self.x_cm = 0
+        self.y_cm = 0
+        self.z_cm = 0
         self.tow = 0
         self.course = 0.0
 
@@ -93,8 +96,7 @@ class GPSNode:
         IvyStop()
 
     def handlePos(self, current_copter_data, copter_id):
-        """ Callback for the ROS subscriber."""
-        LOGGER.info("Received Position Data from ID %s" % copter_id)
+        LOGGER.info("Received Position Data from ID %s: x=%s, y=%s, z=%s" % (copter_id, current_copter_data.x, current_copter_data.y, 0))
 
         previous_copter_data = self.copter_data_dict[copter_id]
 
@@ -102,88 +104,81 @@ class GPSNode:
         now = current_copter_data.header.stamp
         LOGGER.debug("Received Timestamp %i %i" % (now.secs, now.nsecs))
 
-        time_diff = (now-previous_copter_data.time).to_sec()
-        LOGGER.info('TimeDiff between last update: %s' % time_diff)
+        time_delta_sec = (now-previous_copter_data.time).to_sec()
+        LOGGER.info('TimeDiff between last update: %s' % time_delta_sec)
 
-        # offsets for camera positions
-        offsetX = current_copter_data.x
-        offsetY = current_copter_data.y
-        offsetZ = 0
+        # getting difference for X pos and Y pos and Z pos
+        delta_x_cm = current_copter_data.x - previous_copter_data.x_cm
+        delta_y_cm = current_copter_data.y - previous_copter_data.y_cm
+        delta_z_cm = 0 - previous_copter_data.z_cm
+        LOGGER.info("Position-Delta (cm): x=%s, y=%s, z=%s" % (delta_x_cm, delta_y_cm, delta_z_cm))
 
-        # geting difference for X pos and Y pos and Z pos and calculate speed
-        ecef_xd = (offsetX - previous_copter_data.x) / time_diff
-        ecef_yd = (offsetY - previous_copter_data.y) / time_diff
-        ecef_zd = (offsetZ - previous_copter_data.z) / time_diff
+        # calculate speed
+        xd_cm_per_s = delta_x_cm / time_delta_sec
+        yd_cm_per_s = delta_y_cm / time_delta_sec
+        zd_cm_per_s = delta_z_cm / time_delta_sec
+        LOGGER.info("Calculated Speed: xd=%s, yd=%s, zd=%s" % (xd_cm_per_s, yd_cm_per_s, zd_cm_per_s))
 
-        previous_copter_data.time = now
-        previous_copter_data.x = offsetX
-        previous_copter_data.y = offsetY
-        previous_copter_data.z = offsetZ
+        try:
+            # TODO what does the course of the copter mean?
+            # atan2 von delta y und delta x
 
-        # for TOW
+            dist = math.sqrt(delta_x_cm**2 + delta_y_cm**2)
+            previous_copter_data.course = int(math.acos(delta_x_cm / dist) * 10000000)  # Throws error if dist==0
+
+            if delta_y_cm < 0:
+                previous_copter_data.course = 2*math.pi - previous_copter_data.course
+
+            LOGGER.info("Course: %s" % previous_copter_data.course)
+            # Unterscheide ich 
+        except ZeroDivisionError:
+            pass
+
+        # course in rad*1e7, [0, 2*Pi]*1e7 (CW/north)
+        ecef_magnitude = math.sqrt(
+            (FIN_ECEF_X + current_copter_data.x) ** 2 +
+            (FIN_ECEF_Y + current_copter_data.y) ** 2 +
+            0
+        )
+        hmsl = (ecef_magnitude - EARTH_RADIUS) * 10  # in mm
+
+        # for Time of Week
         if previous_copter_data.tow == 0:
             previous_copter_data.tow = now.secs * 1000 + int(now.nsecs / 1000000)
             previous_copter_data.tow = previous_copter_data.tow % WEEK_MILLISECONDS
 
-        if time_diff < 1.0:
-            previous_copter_data.tow += int(time_diff * 1000)
+        if time_delta_sec < 1.0:
+            previous_copter_data.tow += int(time_delta_sec * 1000)
             previous_copter_data.tow = previous_copter_data.tow % WEEK_MILLISECONDS
 
-        previousCourse = previous_copter_data.course
-        try:
-            distX = current_copter_data.x - previous_copter_data.x
-            distY = current_copter_data.y - previous_copter_data.y
-            dist = math.sqrt(distX**2 + distY**2)
-
-            previous_copter_data.course = math.acos(distX / dist)
-
-            if distY < 0:
-                previous_copter_data.course = 2*math.pi - previous_copter_data.course
-        except ZeroDivisionError as e:
-            previous_copter_data.course = previousCourse/10000000.0 # TODO WHY?
-
-        LOGGER.info("Course: %s" % previous_copter_data.course)
-        rospy.loginfo("course %f", previous_copter_data.course)
-
-        # course in rad*1e7, [0, 2*Pi]*1e7 (CW/north)
-        previous_copter_data.course = int(previous_copter_data.course * 10000000)
-
-        CONST_1 = 384205200
-        CONST_2 = 79184900
-        CONST_3 = 501233200
-
-        ecef_magnitude = math.sqrt(
-            (CONST_1 + offsetX)**2 +
-            (CONST_2 + offsetY)**2 +
-            (CONST_3 + offsetZ)**2
-        )
-
-        hmsl = (ecef_magnitude - EARTH_RADIUS) * 10  # in mm
-
+        # send current data to copter
         self.IvySendRemoteGPS(
             copter_id,
             6,
-            CONST_1 + current_copter_data.x,
-            CONST_2 + current_copter_data.y,
-            CONST_3 + 60,
+            FIN_ECEF_X + current_copter_data.x,
+            FIN_ECEF_Y + current_copter_data.y,
+            0,
             GPS_LATITUDE,
             GPS_LONGITUDE,
             0,
             hmsl,
-            ecef_xd,
-            ecef_yd,
-            ecef_zd,
+            xd_cm_per_s,
+            yd_cm_per_s,
+            zd_cm_per_s,
             previous_copter_data.tow,
             previous_copter_data.course
         )
 
-        LOGGER.info("ID :%d   gps-x %s  gps-y %s", copter_id, CONST_1 + current_copter_data.x, CONST_2 + current_copter_data.y)
+        LOGGER.info("ID :%d   gps-x %s  gps-y %s", copter_id, FIN_ECEF_X + current_copter_data.x, FIN_ECEF_Y + current_copter_data.y)
 
-        # send camera heading in degree
+        # send camera heading in degree, for the virtual Magnetometer
         self.IvySendCameraTheta(copter_id, 0, current_copter_data.theta + 185)
 
-        # update old data
-        previous_copter_data.data = current_copter_data
+        # update copter data
+        previous_copter_data.time = now
+        previous_copter_data.x_cm = current_copter_data.x
+        previous_copter_data.y_cm = current_copter_data.y
+        previous_copter_data.z_cm = 0
 
     def initRosSub(self):
 
