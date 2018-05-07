@@ -269,8 +269,8 @@ VRepClient client;
 
 void nps_fdm_init(double dt) {
   bzero(&fdm, sizeof(&fdm));
-  lla_base.lat = 52;
-  lla_base.lon = 11;
+  lla_base.lat = 0.901;
+  lla_base.lon = 0.192;
   lla_base.alt = 50;
   ecef_of_lla_d(&ecef_base, &lla_base);
   ltp_def_from_ecef_d(&ltpRef, &ecef_base);
