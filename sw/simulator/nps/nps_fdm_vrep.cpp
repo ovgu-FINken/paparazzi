@@ -158,7 +158,8 @@ class VRepClient {
                 vrepLog << "[pprz] copter position: " << std::endl
 			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
 			<< " LLA:  " << fdm.lla_pos.lat << " | " << fdm.lla_pos.lon << " | " << fdm.lla_pos.alt << std::endl
-			<< " ENU:  " << enu.x << " | " << enu.y << " | " << enu.z << std::endl;
+			<< " ENU:  " << enu.x << " | " << enu.y << " | " << enu.z << std::endl
+			<< " NED:  " << fdm.ltpprz_pos.x << " | " << fdm.ltpprz_pos.y << " | " << fdm.ltpprz_pos.z << std::endl;
 		        
 
                 //convert velocity & acceleration from enu to body:
