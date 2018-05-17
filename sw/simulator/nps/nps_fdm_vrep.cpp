@@ -1,5 +1,6 @@
 #include "nps_fdm.h"
 
+#include <unistd.h>
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -27,6 +28,9 @@ using boost::filesystem::ofstream;
 using boost::filesystem::current_path;
 using boost::asio::ip::tcp;
 
+ofstream csvdata;
+extern uint8_t nav_block;
+uint8_t curBlock;
 /*initlializing ecef, lla and ltpref bases*/
 LlaCoor_d lla_base;
 EcefCoor_d ecef_base;
@@ -43,6 +47,8 @@ const std::chrono::milliseconds timeout(34);
 Eigen::Matrix3d rotMatrix;
 
 std::string homepath = getenv("HOME");
+std::string pprzHome=std::getenv("PAPARAZZI_HOME");
+
 class LogLine {
   private:
     std::ostream& o;
@@ -68,8 +74,7 @@ class VrepLog {
     std::ofstream log;
   public:
     VrepLog() {
-      std::string pprzHome=std::getenv("PAPARAZZI_HOME");
-      log.open((pprzHome + "/paparazzi.log").c_str());
+        log.open((pprzHome + "/paparazzi.log").c_str());
     }
     template<typename T>
     LogLine operator<<(T& t) {
@@ -145,6 +150,7 @@ class VRepClient {
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
                 Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
+		csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(-inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) << std::endl;
 		
 		//set simTime
 		fdm.time = inPacket.simTime;
@@ -154,14 +160,12 @@ class VRepClient {
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
-                fdm.hmsl = fdm.lla_pos.alt - 6;
                 vrepLog << "[pprz] copter position: " << std::endl
 			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
 			<< " LLA:  " << fdm.lla_pos.lat << " | " << fdm.lla_pos.lon << " | " << fdm.lla_pos.alt << std::endl
 			<< " ENU:  " << enu.x << " | " << enu.y << " | " << enu.z << std::endl
 			<< " NED:  " << fdm.ltpprz_pos.x << " | " << fdm.ltpprz_pos.y << " | " << fdm.ltpprz_pos.z << std::endl;
-		        
-
+		       
                 //convert velocity & acceleration from enu to body:
                 Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
@@ -259,7 +263,7 @@ class VRepClient {
 
         }
         catch(const std::exception& e) {
-            vrepLog << "[PPRZ] Exception: " << e.what() << "\n";
+		vrepLog << "PPRZ] Exception: " << e.what() << "\n";
             vrepLog << "[PPRZ] Error: " << s.error().message() << std::endl;
             return 0;
         }
@@ -269,13 +273,17 @@ class VRepClient {
 VRepClient client;
 
 void nps_fdm_init(double dt) {
+  
+  std::string pprzHome=std::getenv("PAPARAZZI_HOME");
+  csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
+  curBlock = nav_block;
+  csvdata << "NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
   bzero(&fdm, sizeof(&fdm));
   lla_base.lat = 0.901;
   lla_base.lon = 0.192;
   lla_base.alt = 50;
   ecef_of_lla_d(&ecef_base, &lla_base);
   ltp_def_from_ecef_d(&ltpRef, &ecef_base);
-
   ltpRef.hmsl = 44;
   fdm.on_ground=1;
   fdm.ecef_pos.x=0.0;
@@ -308,8 +316,16 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   lastUpdate = now;
   //fdm.time+=fdm.init_dt;
   vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
+  if (curBlock != nav_block) {
+    curBlock = nav_block;
+    csvdata.close();
+    csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
+    csvdata << "NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
+  }
+
   for(int i=0;i<commands_nb;i++) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
+    csvdata << commands[i] << ((i==commands_nb-1)?",":",");
   }
   vrepLog << "]" << endl;
   auto then = std::chrono::high_resolution_clock::now();

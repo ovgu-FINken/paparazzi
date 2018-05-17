@@ -54,7 +54,7 @@
 #define NPS_ACCEL_BIAS_Y          0
 #define NPS_ACCEL_BIAS_Z          0
 /* s */
-#define NPS_ACCEL_DT              (1./512.)
+#define NPS_ACCEL_DT              (1./51200.)
 
 
 
@@ -86,7 +86,7 @@
 #define NPS_GYRO_BIAS_RANDOM_WALK_STD_DEV_Q RadOfDeg(0.5)
 #define NPS_GYRO_BIAS_RANDOM_WALK_STD_DEV_R RadOfDeg(0.5)
 /* s */
-#define NPS_GYRO_DT (1./512.)
+#define NPS_GYRO_DT (1./10000.)
 
 
 
@@ -113,13 +113,13 @@
 #define NPS_MAG_NOISE_STD_DEV_Y  2e-3
 #define NPS_MAG_NOISE_STD_DEV_Z  2e-3
 
-#define NPS_MAG_DT (1./100.)
+#define NPS_MAG_DT (1./10000.)
 
 
 /*
  *  Barometer (pressure and std dev in Pascal)
  */
-#define NPS_BARO_DT              (1./50.)
+#define NPS_BARO_DT              (1./5000.)
 #define NPS_BARO_NOISE_STD_DEV   2
 
 /*
@@ -158,6 +158,6 @@
 
 #endif /* GPS_PERFECT */
 
-#define NPS_GPS_DT                           (1./4.)
+#define NPS_GPS_DT                           (1./400.)
 
 #endif /* NPS_SENSORS_PARAMS_H */
