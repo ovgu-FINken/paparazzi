@@ -160,6 +160,7 @@ class VRepClient {
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
                 ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
+                fdm.hmsl = fdm.lla_pos.alt;
                 vrepLog << "[pprz] copter position: " << std::endl
 			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
 			<< " LLA:  " << fdm.lla_pos.lat << " | " << fdm.lla_pos.lon << " | " << fdm.lla_pos.alt << std::endl

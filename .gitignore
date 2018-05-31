@@ -19,6 +19,8 @@
 *.cmx
 *.cmxa
 
+*.csv
+
 *.depend
 
 *.aux
