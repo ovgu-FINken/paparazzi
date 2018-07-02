@@ -276,9 +276,9 @@ VRepClient client;
 void nps_fdm_init(double dt) {
   
   std::string pprzHome=std::getenv("PAPARAZZI_HOME");
-  csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
+  csvdata.open((pprzHome + "/log.csv").c_str());
   curBlock = nav_block;
-  csvdata << "NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
+  csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
   bzero(&fdm, sizeof(&fdm));
   lla_base.lat = 0.901;
   lla_base.lon = 0.192;
@@ -317,13 +317,15 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   lastUpdate = now;
   //fdm.time+=fdm.init_dt;
   vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
+  /*
   if (curBlock != nav_block) {
     curBlock = nav_block;
     csvdata.close();
     csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
-    csvdata << "NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
+    csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
   }
-
+  */
+  csvdata << fdm.time << ",";
   for(int i=0;i<commands_nb;i++) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
     csvdata << commands[i] << ((i==commands_nb-1)?",":",");
