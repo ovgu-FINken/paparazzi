@@ -7,6 +7,7 @@ typedef struct{
     double yaw;
     double thrust;
     double dt;
+    int block_ID;
 
     template <typename Archive>
     void serialize( Archive & ar, const unsigned int version){
@@ -16,6 +17,7 @@ typedef struct{
         ar & yaw;
         ar & thrust;
         ar & dt;
+        ar & block_ID;
     }
 } paparazziPacket;
 
@@ -29,7 +31,7 @@ typedef struct{
     std::vector<double> rotAccel ={0,0,0};
     float simTime = 0;
     double dt;
-    
+
     template <typename Archive>
     void serialize( Archive & ar, const unsigned int version){
         ar & pos;
