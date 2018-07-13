@@ -87,7 +87,7 @@ int main(int argc, char **argv)
   while(true) {
     //usleep(40000);
     nps_main_periodic(NULL);
-    printf("%d \n", SYS_TIME_FREQUENCY );
+    //printf("%d \n", SYS_TIME_FREQUENCY );
   }
 
   return 0;
@@ -123,7 +123,7 @@ static void nps_main_init(void)
   }
 
 #if DEBUG_NPS_TIME
-  printf("nps_main.sim_time, nps_main.sim_timestep\n");
+  //printf("nps_main.sim_time, nps_main.sim_timestep\n");
 #endif
 
 }
@@ -165,7 +165,7 @@ static void nps_main_display(void)
 static gboolean nps_main_periodic(gpointer data __attribute__((unused)))
 {
 #if DEBUG_NPS_TIME
-  printf("pre %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
+  //printf("pre %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
 #endif
 
     nps_main_run_sim_step();
@@ -173,7 +173,7 @@ static gboolean nps_main_periodic(gpointer data __attribute__((unused)))
     nps_main_display();
 
 #if DEBUG_NPS_TIME
-  printf("post %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
+  //printf("post %f,%f\n", nps_main.sim_time, nps_main.sim_timestep);
 #endif
 
   return TRUE;
