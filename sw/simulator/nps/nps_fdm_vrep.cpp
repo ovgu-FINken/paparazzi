@@ -153,8 +153,8 @@ class VRepClient {
                 Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
 		            csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) << std::endl;
 
-		              //set simTime
-		            fdm.time = inPacket.simTime;
+		//set simTime
+		fdm.time = inPacket.simTime;
 
 
                 //set copter Position:
@@ -277,7 +277,7 @@ VRepClient client;
 void nps_fdm_init(double dt) {
 
   std::string pprzHome=std::getenv("PAPARAZZI_HOME");
-  csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
+  csvdata.open((pprzHome + "/paparazzilogs/navBlock" + std::to_string(nav_block) + ".csv").c_str());
   curBlock = nav_block;
   csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
 
@@ -323,7 +323,7 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   if (curBlock != nav_block) {
     curBlock = nav_block;
     csvdata.close();
-    csvdata.open((pprzHome + "/navBlock" + std::to_string(nav_block) + ".csv").c_str());
+    csvdata.open((pprzHome + "/paparazzilogs/navBlock" + std::to_string(nav_block) + ".csv").c_str());
     csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
   }
 
