@@ -107,8 +107,8 @@ class VRepClient {
       double update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
         outPacket.pitch = commands[0];
-	    outPacket.roll = commands[1];
-	    outPacket.yaw = commands[2];
+	outPacket.roll = commands[1];
+	outPacket.yaw = commands[2];
         outPacket.thrust = commands[3];
         outPacket.block_ID = nav_block;
         connect();
@@ -151,10 +151,11 @@ class VRepClient {
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
                 Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
-		            csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) << std::endl;
+		csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) 
+			<< "," << std::to_string(enu.x) << "," << std::to_string(enu.y) << "," << std::to_string(enu.z) << std::endl;
 
 		//set simTime
-		fdm.time = inPacket.simTime;
+		fdm.time += dt;
 
 
                 //set copter Position:
@@ -279,7 +280,7 @@ void nps_fdm_init(double dt) {
   std::string pprzHome=std::getenv("PAPARAZZI_HOME");
   csvdata.open((pprzHome + "/paparazzilogs/navBlock" + std::to_string(nav_block) + ".csv").c_str());
   curBlock = nav_block;
-  csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
+  csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w,EAST,NORTH,UP" << "\n";
 
   bzero(&fdm, sizeof(&fdm));
   lla_base.lat = 0.901;
@@ -324,7 +325,7 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
     curBlock = nav_block;
     csvdata.close();
     csvdata.open((pprzHome + "/paparazzilogs/navBlock" + std::to_string(nav_block) + ".csv").c_str());
-    csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w" << "\n";
+    csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w,EAST,NORTH,UP" << "\n";
   }
 
   csvdata << fdm.time << ",";

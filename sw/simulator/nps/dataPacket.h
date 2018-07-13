@@ -29,7 +29,7 @@ typedef struct{
     std::vector<double> rotVel ={0,0,0};
     std::vector<double> accel = {0,0,0};
     std::vector<double> rotAccel ={0,0,0};
-    float simTime = 0;
+    double simTime = 0;
     double dt;
 
     template <typename Archive>
