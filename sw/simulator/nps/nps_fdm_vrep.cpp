@@ -150,7 +150,7 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
 		csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) 
 			<< "," << std::to_string(enu.x) << "," << std::to_string(enu.y) << "," << std::to_string(enu.z) << std::endl;
 
@@ -235,7 +235,7 @@ class VRepClient {
 
 
                 Eigen::Quaterniond ltp_to_enu_quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(fdm.ltpprz_pos.x, fdm.ltpprz_pos.y, fdm.ltpprz_pos.z), Eigen::Vector3d(enu.x, enu.y, enu.z));
-                Eigen::Quaterniond ltp_to_body_quat = ltp_to_enu_quat * quat;
+                Eigen::Quaterniond ltp_to_body_quat = /*ltp_to_enu_quat **/ quat;
                 fdm.ltp_to_body_quat.qi = ltp_to_body_quat.w();
                 fdm.ltp_to_body_quat.qx = ltp_to_body_quat.x();
                 fdm.ltp_to_body_quat.qy = ltp_to_body_quat.y();
@@ -283,8 +283,8 @@ void nps_fdm_init(double dt) {
   csvdata << "TIME,NE,SE,SW,NW,Quat.x,Quat.y,Quat.z,Quat.w,EAST,NORTH,UP" << "\n";
 
   bzero(&fdm, sizeof(&fdm));
-  lla_base.lat = 0.901;
-  lla_base.lon = 0.192;
+  lla_base.lat = 52.138611*M_PI/180;
+  lla_base.lon = 11.645278*M_PI/180;
   lla_base.alt = 50;
   ecef_of_lla_d(&ecef_base, &lla_base);
   ltp_def_from_ecef_d(&ltpRef, &ecef_base);

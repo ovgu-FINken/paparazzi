@@ -50,11 +50,11 @@ bool_t nps_bypass_ahrs;
 bool_t nps_bypass_ins;
 
 #ifndef NPS_BYPASS_AHRS
-#define NPS_BYPASS_AHRS FALSE
+#define NPS_BYPASS_AHRS TRUE
 #endif
 
 #ifndef NPS_BYPASS_INS
-#define NPS_BYPASS_INS FALSE
+#define NPS_BYPASS_INS TRUE
 #endif
 
 #if NPS_COMMANDS_NB != MOTOR_MIXING_NB_MOTOR
