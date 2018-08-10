@@ -150,9 +150,11 @@ class VRepClient {
                 enu_rotAccel.x = inPacket.rotAccel[0];
                 enu_rotAccel.y = inPacket.rotAccel[1];
                 enu_rotAccel.z = inPacket.rotAccel[2];
-                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], inPacket.quat[2]);
+                Eigen::Quaterniond quat(inPacket.quat[3], inPacket.quat[0], -inPacket.quat[1], -inPacket.quat[2]);
 		csvdata << std::to_string(inPacket.quat[0]) << "," << std::to_string(inPacket.quat[1]) << "," << std::to_string(inPacket.quat[2]) << "," << std::to_string(inPacket.quat[3]) 
-			<< "," << std::to_string(enu.x) << "," << std::to_string(enu.y) << "," << std::to_string(enu.z) << std::endl;
+			<< "," << std::to_string(enu.x) << "," << std::to_string(enu.y) << "," << std::to_string(enu.z) << std::endl;		  
+		Eigen::Quaterniond quatOffset(0.707, 0, 0, 0.707); 
+		quat = quatOffset * quat;
 
 		//set simTime
 		fdm.time += dt;
@@ -161,7 +163,7 @@ class VRepClient {
                 //set copter Position:
                 ecef_of_enu_point_d(&fdm.ecef_pos, &ltpRef, &enu);
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
-                ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
+		ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt;
                 vrepLog << "[pprz] copter position: " << std::endl
 			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
