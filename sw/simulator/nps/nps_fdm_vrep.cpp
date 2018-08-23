@@ -92,6 +92,12 @@ class VRepClient {
           try
           {
             s.connect("localhost", "50013");
+	    int ac_id = 1;
+	    outPacket.ac_id = 1;
+            {
+		boost::archive::binary_oarchive out(s,boost::archive::no_header);
+		out << outPacket;
+	    }
             connected=true;
             return;
           }
@@ -115,7 +121,7 @@ class VRepClient {
         try {
             {
                 auto then = std::chrono::high_resolution_clock::now();
-                boost::archive::binary_oarchive out(s);
+                boost::archive::binary_oarchive out(s, boost::archive::no_header);
                 out << outPacket;
                 auto now = std::chrono::high_resolution_clock::now();
                 vrepLog << "[PPRZ] sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
@@ -127,8 +133,10 @@ class VRepClient {
             auto then = std::chrono::high_resolution_clock::now();
             double dt;
             {
-                boost::archive::binary_iarchive in(s);
-                in >> inPacket;
+                {
+			boost::archive::binary_iarchive in(s, boost::archive::no_header);
+                	in >> inPacket;
+		}
                 dt = inPacket.dt;
                 EnuCoor_d enu;
                 EnuCoor_d enu_vel;
