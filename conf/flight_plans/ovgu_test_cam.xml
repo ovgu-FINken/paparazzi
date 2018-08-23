@@ -33,6 +33,9 @@
       <call fun="NavResurrect()"/>
       <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
     </block>
+    <block name="Test">
+      <attitude pitch="0" roll="0" throttle="0.5" vmode="throttle" until="FALSE"/>
+    </block>
     <block name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
       <exception cond="stateGetPositionEnu_f()->z > 1.0" deroute="Standby"/>
       <call fun="NavSetWaypointHere(WP_HOME)"/>
