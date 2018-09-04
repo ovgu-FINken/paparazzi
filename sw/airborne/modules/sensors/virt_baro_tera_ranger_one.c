@@ -5,17 +5,11 @@
 #include "mcu_periph/i2c.h"
 #include "autopilot.h"
 #include "subsystems/datalink/telemetry.h"
+#include "state.h"
+#include "math/pprz_algebra_int.h"
 
 #ifndef ADDRESS
   #define ADDRESS 0x30
-#endif
-
-#ifndef RANGE_COMMAND
-  #define RANGE_COMMAND 0x00
-#endif
-
-#ifndef FETCH_COMMAND
-  #define FETCH_COMMAND
 #endif
 
 #if TERA_I2C_DEV==I2C0
@@ -43,8 +37,7 @@ static enum SonarState i2c_state;
 
 static struct i2c_transaction read_trans;
 
-static void start_read(void)
-{
+static void start_read(void) {
 	if(i2c_state == READY) {
 	  read_trans.buf[0] = 0;
 		read_trans.buf[1] = 0;
@@ -88,8 +81,12 @@ void virt_baro_tera_ranger_one_init(void) {
 
 void virt_baro_tera_ranger_one_periodic(void) {
   intDistance = read();
-  floatDistance = intDistance;
   start_read();
+  struct Int32RMat* rmat = stateGetNedToBodyRMat_i();
+  struct Int32Vect3 z= { 0, 0, POS_BFP_OF_REAL(1) };
+  struct Int32Vect3 result;
+  int32_rmat_vmult(&result, rmat, &z);
+  floatDistance = POS_FLOAT_OF_BFP(intDistance * result.z)/1000;
   if (!autopilot.kill_throttle)	
 	  pressure = pprz_isa_pressure_of_altitude(floatDistance);
   else 
