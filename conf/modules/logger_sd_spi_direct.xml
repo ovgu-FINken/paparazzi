@@ -43,6 +43,7 @@ Do not use start/stop functionality of the module, the module is not intended to
     <configure name="SDLOGGER_DIRECT_SPI_SLAVE" default="spi_slave2" case="upper|lower"/>
     <configure name="LOGGER_LED" default="none"/>
     <define name="LOGGER_LED" value="$(LOGGER_LED)" cond="ifneq ($(LOGGER_LED),none)"/>
+    <define name="USE_LED_${LOGGER_LED}" value="1" cond="ifneq ($(LOGGER_LED),none)"/>
     <raw>
         include $(CFG_SHARED)/spi_master.makefile
     </raw>
