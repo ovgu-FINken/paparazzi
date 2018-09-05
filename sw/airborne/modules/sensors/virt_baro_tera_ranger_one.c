@@ -12,16 +12,6 @@
   #define ADDRESS 0x30
 #endif
 
-#if TERA_I2C_DEV==I2C0
-  #define I2C_DEV i2c0
-#elif TERA_I2C_DEV==I2C1
-  #define I2C_DEV i2c1
-#elif TERA_I2C_DEV==I2C2
-  #define I2C_DEV i2c2
-#elif
-  #error "Invalid I2C device defined for Tera Ranger"
-#endif
-
 static uint32_t intDistance;
 static float    floatDistance;
 static float    pressure;
@@ -42,7 +32,7 @@ static void start_read(void) {
 	  read_trans.buf[0] = 0;
 		read_trans.buf[1] = 0;
 		read_trans.buf[2] = 0;
-		i2c_receive(&I2C_DEV, 
+		i2c_receive(&TERA_I2C_DEV, 
 							  &read_trans, 
 				        ADDRESS<<1 | 1, 
 				        3);

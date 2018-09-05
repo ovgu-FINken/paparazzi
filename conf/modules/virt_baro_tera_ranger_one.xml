@@ -16,10 +16,11 @@
   <periodic fun="virt_baro_tera_ranger_one_periodic()" freq="10."/>
 
   <makefile target="ap">
+    <configure name="I2C_DEV" default="i2c1" case="upper|lower"/>
     <file name="virt_baro_tera_ranger_one.c"/>
     <define name="USE_BARO_BOARD" value="FALSE"/>
-    <define name="USE_$(I2C_DEV)"/>
-    <define name="TERA_I2C_DEV" value="$(I2C_DEV)"/>
+    <define name="USE_$(I2C_DEV_UPPER)" value="1" />
+    <define name="TERA_I2C_DEV" value="$(I2C_DEV_LOWER)" />
   </makefile>
 
 </module>
