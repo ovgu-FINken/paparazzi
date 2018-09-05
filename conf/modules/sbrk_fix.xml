@@ -1,0 +1,14 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="sbrk_fix" dir="">
+  <doc>
+    <description>
+      Empty implementation of sbrk to satisfy  strange strncmp implementation of newlib.
+    </description>
+  </doc>
+
+  <makefile target="ap">
+    <file name="sbrk_fix.c"/>
+  </makefile>
+
+</module>
