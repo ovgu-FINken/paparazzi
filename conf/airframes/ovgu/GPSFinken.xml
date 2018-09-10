@@ -18,11 +18,11 @@
       <define name="SERVO_HZ" value="400"/>
     </module>
 
-    <module name="telemetry"     type="transparent_usb"/>
-    <!--module name="telemetry"     type="transparent">
+    <!--module name="telemetry"     type="transparent_usb"/-->
+    <module name="telemetry"     type="transparent">
       <configure name="MODEM_BAUD"  value="B38400"/>
       <configure name="MODEM_PORT" value="UART3"/>
-    </module-->
+    </module>
     <module name="imu"           type="aspirin_v2.1"/>
     <module name="gps"           type="nmea">
       <configure name="GPS_PORT" value="UART2"/>
@@ -34,7 +34,7 @@
       <configure name="USE_MAGNETOMETER" value="TRUE"/>
       <configure name="AHRS_USE_GPS_HEADING" value="FALSE"/>
     </module>
-    <module name="ins" type="gps_passthrough"/>
+    <module name="ins" type="float_invariant"/>
   </firmware>
 
   <modules>
@@ -50,8 +50,8 @@
       <configure name="LOGGER_LED" value="5"/>
     </module>
     <module name="gps_nmea_mtk3339.xml">
-      <configure name="MTK_BAUD_RATE" value="38400"/>
-      <configure name="MTK_UPDATE_RATE" value="5"/>
+      <configure name="MTK_BAUD" value="38400"/>
+      <configure name="MTK_PERIOD" value="250"/>
     </module>
   </modules>
   <servos driver="Pwm">
@@ -106,7 +106,12 @@
     <define name="BODY_TO_IMU_PSI"   value="0.0" unit="deg"/>
   </section>
 
-  <section name="AHRS" prefix="AHRS_">
+  <!--section name="AHRS" prefix="AHRS_">
+    <define name="H_X" value="0.3770441"/>
+    <define name="H_Y" value="0.0193986"/>
+    <define name="H_Z" value="0.9259921"/>
+  </section-->
+  <section name="INS" prefix="INS_">
     <!-- values used if no GPS fix, on 3D fix is update by geo_mag module -->
     <define name="H_X" value="0.3770441"/>
     <define name="H_Y" value="0.0193986"/>
