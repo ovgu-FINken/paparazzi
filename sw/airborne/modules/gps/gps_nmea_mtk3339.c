@@ -44,7 +44,7 @@ void nmea_configure(void) {
   sendCmd(MTK_BAUD_RATE_CMD, sizeof(MTK_BAUD_RATE_CMD)-1, 
           MTK_BAUD_STRING  , sizeof(MTK_BAUD_STRING)-1  );
   //Wait for the transmission to finish
-  for(uint8_t i=0;i<100;i++)
+  for(uint16_t i=0;i<10000;i++)
     if(dev->check_free_space(dev->periph, NULL, UART_TX_BUFFER_SIZE-1))
       break;
   //Change the baud rate of the UART
