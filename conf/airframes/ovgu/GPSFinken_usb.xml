@@ -113,9 +113,9 @@
   </section-->
   <section name="INS" prefix="INS_">
     <!-- values used if no GPS fix, on 3D fix is update by geo_mag module -->
-    <define name="H_X" value="0.3770441"/>
-    <define name="H_Y" value="0.0193986"/>
-    <define name="H_Z" value="0.9259921"/>
+    <define name="H_X" value="0.38186825"/>
+    <define name="H_Y" value="0.02239003"/>
+    <define name="H_Z" value="0.92394552"/>
   </section>
 
   <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
