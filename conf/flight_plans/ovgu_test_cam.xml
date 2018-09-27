@@ -6,14 +6,8 @@
   </header>
   <waypoints>
     <waypoint name="HOME" x="0.0" y="0.0" alt="47"/>
-    <waypoint name="CLIMB" x="0.0" y="5.0" alt="47"/>
-    <waypoint name="STDBY" x="-2.0" y="-5.0"/>
-    <waypoint name="p1" x="3.6" y="-13.9"/>
-    <waypoint name="p2" x="27.5" y="-48.2"/>
-    <waypoint name="p3" x="16.7" y="-19.6"/>
-    <waypoint name="p4" x="13.7" y="-40.7"/>
-    <waypoint name="CAM" x="-20" y="-50" height="2."/>
-    <waypoint name="TD" x="5.6" y="-10.9"/>
+    <waypoint name="A" x="5.0" y="5.0"/>
+    <waypoint name="B" x="-5.0" y="-5.0"/>
   </waypoints>
   <blocks>
     <block name="Wait GPS">
@@ -43,6 +37,14 @@
     </block>
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
       <stay wp="HOME"/>
+    </block>
+    <block name="A">
+      <go wp="A" approaching_time="0"/>
+      <deroute block="B"/>
+    </block>
+    <block name="B">
+      <go wp="B" approaching_time="0"/>
+      <deroute block="A"/>
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>
