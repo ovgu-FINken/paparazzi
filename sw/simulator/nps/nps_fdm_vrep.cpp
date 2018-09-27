@@ -180,15 +180,16 @@ class VRepClient {
 			<< " NED:  " << fdm.ltpprz_pos.x << " | " << fdm.ltpprz_pos.y << " | " << fdm.ltpprz_pos.z << std::endl;
 
                 //convert velocity & acceleration from enu to body:
-                Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
+		Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
                 Eigen::Vector3d body_accel(enu_accel.x, enu_accel.y, enu_accel.z);
-		Eigen::Vector3d body_rotVel(enu_rotVel.x, enu_rotVel.y, enu_rotVel.z);
+		Eigen::Vector3d body_rotVel(-enu_rotVel.x, -enu_rotVel.y, -enu_rotVel.z);
 		Eigen::Vector3d body_rotAccel(enu_rotAccel.x, enu_rotAccel.y, enu_rotAccel.z);
                 body_vel = quat *  body_vel;
                 body_accel = quat * body_accel;
 		body_rotVel = quat * body_rotVel;
 		body_rotAccel = quat * body_rotVel;
-
+					
+	
                 //convert velocties and accelerations from enu to ecef:
 
                 ecef_of_enu_vect_d(&fdm.ecef_ecef_vel, &ltpRef, &enu_vel);
@@ -262,9 +263,9 @@ class VRepClient {
                 double_eulers_of_quat(&fdm.ltpprz_to_body_eulers, &fdm.ltpprz_to_body_quat);
 
 
-		        //angular rates in body frame wrt ECEF:
-		        RATES_ASSIGN(fdm.body_ecef_rotvel, body_rotVel[0], body_rotVel[1], body_rotVel[2]);
-		        RATES_ASSIGN(fdm.body_ecef_rotaccel, body_rotAccel[0], body_rotAccel[1], body_rotAccel[2]);
+		//angular rates in body frame wrt ECEF:
+		RATES_ASSIGN(fdm.body_ecef_rotvel, -body_rotVel[1], -body_rotVel[0], body_rotVel[2]);
+		RATES_ASSIGN(fdm.body_ecef_rotaccel, -body_rotAccel[1], -body_rotAccel[0], body_rotAccel[2]);
 
 
                 }

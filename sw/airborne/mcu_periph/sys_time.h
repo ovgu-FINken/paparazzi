@@ -49,7 +49,7 @@
 //#if defined PERIODIC_FREQUENCY
 //#define SYS_TIME_FREQUENCY (2 * PERIODIC_FREQUENCY)
 //#else
-#define SYS_TIME_FREQUENCY 100
+#define SYS_TIME_FREQUENCY 1000
 #endif
 //#endif
 

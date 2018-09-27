@@ -28,21 +28,21 @@
     </subsystem>
 
     <subsystem name="motor_mixing"/>
-    <subsystem name="actuators" type="pwm">
+    <subsystem name="actuators"     type="pwm">
       <define name="SERVO_HZ" value="400"/>
     </subsystem>
 
 <!-- comment the below three lines and use
 	<subsystem name="telemetry"     type="transparent_usb">-->
-    <subsystem name="telemetry" type="transparent">
-      <configure name="MODEM_BAUD" value="B38400"/>
+    <subsystem name="telemetry"     type="transparent">
+      <configure name="MODEM_BAUD"  value="B38400"/>
       <configure name="MODEM_PORT" value="UART3"/>
 
     </subsystem>
-    <subsystem name="imu" type="aspirin_v2.1"/>
-    <subsystem name="gps" type="datalink"/>
+    <subsystem name="imu"           type="aspirin_v2.1"/>
+    <subsystem name="gps"           type="datalink"/>
     <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs" type="float_cmpl_quat">
+    <subsystem name="ahrs"          type="float_cmpl_quat">
 			<define name="AHRS_GRAVITY_HEURISTIC_FACTOR" value="0"/>
 	    <!-- Uncomment to enable all axis update from the Magnetometer. Do
 		 it only if you have a very well calibrated and tested
@@ -81,9 +81,9 @@
   </servos>
 
   <commands>
-    <axis name="ROLL" failsafe_value="0"/>
-    <axis name="PITCH" failsafe_value="0"/>
-    <axis name="YAW" failsafe_value="0"/>
+    <axis name="ROLL"   failsafe_value="0"/>
+    <axis name="PITCH"  failsafe_value="0"/>
+    <axis name="YAW"    failsafe_value="0"/>
     <axis name="THRUST" failsafe_value="0"/>
   </commands>
 
@@ -96,9 +96,9 @@
     <define name="TRIM_YAW" value="0"/>
     <define name="NB_MOTOR" value="4"/>
     <define name="SCALE" value="256"/>
-		<define name="ROLL_COEF" value="{ -256, -256,  256,  256 }"/>
-		<define name="PITCH_COEF" value="{  256, -256, -256,  256 }"/>
-		<define name="YAW_COEF" value="{ -256,  256, -256,  256 }"/>
+		<define name="ROLL_COEF"   value="{ -256, -256,  256,  256 }"/>
+		<define name="PITCH_COEF"  value="{  256, -256, -256,  256 }"/>
+		<define name="YAW_COEF"    value="{ -256,  256, -256,  256 }"/>
 		<define name="THRUST_COEF" value="{  256,  256,  256,  256 }"/>
   </section>
 
@@ -123,9 +123,9 @@
     <define name="MAG_Y_SENS" value="3.98885954135" integer="16"/>
     <define name="MAG_Z_SENS" value="4.40442339014" integer="16"/>
 
-    <define name="BODY_TO_IMU_PHI" value="0." unit="deg"/>
+    <define name="BODY_TO_IMU_PHI"   value="0." unit="deg"/>
     <define name="BODY_TO_IMU_THETA" value="0." unit="deg"/>
-    <define name="BODY_TO_IMU_PSI" value="0." unit="deg"/>
+    <define name="BODY_TO_IMU_PSI"   value="0." unit="deg"/>
   </section>
 
   <section name="AHRS" prefix="AHRS_">
@@ -163,52 +163,52 @@
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
     <!-- setpoints -->
-    <define name="SP_MAX_PHI" value="45." unit="deg"/>
-    <define name="SP_MAX_THETA" value="45." unit="deg"/>
-    <define name="SP_MAX_R" value="90." unit="deg/s"/>
-    <define name="DEADBAND_A" value="0"/>
-    <define name="DEADBAND_E" value="0"/>
-    <define name="DEADBAND_R" value="250"/>
+    <define name="SP_MAX_PHI"     value="45." unit="deg"/>
+    <define name="SP_MAX_THETA"   value="45." unit="deg"/>
+    <define name="SP_MAX_R"       value="90." unit="deg/s"/>
+    <define name="DEADBAND_A"     value="0"/>
+    <define name="DEADBAND_E"     value="0"/>
+    <define name="DEADBAND_R"     value="250"/>
 
     <!-- reference -->
-    <define name="REF_OMEGA_P" value="400" unit="deg/s"/>
-    <define name="REF_ZETA_P" value="0.85"/>
-    <define name="REF_MAX_P" value="400." unit="deg/s"/>
+    <define name="REF_OMEGA_P"  value="400" unit="deg/s"/>
+    <define name="REF_ZETA_P"   value="0.85"/>
+    <define name="REF_MAX_P"    value="400." unit="deg/s"/>
     <define name="REF_MAX_PDOT" value="RadOfDeg(8000.)"/>
 
-    <define name="REF_OMEGA_Q" value="400" unit="deg/s"/>
-    <define name="REF_ZETA_Q" value="0.85"/>
-    <define name="REF_MAX_Q" value="400." unit="deg/s"/>
+    <define name="REF_OMEGA_Q"  value="400" unit="deg/s"/>
+    <define name="REF_ZETA_Q"   value="0.85"/>
+    <define name="REF_MAX_Q"    value="400." unit="deg/s"/>
     <define name="REF_MAX_QDOT" value="RadOfDeg(8000.)"/>
 
-    <define name="REF_OMEGA_R" value="250" unit="deg/s"/>
-    <define name="REF_ZETA_R" value="0.85"/>
-    <define name="REF_MAX_R" value="180." unit="deg/s"/>
+    <define name="REF_OMEGA_R"  value="250" unit="deg/s"/>
+    <define name="REF_ZETA_R"   value="0.85"/>
+    <define name="REF_MAX_R"    value="180." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
 
 		<!-- feedback -->
-		<define name="PHI_PGAIN" value="700"/>
-		<define name="PHI_DGAIN" value="400"/>
-		<define name="PHI_IGAIN" value="200"/>
+		<define name="PHI_PGAIN"  value="800"/>
+		<define name="PHI_DGAIN"  value="0"/>
+		<define name="PHI_IGAIN"  value="0"/>
 
-		<define name="THETA_PGAIN" value="700"/>
-		<define name="THETA_DGAIN" value="400"/>
-		<define name="THETA_IGAIN" value="200"/>
+		<define name="THETA_PGAIN"  value="800"/>
+		<define name="THETA_DGAIN"  value="0"/>
+		<define name="THETA_IGAIN"  value="0"/>
 
-		<define name="PSI_PGAIN" value="0"/>
-		<define name="PSI_DGAIN" value="0"/>
-		<define name="PSI_IGAIN" value="0"/>
+		<define name="PSI_PGAIN"  value="0"/>
+		<define name="PSI_DGAIN"  value="0"/>
+		<define name="PSI_IGAIN"  value="0"/>
 
 		<!-- feedforward -->
-		<define name="PHI_DDGAIN" value="300"/>
-		<define name="THETA_DDGAIN" value="300"/>
-		<define name="PSI_DDGAIN" value="300"/>
+		<define name="PHI_DDGAIN"   value="0"/>
+		<define name="THETA_DDGAIN" value="0"/>
+		<define name="PSI_DDGAIN"   value="0"/>
   </section>
 
   <section name="GUIDANCE_V" prefix="GUIDANCE_V_">
-    <define name="HOVER_KP" value="150"/>
-    <define name="HOVER_KD" value="80"/>
-    <define name="HOVER_KI" value="20"/>
+    <define name="HOVER_KP"    value="150"/>
+    <define name="HOVER_KD"    value="80"/>
+    <define name="HOVER_KI"    value="20"/>
     <define name="NOMINAL_HOVER_THROTTLE" value="0.5"/>
     <define name="ADAPT_THROTTLE_ENABLED" value="TRUE"/>
   </section>
@@ -233,8 +233,8 @@
 
   <section name="AUTOPILOT">
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
-    <define name="MODE_AUTO1" value="AP_MODE_NAV"/>
-    <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO1"  value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO2"  value="AP_MODE_NAV"/>
     <!--define name="MODE_AUTO2"  value="AP_MODE_HOVER_Z_HOLD"/-->
     <define name="USE_KILL_SWITCH_FOR_MOTOR_ARMING" value="TRUE"/>
   </section>
