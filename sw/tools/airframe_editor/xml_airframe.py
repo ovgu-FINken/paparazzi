@@ -6,7 +6,6 @@ import lxml.etree as ET
 import StringIO
 
 import xml_common
-import paparazzi
 
 
 def find_and_add(source, target, search):
@@ -44,6 +43,8 @@ def reorganize_airframe_xml(airframe_xml):
         print("Airframe has no name!")
     else:
         airframe.set('name', airframe_xml.getroot().get('name'))
+
+    find_and_add(airframe_xml, airframe, "description")
 
     find_or_add_group(airframe_xml, airframe, "FIRMWARE")
     find_and_add(airframe_xml, airframe, "firmware")

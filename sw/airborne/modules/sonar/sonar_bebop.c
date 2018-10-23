@@ -36,13 +36,16 @@
 #include "generated/airframe.h"
 #include "mcu_periph/adc.h"
 #include "mcu_periph/spi.h"
+#include "mcu_periph/sys_time.h"
 #include "subsystems/abi.h"
 #include <pthread.h>
-#include "subsystems/datalink/downlink.h"
+#include <unistd.h>
+#include "subsystems/datalink/downlink.h"//FIXME, include only when link need
 
 #include "filters/median_filter.h"
 
 struct MedianFilterFloat sonar_filt;
+uint32_t sonar_bebop_spike_timer;
 
 #ifdef SITL
 #include "state.h"
@@ -77,7 +80,13 @@ static uint8_t mode;
 static uint8_t pulse_transition_counter;
 
 /** SONAR_BEBOP_PEAK_THRESHOLD minimum samples from broadcast stop */
-#define SONAR_BEBOP_PEAK_THRESHOLD 250
+#define SONAR_BEBOP_PEAK_THRESHOLD 100
+
+/** SONAR_BEBOP_MIN_PEAK_VAL minimum adc value of reflected peak that will be cosidered */
+#define SONAR_BEBOP_MIN_PEAK_VAL 1024 // max value is 4096
+
+/** SONAR_BEBOP_MAX_TRANS_TIME maximum time for a reflection to travel and return in the adc measurement window */
+#define SONAR_BEBOP_MAX_TRANS_TIME 270
 
 /** sonar_bebop_spi_d the waveforms emitted by the sonar
  * waveform 0 is long pulse used at high altitude
@@ -90,9 +99,7 @@ struct SonarBebop sonar_bebop;
 
 static struct spi_transaction sonar_bebop_spi_t;
 void *sonar_bebop_read(void *data);
-#ifdef USE_SONAR
-static pthread_t sonar_bebop_thread;
-#endif
+static float sonar_filter_narrow_obstacles(float distance_sonar);
 
 void sonar_bebop_init(void)
 {
@@ -111,10 +118,13 @@ void sonar_bebop_init(void)
   sonar_bebop_spi_t.input_length  = 0;
 
 #if USE_SONAR
-  pthread_create(&sonar_bebop_thread, NULL, sonar_bebop_read, NULL);
+  pthread_t tid;
+  pthread_create(&tid, NULL, sonar_bebop_read, NULL);
+  pthread_setname_np(tid, "pprz_sonar_thread");
 #endif
 
-  init_median_filter_f(&sonar_filt, 3);
+  init_median_filter_f(&sonar_filt, 5);
+  SysTimeTimerStart(sonar_bebop_spike_timer);
 }
 
 uint16_t adc_buffer[SONAR_BEBOP_ADC_BUFFER_SIZE];
@@ -130,7 +140,7 @@ void *sonar_bebop_read(void *data __attribute__((unused)))
     /* Start ADC and send sonar output */
     adc_enable(&adc0, 1);
     sonar_bebop_spi_t.status = SPITransDone;
-    sonar_bebop_spi_t.output_buf    = sonar_bebop_spi_d[mode];
+    sonar_bebop_spi_t.output_buf = sonar_bebop_spi_d[mode];
     spi_submit(&spi0, &sonar_bebop_spi_t);
     while (sonar_bebop_spi_t.status != SPITransSuccess);
     adc_read(&adc0, adc_buffer, SONAR_BEBOP_ADC_BUFFER_SIZE);
@@ -145,9 +155,9 @@ void *sonar_bebop_read(void *data __attribute__((unused)))
 
     for (i = 0; i < SONAR_BEBOP_ADC_BUFFER_SIZE; i++) {
       uint16_t adc_val = adc_buffer[i] >> 4;
-      if (start_send == 0 && adc_val == SONAR_BEBOP_ADC_MAX_VALUE) {
+      if (start_send == 0 && adc_val >= SONAR_BEBOP_ADC_MAX_VALUE) {
         start_send = i;
-      } else if (start_send != 0 && stop_send == 0 && adc_val != SONAR_BEBOP_ADC_MAX_VALUE) {
+      } else if (start_send && stop_send == 0 && adc_val < SONAR_BEBOP_ADC_MAX_VALUE - SONAR_BEBOP_MIN_PEAK_VAL) {
         stop_send = i - 1;
         i += SONAR_BEBOP_PEAK_THRESHOLD;
         continue;
@@ -163,45 +173,86 @@ void *sonar_bebop_read(void *data __attribute__((unused)))
 
     /* Calculate the distance from the peeks */
     uint16_t diff = stop_send - start_send;
-    float peak_distance;
-    if (diff > 250) {
-      peak_distance = 0;
-    } else {
-      peak_distance = first_peak - (stop_send - diff / 2);
-    }
+    if (diff && diff < SONAR_BEBOP_MAX_TRANS_TIME
+        && peak_value > SONAR_BEBOP_MIN_PEAK_VAL) {
+      sonar_bebop.meas = first_peak - (stop_send - diff / 2);
+      sonar_bebop.distance = update_median_filter_f(&sonar_filt, (float)sonar_bebop.meas * SONAR_BEBOP_INX_DIFF_TO_DIST);
 
-    sonar_bebop.distance = update_median_filter_f(&sonar_filt, peak_distance * SONAR_BEBOP_INX_DIFF_TO_DIST);
+#if SONAR_BEBOP_FILTER_NARROW_OBSTACLES
+      sonar_bebop.distance = sonar_filter_narrow_obstacles(sonar_bebop.distance);
+#endif
 
-    // set sonar pulse mode for next pulse based on altitude
-    if (mode == 0 && sonar_bebop.distance > SONAR_BEBOP_TRANSITION_LOW_TO_HIGH) {
-      if (++pulse_transition_counter > SONAR_BEBOP_TRANSITION_COUNT) {
-        mode = 1;
+      // set sonar pulse mode for next pulse based on altitude
+      if (mode == 0 && sonar_bebop.distance > SONAR_BEBOP_TRANSITION_LOW_TO_HIGH) {
+        if (++pulse_transition_counter > SONAR_BEBOP_TRANSITION_COUNT) {
+          mode = 1;
+          pulse_transition_counter = 0;
+        }
+      } else if (mode == 1 && sonar_bebop.distance < SONAR_BEBOP_TRANSITION_HIGH_TO_LOW) {
+        if (++pulse_transition_counter > SONAR_BEBOP_TRANSITION_COUNT) {
+          mode = 0;
+          pulse_transition_counter = 0;
+        }
+      } else {
         pulse_transition_counter = 0;
       }
-    } else if (mode == 1 && sonar_bebop.distance < SONAR_BEBOP_TRANSITION_HIGH_TO_LOW) {
-      if (++pulse_transition_counter > SONAR_BEBOP_TRANSITION_COUNT) {
-        mode = 0;
-        pulse_transition_counter = 0;
-      }
-    } else {
-      pulse_transition_counter = 0;
-    }
 
 #else // SITL
-    sonar_bebop.distance = stateGetPositionEnu_f()->z;
-    Bound(sonar_bebop.distance, 0.1f, 7.0f);
-    uint16_t peak_distance = 1;
+      sonar_bebop.distance = stateGetPositionEnu_f()->z;
+      Bound(sonar_bebop.distance, 0.1f, 7.0f);
+      sonar_bebop.meas = sonar_bebop.distance / SONAR_BEBOP_INX_DIFF_TO_DIST;
 #endif // SITL
 
-    if (peak_distance > 0) {
       // Send ABI message
       AbiSendMsgAGL(AGL_SONAR_ADC_ID, sonar_bebop.distance);
 #ifdef SENSOR_SYNC_SEND_SONAR
       // Send Telemetry report
       DOWNLINK_SEND_SONAR(DefaultChannel, DefaultDevice, &sonar_bebop.meas, &sonar_bebop.distance);
 #endif
+#ifndef SITL
     }
+#endif
+    usleep(10000); //100Hz
   }
-  usleep(10000); //100Hz
   return NULL;
 }
+
+
+#if SONAR_BEBOP_FILTER_NARROW_OBSTACLES
+
+#ifndef SONAR_BEBOP_FILTER_NARROW_OBSTACLES_JUMP
+#define SONAR_BEBOP_FILTER_NARROW_OBSTACLES_JUMP 0.4f
+#endif
+PRINT_CONFIG_VAR(SONAR_BEBOP_FILTER_NARROW_OBSTACLES_JUMP)
+
+#ifndef SONAR_BEBOP_FILTER_NARROW_OBSTACLES_TIME
+#define SONAR_BEBOP_FILTER_NARROW_OBSTACLES_TIME 1.0f
+#endif
+PRINT_CONFIG_VAR(SONAR_BEBOP_FILTER_NARROW_OBSTACLES_TIME)
+
+static float sonar_filter_narrow_obstacles(float distance_sonar)
+{
+  static float previous_distance = 0;
+  static float z0 = 0;
+  bool obstacle_is_in_view = false;
+  float diff_pre_cur = distance_sonar - previous_distance;
+  if (diff_pre_cur < -SONAR_BEBOP_FILTER_NARROW_OBSTACLES_JUMP) {
+    z0 = previous_distance;
+    obstacle_is_in_view = true;
+    SysTimeTimerStart(sonar_bebop_spike_timer);
+  }
+  previous_distance = distance_sonar;
+  float time_since_reset = SysTimeTimer(sonar_bebop_spike_timer);
+  if ((diff_pre_cur > SONAR_BEBOP_FILTER_NARROW_OBSTACLES_JUMP) || (time_since_reset > USEC_OF_SEC(SONAR_BEBOP_FILTER_NARROW_OBSTACLES_TIME)) ) {
+
+    obstacle_is_in_view = false;
+  }
+
+  if (obstacle_is_in_view) {
+    return z0;
+  } else {
+    return distance_sonar;
+  }
+}
+#endif
+

@@ -26,16 +26,36 @@
 
 #include "std.h"
 #include "peripherals/video_device.h"
-// reuse bebop video driver
+// re-use the Parrot Bebop video drivers
+#include "boards/bebop/mt9v117.h"
 #include "boards/bebop/mt9f002.h"
 
-/** uart connected to GPS internally */
+
+/** UART connected to GPS internally */
 #define UART1_DEV /dev/ttyPA1
+
 #define GPS_UBX_ENABLE_NMEA_DATA_MASK 0xff
-/** FTDI cable for stereoboard or external GPS */
+
+/** For using serial devices via USB to serial converter electronics
+ *  E.g. a XBee modem, a 3DR radio modem, Serial Stereocam etc. etc.
+ */
+#ifndef UART2_DEV
 #define UART2_DEV /dev/ttyUSB0
+#endif
+#ifndef UART4_DEV
+#define UART4_DEV /dev/ttyUSB1
+#endif
+#ifndef UART5_DEV
+#define UART5_DEV /dev/ttyACM0
+#endif
+#ifndef UART6_DEV
+#define UART6_DEV /dev/ttyACM1
+#endif
+
 /** uart connected to SBUS input */
+#ifndef UART3_DEV
 #define UART3_DEV /dev/uart-sbus
+#endif
 
 /* Default actuators driver */
 #define DEFAULT_ACTUATORS "boards/disco/actuators.h"
@@ -68,6 +88,28 @@ struct mt9f002_t mt9f002;
 #define SPI0_MODE           0
 #define SPI0_BITS_PER_WORD  8
 #define SPI0_MAX_SPEED_HZ   320000
+#endif
+
+/* Configuration values of airspeed sensor onboard the Parrot Disco C.H.U.C.K */
+#define MS45XX_I2C_DEV i2c1
+#define MS45XX_PRESSURE_RANGE 4
+#define MS45XX_PRESSURE_TYPE 1
+#define MS45XX_OUTPUT_TYPE 1
+#define MS45XX_PRESSURE_OUTPUT_TYPE_InH2O 1
+#define MS45XX_AIRSPEED_SCALE 1.6327
+#ifndef USE_AIRSPEED_LOWPASS_FILTER
+#define USE_AIRSPEED_LOWPASS_FILTER 1
+#endif
+//#if USE_AIRSPEED_LOWPASS_FILTER
+#ifndef MS45XX_LOWPASS_TAU
+#define MS45XX_LOWPASS_TAU 0.15
+#endif
+//#endif
+
+/* To be flexible and be able to disable use of airspeed in state this could have been in the airframe file ofcourse
+ * but most users just want to have perfectly flying Disco, so enable per default... */
+#ifndef USE_AIRSPEED
+#define USE_AIRSPEED 1
 #endif
 
 #endif /* CONFIG_DISCO */

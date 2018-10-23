@@ -107,7 +107,7 @@ bool mission_element_convert(struct _mission_element *el)
 }
 
 // navigation time step
-const float dt_navigation = 1.0 / ((float)NAV_FREQ);
+static const float dt_navigation = 1.0 / ((float)NAV_FREQ);
 
 //  last_mission_wp, last target wp from mission elements, not used actively and kept for future implementations
 struct EnuCoor_i last_mission_wp = { 0., 0., 0. };
@@ -220,6 +220,13 @@ static inline bool mission_nav_path(struct _mission_element *el)
   return true;
 }
 
+/** Call custom navigation function
+ */
+static inline bool mission_nav_custom(struct _mission_custom *custom, bool init)
+{
+  return custom->reg->cb(custom->nb, custom->params, init);
+}
+
 int mission_run()
 {
   // current element
@@ -243,6 +250,9 @@ int mission_run()
       break;
     case MissionPath:
       el_running = mission_nav_path(el);
+      break;
+    case MissionCustom:
+      el_running = mission_nav_custom(&(el->element.mission_custom), mission.element_time < dt_navigation);
       break;
     default:
       // invalid type or pattern not yet handled

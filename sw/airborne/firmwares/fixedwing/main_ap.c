@@ -115,10 +115,10 @@ PRINT_CONFIG_VAR(TELEMETRY_FREQUENCY)
  */
 PRINT_CONFIG_VAR(MODULES_FREQUENCY)
 
+/* BARO_PERIODIC_FREQUENCY is defined in baro_board.makefile
+ * defaults to 50Hz or set by BARO_PERIODIC_FREQUENCY configure option in airframe file
+ */
 #if USE_BARO_BOARD
-#ifndef BARO_PERIODIC_FREQUENCY
-#define BARO_PERIODIC_FREQUENCY 50
-#endif
 PRINT_CONFIG_VAR(BARO_PERIODIC_FREQUENCY)
 #endif
 
@@ -151,6 +151,9 @@ void init_ap(void)
 #ifndef SINGLE_MCU /** init done in main_fbw in single MCU */
   mcu_init();
 #endif /* SINGLE_MCU */
+
+  /** - start interrupt task */
+  mcu_int_enable();
 
 #if defined(PPRZ_TRIG_INT_COMPR_FLASH)
   pprz_trig_int_init();
@@ -202,9 +205,6 @@ void init_ap(void)
 #if USE_BARO_BOARD
   baro_tid = sys_time_register_timer(1. / BARO_PERIODIC_FREQUENCY, NULL);
 #endif
-
-  /** - start interrupt task */
-  mcu_int_enable();
 
 #if DOWNLINK
   downlink_init();

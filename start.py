@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+
 import pygtk
 import gtk
 pygtk.require('2.0')
@@ -10,9 +11,16 @@ pygtk.require('2.0')
 import os
 import shutil
 import datetime
-from fnmatch import fnmatch
 import subprocess
+import sys
 
+lib_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sw', 'lib', 'python'))
+sys.path.append(lib_path)
+
+import paparazzi
+from paparazzi_health import PaparazziOverview
+
+import xml.etree.ElementTree
 
 class ConfChooser(object):
 
@@ -24,7 +32,7 @@ class ConfChooser(object):
         current_index = 0
         for (i, text) in enumerate(clist):
             combo.append_text(text)
-            if os.path.join(self.conf_dir, text) == os.path.realpath(active):
+            if os.path.join(paparazzi.conf_dir, text) == os.path.realpath(active):
                 current_index = i
         combo.set_active(current_index)
         combo.set_sensitive(True)
@@ -40,7 +48,7 @@ class ConfChooser(object):
                 else:
                     desc += "broken symlink to "
             real_conf_path = os.path.realpath(self.conf_xml)
-            desc += os.path.relpath(real_conf_path, self.conf_dir)
+            desc += os.path.relpath(real_conf_path, paparazzi.conf_dir)
         self.conf_explain.set_text(desc)
 
     def update_controlpanel_label(self):
@@ -54,57 +62,50 @@ class ConfChooser(object):
                 else:
                     desc += "broken symlink to "
             real_conf_path = os.path.realpath(self.controlpanel_xml)
-            desc += os.path.relpath(real_conf_path, self.conf_dir)
+            desc += os.path.relpath(real_conf_path, paparazzi.conf_dir)
         self.controlpanel_explain.set_text(desc)
 
     # CallBack Functions
 
     def find_conf_files(self):
-        conf_files = []
-        pattern = "*conf[._-]*xml"
-        backup_pattern = "*conf[._-]*xml.20[0-9][0-9]-[01][0-9]-[0-3][0-9]_*"
-        excludes = ["%gconf.xml"]
-
-        for path, subdirs, files in os.walk(self.conf_dir):
-            for name in files:
-                if self.exclude_backups and fnmatch(name, backup_pattern):
-                    continue
-                if fnmatch(name, pattern):
-                    filepath = os.path.join(path, name)
-                    entry = os.path.relpath(filepath, self.conf_dir)
-                    if not os.path.islink(filepath) and entry not in excludes:
-                        conf_files.append(entry)
-
-        conf_files.sort()
+        conf_files = paparazzi.get_list_of_conf_files(self.exclude_backups)
         self.update_combo(self.conf_file_combo, conf_files, self.conf_xml)
 
     def find_controlpanel_files(self):
-        controlpanel_files = []
-        pattern = "*control_panel[._-]*xml"
-        backup_pattern = "*control_panel[._-]*xml.20[0-9][0-9]-[01][0-9]-[0-3][0-9]_*"
-        excludes = []
-
-        for path, subdirs, files in os.walk(self.conf_dir):
-            for name in files:
-                if self.exclude_backups and fnmatch(name, backup_pattern):
-                    continue
-                if fnmatch(name, pattern):
-                    filepath = os.path.join(path, name)
-                    entry = os.path.relpath(filepath, self.conf_dir)
-                    if not os.path.islink(filepath) and entry not in excludes:
-                        controlpanel_files.append(entry)
-
-        controlpanel_files.sort()
+        controlpanel_files = paparazzi.get_list_of_controlpanel_files(self.exclude_backups)
         self.update_combo(self.controlpanel_file_combo, controlpanel_files, self.controlpanel_xml)
+
+    def count_airframes_in_conf(self):
+        airframes = 0
+        releases = 0
+        if self.conf_file_combo.get_active_text() is None:
+            return
+        desc = ""
+        afile = os.path.join(paparazzi.conf_dir, self.conf_file_combo.get_active_text())
+        if os.path.exists(afile):
+            e = xml.etree.ElementTree.parse(afile).getroot()
+            for atype in e.findall('aircraft'):
+                if airframes > 0:
+                    desc += ", "
+                #print(atype.get('name'))
+                airframes += 1
+                if (not atype.get('release') is None) & (not atype.get('release') == ""):
+                    releases += 1
+                    desc += '<a href="https://github.com/paparazzi/paparazzi/commit/' + atype.get('release') + '">' + atype.get('name') + "</a>"
+                else:
+                    desc += atype.get('name')
+        desc = "<b>" + str(airframes) + " airframes:</b> " + desc
+        self.conf_airframes.set_markup(desc)
+        return
 
     def about(self, widget):
         about_d = gtk.AboutDialog()
         about_d.set_program_name("Paparazzi Configuration Selector")
-        about_d.set_version("1.0")
+        about_d.set_version("1.1")
         about_d.set_copyright("(c) GPL v2")
         about_d.set_comments("Select the active configuration")
         about_d.set_website("http://paparazzi.github.com")
-        about_d.set_logo(gtk.gdk.pixbuf_new_from_file(os.path.join(self.paparazzi_home, "data/pictures/penguin_icon.png")))
+        about_d.set_logo(gtk.gdk.pixbuf_new_from_file(os.path.join(paparazzi.PAPARAZZI_HOME, "data/pictures/penguin_icon.png")))
         about_d.run()
         about_d.destroy()
 
@@ -122,6 +123,11 @@ class ConfChooser(object):
         self.exclude_backups = not widget.get_active()
         self.find_conf_files()
         self.find_controlpanel_files()
+
+    def more_info(self, widget):
+        obj = PaparazziOverview(0)
+        obj.run()
+
 
     def launch(self, widget):
         self.accept(widget)
@@ -142,13 +148,13 @@ class ConfChooser(object):
         else:
             if os.path.exists(self.conf_xml):
                 newname = "conf.xml." + timestr
-                backup_file = os.path.join(self.conf_dir, newname)
+                backup_file = os.path.join(paparazzi.conf_dir, newname)
                 shutil.copyfile(self.conf_xml, backup_file)
                 self.print_status("Made a backup: " + newname)
 
         if use_personal:
             backup_name = self.conf_personal_name + "." + timestr
-            conf_personal_backup = os.path.join(self.conf_dir, backup_name)
+            conf_personal_backup = os.path.join(paparazzi.conf_dir, backup_name)
             if os.path.exists(self.conf_personal):
                 self.print_status("Backup conf.xml.personal to " + backup_name)
                 shutil.copyfile(self.conf_personal, conf_personal_backup)
@@ -161,29 +167,30 @@ class ConfChooser(object):
         else:
             if os.path.exists(self.controlpanel_xml):
                 newname = "control_panel.xml." + timestr
-                backup_file = os.path.join(self.conf_dir, newname)
+                backup_file = os.path.join(paparazzi.conf_dir, newname)
                 shutil.copyfile(self.controlpanel_xml, backup_file)
                 self.print_status("Made a backup: " + newname)
 
         if use_personal:
             backup_name = self.controlpanel_personal_name + "." + timestr
-            controlpanel_personal_backup = os.path.join(self.conf_dir, backup_name)
+            controlpanel_personal_backup = os.path.join(paparazzi.conf_dir, backup_name)
             if os.path.exists(self.controlpanel_personal):
                 self.print_status("Backup control_panel.xml.personal to " + backup_name)
                 shutil.copyfile(self.controlpanel_personal, controlpanel_personal_backup)
 
     def delete_conf(self, widget):
-        filename = os.path.join(self.conf_dir, self.conf_file_combo.get_active_text())
+        filename = os.path.join(paparazzi.conf_dir, self.conf_file_combo.get_active_text())
         ret = self.sure(widget, filename)
         if ret:
             if os.path.exists(filename):
                 os.remove(filename)
             self.update_conf_label()
+            self.count_airframes_in_conf()
             self.find_conf_files()
             self.print_status("Deleted: " + filename)
 
     def delete_controlpanel(self, widget):
-        filename = os.path.join(self.conf_dir, self.controlpanel_file_combo.get_active_text())
+        filename = os.path.join(paparazzi.conf_dir, self.controlpanel_file_combo.get_active_text())
         ret = self.sure(widget, filename)
         if ret:
             if os.path.exists(filename):
@@ -202,6 +209,7 @@ class ConfChooser(object):
                 os.remove(self.conf_xml)
             os.symlink(selected, self.conf_xml)
             self.update_conf_label()
+            self.count_airframes_in_conf()
             self.find_conf_files()
 
         selected = self.controlpanel_file_combo.get_active_text()
@@ -220,11 +228,12 @@ class ConfChooser(object):
             self.print_status("Your personal conf file already exists!")
         else:
             self.backupconf(True)
-            template_file = os.path.join(self.conf_dir, self.conf_file_combo.get_active_text())
+            template_file = os.path.join(paparazzi.conf_dir, self.conf_file_combo.get_active_text())
             shutil.copyfile(template_file, self.conf_personal)
             os.remove(self.conf_xml)
             os.symlink(self.conf_personal_name, self.conf_xml)
             self.update_conf_label()
+            self.count_airframes_in_conf()
             self.find_conf_files()
 
     def personal_controlpanel(self, widget):
@@ -232,7 +241,7 @@ class ConfChooser(object):
             self.print_status("Your personal control_panel file already exists!")
         else:
             self.backupcontrolpanel(True)
-            template_file = os.path.join(self.conf_dir, self.controlpanel_file_combo.get_active_text())
+            template_file = os.path.join(paparazzi.conf_dir, self.controlpanel_file_combo.get_active_text())
             shutil.copyfile(template_file, self.controlpanel_personal)
             os.remove(self.controlpanel_xml)
             os.symlink(self.controlpanel_personal_name, self.controlpanel_xml)
@@ -241,6 +250,9 @@ class ConfChooser(object):
 
     def print_status(self, text):
         self.statusbar.push(self.context_id, text)
+
+    def changed_cb(self, entry):
+        self.count_airframes_in_conf()
 
     # Constructor Functions
     def __init__(self):
@@ -252,17 +264,13 @@ class ConfChooser(object):
 
         self.my_vbox = gtk.VBox()
 
-        # if PAPARAZZI_HOME not set, then assume the tree containing this
-        # file is a reasonable substitute
-        self.paparazzi_home = os.getenv("PAPARAZZI_HOME", os.path.dirname(os.path.abspath(__file__)))
-        self.conf_dir = os.path.join(self.paparazzi_home, "conf")
-        self.conf_xml = os.path.join(self.conf_dir, "conf.xml")
+        self.conf_xml = os.path.join(paparazzi.conf_dir, "conf.xml")
         self.conf_personal_name = "conf_personal.xml"
-        self.conf_personal = os.path.join(self.conf_dir, self.conf_personal_name)
+        self.conf_personal = os.path.join(paparazzi.conf_dir, self.conf_personal_name)
 
-        self.controlpanel_xml = os.path.join(self.conf_dir, "control_panel.xml")
+        self.controlpanel_xml = os.path.join(paparazzi.conf_dir, "control_panel.xml")
         self.controlpanel_personal_name = "control_panel_personal.xml"
-        self.controlpanel_personal = os.path.join(self.conf_dir, self.controlpanel_personal_name)
+        self.controlpanel_personal = os.path.join(paparazzi.conf_dir, self.controlpanel_personal_name)
 
         self.exclude_backups = True
         self.verbose = False
@@ -305,7 +313,7 @@ class ConfChooser(object):
 
         self.conf_file_combo = gtk.combo_box_new_text()
         self.find_conf_files()
-        # self.firmwares_combo.connect("changed", self.parse_list_of_airframes)
+        self.conf_file_combo.connect("changed", self.changed_cb)
         self.conf_file_combo.set_size_request(550, 30)
 
         self.btnDeleteConf = gtk.Button(None, gtk.STOCK_DELETE)
@@ -323,6 +331,7 @@ class ConfChooser(object):
         self.confbar.pack_start(self.btnPersonalConf)
         self.my_vbox.pack_start(self.confbar, False)
 
+
         # Explain current conf config
 
         self.conf_explain = gtk.Label("")
@@ -333,6 +342,22 @@ class ConfChooser(object):
         self.cfexbar.pack_start(self.conf_explain)
 
         self.my_vbox.pack_start(self.cfexbar, False)
+
+        # Count Airframes
+        self.conf_airframes = gtk.Label("")
+        self.count_airframes_in_conf()
+        self.conf_airframes.set_size_request(650,180)
+        self.conf_airframes.set_line_wrap(True)
+
+        self.btnInfo = gtk.Button(None, "More\nInfo")
+        self.btnInfo.connect("clicked", self.more_info)
+        self.btnInfo.set_tooltip_text("More information on airframe files")
+
+        self.caexbar = gtk.HBox()
+        self.caexbar.pack_start(self.conf_airframes)
+        self.caexbar.pack_start(self.btnInfo)
+
+        self.my_vbox.pack_start(self.caexbar, False)
 
         # Controlpanel
         self.controlpanel_label = gtk.Label("Controlpanel:")

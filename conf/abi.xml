@@ -62,8 +62,7 @@
       <field name="flow_der_x" type="int16_t">The derotated flow calculation in the x direction (in subpixels)</field>
       <field name="flow_der_y" type="int16_t">The derotated flow calculation in the y direction (in subpixels)</field>
       <field name="quality" type="float"/>
-      <field name="size_divergence" type="float">Divergence as determined with the size method (in 1/seconds)</field>
-      <field name="dist" type="float">Distance to ground</field>
+      <field name="size_divergence" type="float">Divergence as determined with the size method (in 1/seconds) with LK, and Divergence (1/seconds) itself with EF</field>
     </message>
 
     <message name="VELOCITY_ESTIMATE" id="12">
@@ -71,7 +70,9 @@
       <field name="x" type="float" unit="m/s"/>
       <field name="y" type="float" unit="m/s"/>
       <field name="z" type="float" unit="m/s"/>
-      <field name="noise" type="float"/>
+      <field name="noise_x" type="float">Set negative noise to disable parameter axis</field>
+      <field name="noise_y" type="float"/>
+      <field name="noise_z" type="float"/>
     </message>
 
     <message name="RSSI" id="13">
@@ -94,8 +95,97 @@
     </message>
 
     <message name="OBSTACLE_DETECTION" id="17">
-      <field name="distance_obstacle" type="float" unit="m"/>
-      <field name="relative_heading" type="float" unit="rad"/>
+      <field name="distance" type="float" unit="m"/>
+      <field name="elevation" type="float" unit="rad"/>
+      <field name="heading" type="float" unit="rad"/>
+    </message>
+
+    <message name="POSITION_ESTIMATE" id="18">
+      <field name="stamp" type="uint32_t" unit="us"/>
+      <field name="x" type="float" unit="m"/>
+      <field name="y" type="float" unit="m"/>
+      <field name="z" type="float" unit="m"/>
+      <field name="noise_x" type="float">Set negative noise to disable parameter axis</field>
+      <field name="noise_y" type="float"/>
+      <field name="noise_z" type="float"/>
+    </message>
+    
+    <message name="UWB_COMMUNICATION" id="19">
+      <field name="id" type="uint8_t"/>
+      <field name="range" type="float" unit="m"/>
+      <field name="vx" type="float" unit="m/s"/>
+      <field name="vy" type="float" unit="m/s"/>
+      <field name="h" type="float" unit="m"/>
+    </message>
+
+    <message name="RANGE_FORCEFIELD" id="20">
+      <field name="vel_body_x_FF" type="float" unit="m/s"/>
+      <field name="vel_body_y_FF" type="float" unit="m/s"/>
+      <field name="vel_body_z_FF" type="float" unit="m/s"/>
+    </message>
+
+    <message name="JEVOIS_MSG" id="21">
+      <!--description>
+        Standardized serial messages sent by the Jevois smart camera
+        http://jevois.org/doc/UserSerialStyle.html
+      </description-->
+      <field name="type" type="uint8_t">Standardized message type JEVOIS_MSG_[T1|N1|D1|T2|N2|D2|F2|T3|N3|D3|F3]</field>
+      <field name="id" type="char *">Text string describing the reported object</field>
+      <field name="nb" type="uint8_t">Number of elements in the coordinates array</field>
+      <field name="coord" type="int16_t *">List of coordinates corresponding to 1D, 2D or 3D messages</field>
+      <field name="dim" type="uint16_t *">1, 2 or 3D dimension</field>
+      <field name="quat" type="struct FloatQuat">Quaternion that relates the object's frame to the camera's frame, if appropriate</field>
+      <field name="extra" type="char *">Additional text information</field>
+    </message>
+
+    <message name="FOLLOW_TARGET" id="22">
+      <field name="id" type="uint32_t">Object ID to track</field>
+      <field name="frame" type="uint8_t">
+        bitmask to select relative coordinates (0) or global coordinates (1)
+        bit 0: bearing
+        bit 1: height
+        bit 2: distance
+      </field>
+      <field name="bearing" type="float" unit="rad">Direction of object to track</field>
+      <field name="height" type="float" unit="m">Height of object to track</field>
+      <field name="distance" type="float" unit="m">Distance of object to track</field>
+    </message>
+
+    <message name="ACCEL_SP" id="23">
+      <field name="flag" type="uint8_t">0: 2D accel setpoint, 1: 3D accel setpoint</field>
+      <field name="accel_sp" type="struct FloatVect3 *" unit="m/s^2"/>
+    </message>
+
+    <message name="RELATIVE_LOCALIZATION" id="24">
+      <field name="id" type="int32_t"/>
+      <field name="x" type="float" unit="m"/>
+      <field name="y" type="float" unit="m"/>
+      <field name="z" type="float" unit="m"/>
+      <field name="vx" type="float" unit="m/s"/>
+      <field name="vy" type="float" unit="m/s"/>
+      <field name="vz" type="float" unit="m/s"/>
+    </message>
+
+    <message name="INCIDENCE" id="25">
+      <field name="flag" type="uint8_t">bit 1: AoA is updated, bit 2: sideslip is updated</field>
+      <field name="aoa" type="float" unit="rad">Angle of attack</field>
+      <field name="sideslip" type="float" unit="rad">Sideslip angle</field>
+    </message>
+
+    <message name="MANUAL_SETPOINT" id="26">
+      <field name="thrust" type="float">Radio-Control Manual Thrust Setpoint</field>
+      <field name="roll"   type="float">Radio-Control Manual Roll Setpoint</field>
+      <field name="pitch"  type="float">Radio-Control Manual Pitch Setpoint</field>
+      <field name="yaw"    type="float">Radio-Control Manual Yaw Setpoint</field>
+    </message>
+
+    <message name="VISUAL_DETECTION" id="27">
+      <field name="pixel_x"      type="int16_t">Center pixel X</field>
+      <field name="pixel_y"      type="int16_t">Center pixel Y</field>
+      <field name="pixel_width"  type="int16_t">Width in pixels</field>
+      <field name="pixel_height" type="int16_t">Height in pixels</field>
+      <field name="quality"      type="int16_t">Detection quality</field>
+      <field name="extra"        type="int16_t">Extra field for options like detector source etc</field>
     </message>
 
   </msg_class>

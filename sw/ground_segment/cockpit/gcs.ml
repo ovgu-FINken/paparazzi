@@ -43,6 +43,7 @@ let _ =
 let ign = ref false
 let get_bdortho = ref ""
 let auto_center_new_ac = ref false
+let auto_center_ac = ref ""
 let no_alarm = ref false
 
 
@@ -350,6 +351,7 @@ let options =
     "-b", Arg.String (fun x -> ivy_bus := x),(sprintf "<ivy bus> Default is %s" !ivy_bus);
     "-center", Arg.Set_string center, "Initial map center (e.g. 'WGS84 43.605 1.443')";
     "-center_ac", Arg.Set auto_center_new_ac, "Centers the map on any new A/C";
+    "-center_ac_id", Arg.Set_string auto_center_ac, "continuously centers the map on the AC id";
     "-edit", Arg.Unit (fun () -> edit := true; layout_file := "editor.xml"), "Flight plan editor";
     "-fullscreen", Arg.Set fullscreen, "Fullscreen window";
     "-maps_fill", Arg.Set GM.auto, "Automatically start loading background maps";
@@ -499,7 +501,7 @@ let resize = fun (widget:GObj.widget) orientation size ->
 
 let rec pack_widgets = fun orientation xml widgets packing ->
   let size = try Some (ExtXml.int_attrib xml "size") with _ -> None in
-  match Compat.bytes_lowercase (Xml.tag xml) with
+  match Compat.lowercase_ascii (Xml.tag xml) with
       "widget" ->
         let name = ExtXml.attrib xml "name" in
         let widget =
@@ -526,7 +528,7 @@ and pack_list = fun resize orientation xmls widgets packing ->
 
 let rec find_widget_children = fun name xml ->
   let xmls = Xml.children xml in
-  match Compat.bytes_lowercase (Xml.tag xml) with
+  match Compat.lowercase_ascii (Xml.tag xml) with
       "widget" when ExtXml.attrib xml "name" = name -> xmls
     | "rows" | "columns" ->
       let rec loop = function
@@ -540,7 +542,7 @@ let rec find_widget_children = fun name xml ->
 
 let rec replace_widget_children = fun name children xml ->
   let xmls = Xml.children xml
-  and tag = Compat.bytes_lowercase (Xml.tag xml) in
+  and tag = Compat.lowercase_ascii (Xml.tag xml) in
   match tag with
       "widget" ->
         Xml.Element("widget",
@@ -562,7 +564,7 @@ let rec update_widget_size = fun orientation widgets xml ->
     if orientation = `HORIZONTAL then rect.Gtk.width else rect.Gtk.height
   in
   let xmls = Xml.children xml
-  and tag = Compat.bytes_lowercase (Xml.tag xml) in
+  and tag = Compat.lowercase_ascii (Xml.tag xml) in
   match tag with
       "widget" ->
         let name = ExtXml.attrib xml "name" in
@@ -791,7 +793,7 @@ let () =
     begin
       my_alert#add "Waiting for telemetry...";
       Speech.say "Waiting for telemetry...";
-      Live.listen_acs_and_msgs geomap ac_notebook strips_table !confirm_kill my_alert !auto_center_new_ac alt_graph !timestamp
+      Live.listen_acs_and_msgs geomap ac_notebook strips_table !confirm_kill my_alert !auto_center_new_ac !auto_center_ac alt_graph !timestamp
     end;
 
   (** Display the window *)

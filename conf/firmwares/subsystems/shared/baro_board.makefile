@@ -232,7 +232,6 @@ else ifeq ($(BOARD), apogee)
   BARO_BOARD_CFLAGS += -DUSE_I2C1
   BARO_BOARD_SRCS += peripherals/mpl3115.c
   BARO_BOARD_SRCS += $(SRC_BOARD)/baro_board.c
-  BARO_PERIODIC_FREQUENCY ?= 50
 
 # Umarim
 else ifeq ($(BOARD), umarim)
@@ -286,6 +285,15 @@ else ifeq ($(BOARD), chimera)
   BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
   BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
 
+else ifeq ($(BOARD), xvert)
+  BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+  BARO_BOARD_CFLAGS += -DUSE_I2C2
+  BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c2
+  BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_ADDR=MS5611_I2C_SLAVE_ADDR_ALT
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+
 else ifeq ($(BOARD), vms_ecu)
   BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_SPI
   include $(CFG_SHARED)/spi_master.makefile
@@ -304,9 +312,8 @@ BARO_BOARD_CFLAGS += -DBARO_LED=$(BARO_LED)
 endif
 
 # make sure you can also use <configure name="BARO_PERIODIC_FREQUENCY" value="x"/> instead of define
-ifdef BARO_PERIODIC_FREQUENCY
+BARO_PERIODIC_FREQUENCY ?= 50
 BARO_BOARD_CFLAGS += -DBARO_PERIODIC_FREQUENCY=$(BARO_PERIODIC_FREQUENCY)
-endif
 
 ap.CFLAGS += $(BARO_BOARD_CFLAGS)
 ap.srcs += $(BARO_BOARD_SRCS)

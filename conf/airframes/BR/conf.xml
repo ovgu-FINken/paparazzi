@@ -27,7 +27,7 @@
    airframe="airframes/BR/bebop_indi_frog.xml"
    radio="radios/dummy.xml"
    telemetry="telemetry/default_rotorcraft.xml"
-   flight_plan="flight_plans/TUDELFT/tudelft_rotorcraft_survey_delft.xml"
+   flight_plan="flight_plans/tudelft/rotorcraft_survey_delft.xml"
    settings="settings/rotorcraft_basic.xml settings/estimation/ahrs_secondary.xml"
    settings_modules="modules/digital_cam_video.xml modules/video_capture.xml modules/nav_survey_poly_rotorcraft.xml modules/nav_survey_rectangle_rotorcraft.xml modules/video_rtp_stream.xml modules/cv_blob_locator.xml modules/air_data.xml modules/geo_mag.xml modules/ins_extended.xml modules/ahrs_int_cmpl_quat.xml modules/ahrs_float_mlkf.xml modules/stabilization_indi_simple.xml modules/nav_basic_rotorcraft.xml modules/guidance_rotorcraft.xml modules/gps.xml modules/imu_common.xml"
    gui_color="#ffff0689b7a1"
@@ -110,14 +110,15 @@
    gui_color="blue"
   />
   <aircraft
-   name="LadyLisaBartINDI"
-   ac_id="232"
-   airframe="airframes/BR/ladybird_kit_indi_bart.xml"
-   radio="radios/cockpitSX.xml"
+   name="quadshot"
+   ac_id="7"
+   airframe="airframes/BR/quadshot_asp21_FutabaPPMonUart1.xml"
+   radio="radios/R6107SP_7ch.xml"
    telemetry="telemetry/default_rotorcraft.xml"
-   flight_plan="flight_plans/rotorcraft_basic.xml"
-   settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_rate.xml settings/superbitrf.xml settings/control/stabilization_att_indi.xml"
-   settings_modules="modules/geo_mag.xml modules/air_data.xml modules/gps_ubx_ucenter.xml"
+   flight_plan="flight_plans/quadshot_delft.xml"
+   settings="settings/rotorcraft_basic.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/guidance_hybrid.xml modules/stabilization_indi_simple.xml modules/nav_basic_rotorcraft.xml modules/guidance_rotorcraft.xml modules/gps.xml modules/imu_common.xml modules/gps_ubx_ucenter.xml"
    gui_color="blue"
+   release="6b54e33a7f9b16446622ea8213bbdc0283ad829a"
   />
 </conf>

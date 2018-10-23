@@ -151,14 +151,14 @@
     <define name="REF_MAX_R" value="180." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
     <!-- feedback -->
-    <define name="PHI_PGAIN" value="600"/>
-    <define name="PHI_DGAIN" value="150"/>
+    <define name="PHI_PGAIN" value="500"/>
+    <define name="PHI_DGAIN" value="130"/>
     <define name="PHI_IGAIN" value="20"/>
-    <define name="THETA_PGAIN" value="600"/>
-    <define name="THETA_DGAIN" value="150"/>
+    <define name="THETA_PGAIN" value="500"/>
+    <define name="THETA_DGAIN" value="130"/>
     <define name="THETA_IGAIN" value="20"/>
-    <define name="PSI_PGAIN" value="600"/>
-    <define name="PSI_DGAIN" value="100"/>
+    <define name="PSI_PGAIN" value="500"/>
+    <define name="PSI_DGAIN" value="90"/>
     <define name="PSI_IGAIN" value="10"/>
     <!-- feedforward -->
     <define name="PHI_DDGAIN" value="150"/>

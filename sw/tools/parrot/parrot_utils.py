@@ -32,13 +32,6 @@ import argparse
 import re
 
 class ParrotVersion(object):
-    def __init__(self):
-        self.h = 0
-        self.m = 0
-        self.l = 0
-        self.rc = 0
-        self.raw = ''
-
     def __init__(self, s):
         try:
             self.raw = s
@@ -52,7 +45,11 @@ class ParrotVersion(object):
             else:
                 self.rc = 0
         except:
-            self.__init__()
+            self.h = 0
+            self.m = 0
+            self.l = 0
+            self.rc = 0
+            self.raw = ''
 
     def version(self):
         return ( ( (self.h * 100 + self.m) * 100) + self.l) * 100 + self.rc
@@ -112,7 +109,9 @@ class ParrotUtils:
             print('Could not connect to the ' + self.uav_name + ' (address: ' + self.address + ')')
             print('Check if the ' + self.uav_name + ' is turned on and the computer is connected over wifi or bluetooth.')
             if self.address == '192.168.42.1':
-                print("If you are using Bebop 1 or 2, don't forget pressing the power button 4 times after the Bebop has booted!")
+                print("If you are using Bebop 1 or 2, don't forget pressing the power button 4 times after the Bebop has booted!\n")
+                print("And if using Disco pressing the power button 2 times after aircraft powerup.")
+                print("Or run the buttonpress script to get rid of this buttonpress annoyance.")
             exit(2)
 
     # Close the telnet and ftp
@@ -249,7 +248,7 @@ class ParrotUtils:
 
     # Remove a directory
     def remove_directory(self, name):
-        self.sexecute_command('rm -r ' + name)
+        self.execute_command('rm -r ' + name)
         print('Removed directory "' + name + '"')
 
     # Upload a new file
@@ -273,11 +272,11 @@ class ParrotUtils:
     def upload_and_run(self, name, folder, min_ver=None, max_ver=None):
         if self.check_version_before_run and min_ver is not None and max_ver is not None:
             v = self.check_version()
-            print("Checking " + self.uav_name + " firmware version... " + str(v) )
-            if ((v < ParrotVersion(min_ver)) or (v > ParrotVersion(max_ver))):
+            print("Checking " + self.uav_name + " firmware version... " + str(v))
+            if ((not v == ParrotVersion('0.0.0.0')) and ((v < ParrotVersion(min_ver)) or (v > ParrotVersion(max_ver)))):
                 print("Error: please upgrade your " + self.uav_name + " firmware to version between " + min_ver + " and " + max_ver + "!")
                 return
-            
+
         f = self.split_into_path_and_file(name)
 
         # Upload the file

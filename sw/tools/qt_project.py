@@ -96,8 +96,7 @@ for src in srcs:
 # Parse the header files
 headers_all =  ""
 line = "1"
-while line:
-    line=ap_srcs_list.readline()
+for line in ap_srcs_list:    
     line = line.strip()
     if ":" in line:
         line = line.split(":")[-1]
@@ -126,6 +125,8 @@ with open(path.join(home_dir , "sw/tools/qtc.creator.user_template")) as input:
                 output.write(s.replace("!TARGET1!", aircraft + " " + target + ".compile"))
             elif "!TARGET2!" in s:
                 output.write(s.replace("!TARGET2!", aircraft))
+            elif "!TARGET3!" in s:
+                output.write(s.replace("!TARGET3!", aircraft + " " + target + ".upload"))
             elif "!PPRZHOME!" in s:
                 output.write(s.replace("!PPRZHOME!", getenv("PAPARAZZI_HOME")))
             else:

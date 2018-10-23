@@ -80,6 +80,10 @@ PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BO
 
 /* if PRINT_CONFIG is defined, print some config options */
 PRINT_CONFIG_VAR(PERIODIC_FREQUENCY)
+/* SYS_TIME_FREQUENCY/PERIODIC_FREQUENCY should be an integer, otherwise the timer will not be correct */
+#if !(SYS_TIME_FREQUENCY/PERIODIC_FREQUENCY*PERIODIC_FREQUENCY == SYS_TIME_FREQUENCY)
+#warning "The SYS_TIME_FREQUENCY can not be divided by PERIODIC_FREQUENCY. Make sure this is the case for correct timing."
+#endif
 
 /* TELEMETRY_FREQUENCY is defined in generated/periodic_telemetry.h
  * defaults to 60Hz or set by TELEMETRY_FREQUENCY configure option in airframe file
@@ -91,9 +95,7 @@ PRINT_CONFIG_VAR(TELEMETRY_FREQUENCY)
  */
 PRINT_CONFIG_VAR(MODULES_FREQUENCY)
 
-#ifndef BARO_PERIODIC_FREQUENCY
-#define BARO_PERIODIC_FREQUENCY 50
-#endif
+/* BARO_PERIODIC_FREQUENCY is defined in the shared/baro_board.makefile and defaults to 50Hz */
 PRINT_CONFIG_VAR(BARO_PERIODIC_FREQUENCY)
 
 #if USE_AHRS && USE_IMU && (defined AHRS_PROPAGATE_FREQUENCY)
@@ -243,6 +245,11 @@ void main_periodic(void)
   autopilot_periodic();
   /* set actuators     */
   //actuators_set(autopilot_get_motors_on());
+
+#if USE_THROTTLE_CURVES
+  throttle_curve_run(commands, autopilot_get_mode());
+#endif
+
 #ifndef INTER_MCU_AP
   SetActuatorsFromCommands(commands, autopilot_get_mode());
 #else

@@ -60,12 +60,6 @@ PRINT_CONFIG_VAR(VIEWVIDEO_DOWNSIZE_FACTOR)
 #endif
 PRINT_CONFIG_VAR(VIEWVIDEO_QUALITY_FACTOR)
 
-// RTP time increment at 90kHz (default: 0 for automatic)
-#ifndef VIEWVIDEO_RTP_TIME_INC
-#define VIEWVIDEO_RTP_TIME_INC 0
-#endif
-PRINT_CONFIG_VAR(VIEWVIDEO_RTP_TIME_INC)
-
 // Define stream framerate
 #ifndef VIEWVIDEO_FPS
 #define VIEWVIDEO_FPS 5
@@ -116,18 +110,28 @@ struct viewvideo_t viewvideo = {
  * Handles all the video streaming and saving of the image shots
  * This is a separate thread, so it needs to be thread safe!
  */
-static struct image_t *viewvideo_function(struct UdpSocket *socket, struct image_t *img, uint32_t *rtp_frame_nr)
+static struct image_t *viewvideo_function(struct UdpSocket *viewvideo_socket, struct image_t *img, uint16_t *rtp_packet_nr, uint32_t *rtp_frame_time,
+    struct image_t *img_small, struct image_t *img_jpeg)
 {
-  // Resize image if needed
-  struct image_t img_small;
-  image_create(&img_small,
-               img->w / viewvideo.downsize_factor,
-               img->h / viewvideo.downsize_factor,
-               IMAGE_YUV422);
+  // Resize small image if needed
+  if(img_small->buf_size != img->buf_size/(viewvideo.downsize_factor*viewvideo.downsize_factor)){
+    if(img_small->buf != NULL){
+      image_free(img_small);
+    }
+    image_create(img_small,
+                 img->w / viewvideo.downsize_factor,
+                 img->h / viewvideo.downsize_factor,
+                 IMAGE_YUV422);
+  }
 
-  // Create the JPEG encoded image
-  struct image_t img_jpeg;
-  image_create(&img_jpeg, img_small.w, img_small.h, IMAGE_JPEG);
+  // Resize JPEG encoded image if needed
+  if(img_jpeg->w != img_small->w || img_jpeg->h != img_small->h)
+  {
+    if(img_jpeg->buf != NULL){
+      image_free(img_jpeg);
+    }
+    image_create(img_jpeg, img_small->w, img_small->h, IMAGE_JPEG);
+  }
 
 #if VIEWVIDEO_USE_NETCAT
   char nc_cmd[64];
@@ -135,13 +139,12 @@ static struct image_t *viewvideo_function(struct UdpSocket *socket, struct image
 #endif
 
   if (viewvideo.is_streaming) {
-
     // Only resize when needed
     if (viewvideo.downsize_factor != 1) {
-      image_yuv422_downsample(img, &img_small, viewvideo.downsize_factor);
-      jpeg_encode_image(&img_small, &img_jpeg, VIEWVIDEO_QUALITY_FACTOR, VIEWVIDEO_USE_NETCAT);
+      image_yuv422_downsample(img, img_small, viewvideo.downsize_factor);
+      jpeg_encode_image(img_small, img_jpeg, VIEWVIDEO_QUALITY_FACTOR, VIEWVIDEO_USE_NETCAT);
     } else {
-      jpeg_encode_image(img, &img_jpeg, VIEWVIDEO_QUALITY_FACTOR, VIEWVIDEO_USE_NETCAT);
+      jpeg_encode_image(img, img_jpeg, VIEWVIDEO_QUALITY_FACTOR, VIEWVIDEO_USE_NETCAT);
     }
 
 #if VIEWVIDEO_USE_NETCAT
@@ -154,7 +157,7 @@ static struct image_t *viewvideo_function(struct UdpSocket *socket, struct image
       // We are the child and want to send the image
       FILE *netcat = popen(nc_cmd, "w");
       if (netcat != NULL) {
-        fwrite(img_jpeg.buf, sizeof(uint8_t), img_jpeg.buf_size, netcat);
+        fwrite(img_jpeg->buf, sizeof(uint8_t), img_jpeg->buf_size, netcat);
         pclose(netcat); // Ignore output, because it is too much when not connected
       } else {
         printf("[viewvideo] Failed to open netcat process.\n");
@@ -170,37 +173,42 @@ static struct image_t *viewvideo_function(struct UdpSocket *socket, struct image
     if (viewvideo.use_rtp) {
       // Send image with RTP
       rtp_frame_send(
-        socket,              // UDP socket
-        &img_jpeg,
+        viewvideo_socket,         // UDP socket
+        img_jpeg,
         0,                        // Format 422
         VIEWVIDEO_QUALITY_FACTOR, // Jpeg-Quality
         0,                        // DRI Header
-        (img->ts.tv_sec * 1000000 + img->ts.tv_usec),
-        rtp_frame_nr
+        VIEWVIDEO_FPS,
+        //(img->ts.tv_sec * 1000000 + img->ts.tv_usec),
+        rtp_packet_nr,
+        rtp_frame_time
       );
     }
 #endif
   }
 
-  // Free all buffers
-  image_free(&img_jpeg);
-  image_free(&img_small);
   return NULL; // No new images were created
 }
 
 #ifdef VIEWVIDEO_CAMERA
 static struct image_t *viewvideo_function1(struct image_t *img)
 {
-  static uint32_t rtp_frame_nr = 0;
-  return viewvideo_function(&video_sock1, img, &rtp_frame_nr);
+  static uint16_t rtp_packet_nr = 0;
+  static uint32_t rtp_frame_time = 0;
+  static struct image_t img_small = {.buf=NULL, .buf_size=0};
+  static struct image_t img_jpeg = {.buf=NULL, .buf_size=0};
+  return viewvideo_function(&video_sock1, img, &rtp_packet_nr, &rtp_frame_time, &img_small, &img_jpeg);
 }
 #endif
 
 #ifdef VIEWVIDEO_CAMERA2
 static struct image_t *viewvideo_function2(struct image_t *img)
 {
-  static uint32_t rtp_frame_nr = 0;
-  return viewvideo_function(&video_sock2, img, &rtp_frame_nr);
+  static uint16_t rtp_packet_nr = 0;
+  static uint32_t rtp_frame_time = 0;
+  static struct image_t img_small = {.buf=NULL, .buf_size=0};
+  static struct image_t img_jpeg = {.buf=NULL, .buf_size=0};
+  return viewvideo_function(&video_sock2, img, &rtp_packet_nr, &rtp_frame_time, &img_small, &img_jpeg);
 }
 #endif
 
@@ -210,6 +218,15 @@ static struct image_t *viewvideo_function2(struct image_t *img)
 void viewvideo_init(void)
 {
   viewvideo.is_streaming = true;
+
+  // safety check
+  if(viewvideo.downsize_factor < 1){
+    viewvideo.downsize_factor = 1;
+  }
+
+  if(viewvideo.quality_factor > 99){
+    viewvideo.quality_factor = 99;
+  }
 
 #if VIEWVIDEO_USE_NETCAT
   // Create an Netcat receiver file for the streaming
@@ -245,14 +262,14 @@ void viewvideo_init(void)
 #endif
 
 #ifdef VIEWVIDEO_CAMERA
-  struct video_listener *listener1 = cv_add_to_device_async(&VIEWVIDEO_CAMERA, viewvideo_function1,
-                                     VIEWVIDEO_NICE_LEVEL, VIEWVIDEO_FPS);
+  cv_add_to_device_async(&VIEWVIDEO_CAMERA, viewvideo_function1,
+                         VIEWVIDEO_NICE_LEVEL, VIEWVIDEO_FPS);
   fprintf(stderr, "[viewvideo] Added asynchronous video streamer listener for CAMERA1 at %u FPS \n", VIEWVIDEO_FPS);
 #endif
 
 #ifdef VIEWVIDEO_CAMERA2
-  struct video_listener *listener2 = cv_add_to_device_async(&VIEWVIDEO_CAMERA2, viewvideo_function2,
-                                     VIEWVIDEO_NICE_LEVEL, VIEWVIDEO_FPS);
+  cv_add_to_device_async(&VIEWVIDEO_CAMERA2, viewvideo_function2,
+                         VIEWVIDEO_NICE_LEVEL, VIEWVIDEO_FPS);
   fprintf(stderr, "[viewvideo] Added asynchronous video streamer listener for CAMERA2 at %u FPS \n", VIEWVIDEO_FPS);
 #endif
 }

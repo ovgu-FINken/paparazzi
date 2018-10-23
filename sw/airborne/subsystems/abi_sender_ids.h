@@ -34,7 +34,7 @@
 #endif
 
 /*
- * IDs of baro modules that can be loaded
+ * IDs of baro modules that can be loaded (message 0)
  */
 #ifndef BARO_MS5611_SENDER_ID
 #define BARO_MS5611_SENDER_ID 10
@@ -68,10 +68,6 @@
 #define BARO_SCP_SENDER_ID 17
 #endif
 
-#ifndef BARO_PBN_SENDER_ID
-#define BARO_PBN_SENDER_ID 18
-#endif
-
 #ifndef BARO_SIM_SENDER_ID
 #define BARO_SIM_SENDER_ID 19
 #endif
@@ -81,7 +77,7 @@
 #endif
 
 /*
- * IDs of differential pressure sensors
+ * IDs of differential pressure sensors (message 1)
  * can usually also publish temperature like baro sensors
  */
 #ifndef MS45XX_SENDER_ID
@@ -89,7 +85,33 @@
 #endif
 
 /*
- * IDs of AGL measurment modules that can be loaded (sonars,...)
+ * IDs of airspeed sensors (message 14)
+ */
+#ifndef AIRSPEED_NPS_ID
+#define AIRSPEED_NPS_ID 1
+#endif
+
+#ifndef AIRSPEED_ADC_ID
+#define AIRSPEED_ADC_ID 2
+#endif
+
+/*
+ * IDs of Incidence angles (message 24)
+ */
+#ifndef AOA_ADC_ID
+#define AOA_ADC_ID 1
+#endif
+
+#ifndef AOA_PWM_ID
+#define AOA_PWM_ID 2
+#endif
+
+#ifndef INCIDENCE_NPS_ID
+#define INCIDENCE_NPS_ID 20
+#endif
+
+/*
+ * IDs of AGL measurment modules that can be loaded (sonars,...) (message 2)
  */
 #ifndef AGL_SONAR_ADC_ID
 #define AGL_SONAR_ADC_ID 1
@@ -123,6 +145,14 @@
 #define AGL_LIDAR_SF11_ID 8
 #endif
 
+#ifndef AGL_VL53L0_LASER_ARRAY_ID
+#define AGL_VL53L0_LASER_ARRAY_ID 9
+#endif
+
+#ifndef AGL_RAY_SENSOR_GAZEBO_ID
+#define AGL_RAY_SENSOR_GAZEBO_ID 10
+#endif
+
 /*
  * IDs of magnetometer sensors (including IMUs with mag)
  */
@@ -136,7 +166,7 @@
 #endif
 
 /*
- * IDs of GPS sensors
+ * IDs of GPS sensors (message 10)
  */
 #ifndef GPS_UBX_ID
 #define GPS_UBX_ID 1
@@ -265,16 +295,38 @@
 #define IMU_MPU60X0_ID 16
 #endif
 
-#ifndef PX4FLOW_VELOCITY_ID
-#define PX4FLOW_VELOCITY_ID 17
-#endif
-
 #ifndef IMU_PX4_ID
-#define IMU_PX4_ID 18
+#define IMU_PX4_ID 17
 #endif
 
 #ifndef IMU_VECTORNAV_ID
-#define IMU_VECTORNAV_ID 19
+#define IMU_VECTORNAV_ID 18
+#endif
+
+/*
+ * IDs of OPTICFLOW estimates (message 11)
+ */
+#ifndef FLOW_OPTICFLOW_ID
+#define FLOW_OPTICFLOW_ID 1
+#endif
+
+/*
+ * IDs of VELOCITY estimates (message 12)
+ */
+#ifndef VEL_DRAGSPEED_ID
+#define VEL_DRAGSPEED_ID 1
+#endif
+
+#ifndef VEL_PX4FLOW_ID
+#define VEL_PX4FLOW_ID 2
+#endif
+
+#ifndef VEL_OPTICFLOW_ID
+#define VEL_OPTICFLOW_ID 3
+#endif
+
+#ifndef VEL_STEREOCAM_ID
+#define VEL_STEREOCAM_ID 4
 #endif
 
 /*
@@ -302,14 +354,63 @@
 #define MAG_CALIB_UKF_ID 20
 #endif
 
-
 /*
- * IDs of Computer Vision Calculated variables
- */
-
-#ifndef CV_COLORDETECTION
-#define CV_COLORDETECTION 1
+ * UWB communication (message 19)
+*/
+#ifndef UWB_COMM_ID
+#define UWB_COMM_ID 1
 #endif
 
+/*
+ * IDs of Obstacle detection systems
+ */
+
+#ifndef OBS_DETECTION_COLOR_ID
+#define OBS_DETECTION_COLOR_ID 1
+#endif
+
+#ifndef OBS_DETECTION_RANGE_ARRAY_ID
+#define OBS_DETECTION_RANGE_ARRAY_ID 2
+#endif
+
+#ifndef OBS_DETECTION_RANGE_ARRAY_NPS_ID
+#define OBS_DETECTION_RANGE_ARRAY_NPS_ID 3
+#endif
+
+/*
+ * ID's of forcefield generating type functions
+ */
+
+#ifndef RANGE_FORCEFIELD_ID
+#define RANGE_FORCEFIELD_ID 1
+#endif
+
+/*
+ * ID's for camera type sensors
+ */
+
+#ifndef CAM_JEVOIS_ID
+#define CAM_JEVOIS_ID 1
+#endif
+
+/*
+ * IDs of ACCEL_SP senders (message 21)
+ */
+
+#ifndef ACCEL_SP_FCR_ID
+#define ACCEL_SP_FCR_ID 1 // Formation Control Rotorcraft
+#endif
+
+/*
+ * RELATIVE_LOCALIZATION communication (message 24)
+*/
+#ifndef RELATIVE_LOCALIZATION_ID
+#define RELATIVE_LOCALIZATION_ID 1
+#endif
+
+
+#ifndef DETECT_GATE_ABI_ID
+#define DETECT_GATE_ABI_ID 33
+#endif
 
 #endif /* ABI_SENDER_IDS_H */

@@ -69,7 +69,7 @@ static int32_t omega_disp;
 static int32_t high_res_psi;
 static int32_t airspeed_sp_heading_disp;
 static bool guidance_hovering;
-static bool force_forward_flight;
+bool force_forward_flight;
 static int32_t v_control_pitch;
 
 #if PERIODIC_TELEMETRY
@@ -123,7 +123,7 @@ void guidance_hybrid_init(void)
 
 #define INT32_ANGLE_HIGH_RES_NORMALIZE(_a) {             \
     while ((_a) > (INT32_ANGLE_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC)))  (_a) -= (INT32_ANGLE_2_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC));    \
-    while ((_a) < (-INT32_ANGLE_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC))) (_a) += (INT32_ANGLE_2_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC));    \
+    while ((_a) < -(INT32_ANGLE_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC))) (_a) += (INT32_ANGLE_2_PI << (INT32_ANGLE_HIGH_RES_FRAC - INT32_ANGLE_FRAC));    \
   }
 
 void guidance_hybrid_run(void)

@@ -53,19 +53,16 @@
 
 #include "math/pprz_geodetic_int.h"
 #include "math/pprz_isa.h"
+#include "math/pprz_stat.h"
 
+#ifndef VFF_R_AGL
+#define VFF_R_AGL 0.2
+#endif
 
 #if USE_SONAR
 #if !USE_VFF_EXTENDED
 #error USE_SONAR needs USE_VFF_EXTENDED
 #endif
-
-/** default sonar to use in INS */
-#ifndef INS_INT_SONAR_ID
-#define INS_INT_SONAR_ID ABI_BROADCAST
-#endif
-abi_event sonar_ev;
-static void sonar_cb(uint8_t sender_id, float distance);
 
 #ifdef INS_SONAR_THROTTLE_THRESHOLD
 #include "firmwares/rotorcraft/stabilization.h"
@@ -77,7 +74,7 @@ static void sonar_cb(uint8_t sender_id, float distance);
 #ifndef INS_SONAR_MAX_RANGE
 #define INS_SONAR_MAX_RANGE 4.0
 #endif
-#define VFF_R_SONAR_0 0.1
+#define VFF_R_SONAR_0 0.2
 #ifndef VFF_R_SONAR_OF_M
 #define VFF_R_SONAR_OF_M 0.2
 #endif
@@ -110,6 +107,7 @@ PRINT_CONFIG_MSG("USE_INS_NAV_INIT defaulting to TRUE")
 #endif
 
 /** default barometer to use in INS */
+#define INS_BARO_MAX_INIT_VAR 1.f  // variance threshold to set initial baro measurement
 #ifndef INS_INT_BARO_ID
 #if USE_BARO_BOARD
 #define INS_INT_BARO_ID BARO_BOARD_SENDER_ID
@@ -143,7 +141,27 @@ static void gps_cb(uint8_t sender_id, uint32_t stamp, struct GpsState *gps_s);
 #define INS_INT_VEL_ID ABI_BROADCAST
 #endif
 static abi_event vel_est_ev;
-static void vel_est_cb(uint8_t sender_id, uint32_t stamp, float x, float y, float z, float noise);
+static void vel_est_cb(uint8_t sender_id,
+                       uint32_t stamp,
+                       float x, float y, float z,
+                       float noise_x, float noise_y, float noise_z);
+#ifndef INS_INT_POS_ID
+#define INS_INT_POS_ID ABI_BROADCAST
+#endif
+static abi_event pos_est_ev;
+static void pos_est_cb(uint8_t sender_id,
+                       uint32_t stamp,
+                       float x, float y, float z,
+                       float noise_x, float noise_y, float noise_z);
+
+/** ABI binding for AGL.
+ * Usually this is comes from sonar or gps.
+ */
+#ifndef INS_INT_AGL_ID
+#define INS_INT_AGL_ID ABI_BROADCAST
+#endif
+static abi_event agl_ev;                 ///< The agl ABI event
+static void agl_cb(uint8_t sender_id, float distance);
 
 struct InsInt ins_int;
 
@@ -201,8 +219,6 @@ void ins_int_init(void)
 
 #if USE_SONAR
   ins_int.update_on_agl = INS_SONAR_UPDATE_ON_AGL;
-  // Bind to AGL message
-  AbiBindMsgAGL(INS_INT_SONAR_ID, &sonar_ev, sonar_cb);
 #endif
 
   ins_int.vf_reset = false;
@@ -211,7 +227,7 @@ void ins_int_init(void)
   /* init vertical and horizontal filters */
   vff_init_zero();
 #if USE_HFF
-  b2_hff_init(0., 0., 0., 0.);
+  hff_init(0., 0., 0., 0.);
 #endif
 
   INT32_VECT3_ZERO(ins_int.ltp_pos);
@@ -230,6 +246,8 @@ void ins_int_init(void)
   AbiBindMsgIMU_ACCEL_INT32(INS_INT_IMU_ID, &accel_ev, accel_cb);
   AbiBindMsgGPS(INS_INT_GPS_ID, &gps_ev, gps_cb);
   AbiBindMsgVELOCITY_ESTIMATE(INS_INT_VEL_ID, &vel_est_ev, vel_est_cb);
+  AbiBindMsgPOSITION_ESTIMATE(INS_INT_POS_ID, &pos_est_ev, pos_est_cb);
+  AbiBindMsgAGL(INS_INT_AGL_ID, &agl_ev, agl_cb); // ABI to the altitude above ground level
 }
 
 void ins_reset_local_origin(void)
@@ -257,14 +275,16 @@ void ins_reset_local_origin(void)
 void ins_reset_altitude_ref(void)
 {
 #if USE_GPS
-  struct LlaCoor_i lla = {
-    .lat = state.ned_origin_i.lla.lat,
-    .lon = state.ned_origin_i.lla.lon,
-    .alt = gps.lla_pos.alt
-  };
-  ltp_def_from_lla_i(&ins_int.ltp_def, &lla);
-  ins_int.ltp_def.hmsl = gps.hmsl;
-  stateSetLocalOrigin_i(&ins_int.ltp_def);
+  if (GpsFixValid()) {
+    struct LlaCoor_i lla = {
+      .lat = state.ned_origin_i.lla.lat,
+      .lon = state.ned_origin_i.lla.lon,
+      .alt = gps.lla_pos.alt
+    };
+    ltp_def_from_lla_i(&ins_int.ltp_def, &lla);
+    ins_int.ltp_def.hmsl = gps.hmsl;
+    stateSetLocalOrigin_i(&ins_int.ltp_def);
+  }
 #endif
   ins_int.vf_reset = true;
 }
@@ -298,7 +318,7 @@ void ins_int_propagate(struct Int32Vect3 *accel, float dt)
 
 #if USE_HFF
   /* propagate horizontal filter */
-  b2_hff_propagate();
+  hff_propagate();
   /* convert and copy result to ins_int */
   ins_update_from_hff();
 #else
@@ -316,39 +336,56 @@ void ins_int_propagate(struct Int32Vect3 *accel, float dt)
 
 static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
 {
-  if (!ins_int.baro_initialized && pressure > 1e-7) {
-    // wait for a first positive value
-    ins_int.qfe = pressure;
-    ins_int.baro_initialized = true;
+  if (pressure < 1.f)
+  {
+    // bad baro pressure, don't use
+    return;
+  }
+
+  if (!ins_int.baro_initialized) {
+#define press_hist_len 10
+    static float press_hist[press_hist_len];
+    static uint8_t idx = 0;
+
+    press_hist[idx] = pressure;
+    idx = (idx + 1) % press_hist_len;
+    float var = variance_f(press_hist, press_hist_len);
+    if (var < INS_BARO_MAX_INIT_VAR){
+      // wait for a first positive value
+      ins_int.vf_reset = true;
+      ins_int.baro_initialized = true;
+    }
   }
 
   if (ins_int.baro_initialized) {
-    if (ins_int.vf_reset) {
-      ins_int.vf_reset = false;
-      ins_int.qfe = pressure;
-      vff_realign(0.);
-      ins_update_from_vff();
-    } else {
-      float baro_up = pprz_isa_height_of_pressure(pressure, ins_int.qfe);
-
+    float height_correction = 0.f;
+    if(ins_int.ltp_initialized){
       // Calculate the distance to the origin
       struct EnuCoor_f *enu = stateGetPositionEnu_f();
-      double dist2_to_origin = enu->x*enu->x + enu->y*enu->y;
+      double dist2_to_origin = enu->x * enu->x + enu->y * enu->y;
 
       // correction for the earth's curvature
       const double earth_radius = 6378137.0;
-      float height_correction = (float) (sqrt(earth_radius*earth_radius + dist2_to_origin) - earth_radius);
+      height_correction = (float)(sqrt(earth_radius * earth_radius + dist2_to_origin) - earth_radius);
+    }
 
-      // The VFF will update in the NED frame
-      ins_int.baro_z = -(baro_up - height_correction);
+    if (ins_int.vf_reset) {
+      ins_int.vf_reset = false;
+      ins_int.qfe = pressure;
+      vff_realign(height_correction);
+      ins_update_from_vff();
+    }
+
+    float baro_up = pprz_isa_height_of_pressure(pressure, ins_int.qfe);
+
+    // The VFF will update in the NED frame
+    ins_int.baro_z = -(baro_up - height_correction);
 
 #if USE_VFF_EXTENDED
-      vff_update_baro(ins_int.baro_z);
+    vff_update_baro(ins_int.baro_z);
 #else
-      vff_update(ins_int.baro_z);
+    vff_update(ins_int.baro_z);
 #endif
-    }
-    ins_ned_to_state();
 
     /* reset the counter to indicate we just had a measurement update */
     ins_int.propagation_cnt = 0;
@@ -406,15 +443,14 @@ void ins_int_update_gps(struct GpsState *gps_s)
 
   struct FloatVect2 gps_speed_m_s_ned;
   VECT2_ASSIGN(gps_speed_m_s_ned, gps_speed_cm_s_ned.x, gps_speed_cm_s_ned.y);
-  VECT2_SDIV(gps_speed_m_s_ned, gps_speed_m_s_ned, 100.);
+  VECT2_SDIV(gps_speed_m_s_ned, gps_speed_m_s_ned, 100.f);
 
   if (ins_int.hf_realign) {
     ins_int.hf_realign = false;
-    const struct FloatVect2 zero = {0.0f, 0.0f};
-    b2_hff_realign(gps_pos_m_ned, zero);
+    hff_realign(gps_pos_m_ned, gps_speed_m_s_ned);
   }
   // run horizontal filter
-  b2_hff_update_gps(&gps_pos_m_ned, &gps_speed_m_s_ned);
+  hff_update_gps(&gps_pos_m_ned, &gps_speed_m_s_ned);
   // convert and copy result to ins_int
   ins_update_from_hff();
 
@@ -435,33 +471,44 @@ void ins_int_update_gps(struct GpsState *gps_s)
 void ins_int_update_gps(struct GpsState *gps_s __attribute__((unused))) {}
 #endif /* USE_GPS */
 
-
-#if USE_SONAR
-static void sonar_cb(uint8_t __attribute__((unused)) sender_id, float distance)
-{
-  static float last_offset = 0.;
-
-  /* update filter assuming a flat ground */
-  if (distance < INS_SONAR_MAX_RANGE && distance > INS_SONAR_MIN_RANGE
-#ifdef INS_SONAR_THROTTLE_THRESHOLD
-      && stabilization_cmd[COMMAND_THRUST] < INS_SONAR_THROTTLE_THRESHOLD
-#endif
-#ifdef INS_SONAR_BARO_THRESHOLD
-      && ins_int.baro_z > -INS_SONAR_BARO_THRESHOLD /* z down */
-#endif
-      && ins_int.update_on_agl
-      && ins_int.baro_initialized) {
-    vff_update_z_conf(-(distance), VFF_R_SONAR_0 + VFF_R_SONAR_OF_M * fabsf(distance));
-    last_offset = vff.offset;
-  } else {
-    /* update offset with last value to avoid divergence */
-    vff_update_offset(last_offset);
+/** agl_cb
+ * This callback handles all estimates of the height of the vehicle above the ground under it
+ * This is only used with the extended version of the vertical float filter
+ */
+#if USE_VFF_EXTENDED
+static void agl_cb(uint8_t __attribute__((unused)) sender_id, float distance) {
+  if (distance <= 0 || !(ins_int.baro_initialized)) {
+    return;
   }
 
-  /* reset the counter to indicate we just had a measurement update */
-  ins_int.propagation_cnt = 0;
+#if USE_SONAR
+  if (distance > INS_SONAR_MAX_RANGE || distance < INS_SONAR_MIN_RANGE){
+    return;
+  }
+#endif
+#ifdef INS_AGL_THROTTLE_THRESHOLD
+   if(stabilization_cmd[COMMAND_THRUST] < INS_AGL_THROTTLE_THRESHOLD){
+     return;
+   }
+#endif
+#ifdef INS_AGL_BARO_THRESHOLD
+  if(ins_int.baro_z < -INS_SONAR_BARO_THRESHOLD){ /* z down */
+    return;
+  }
+#endif
+
+#if USE_SONAR
+  vff_update_agl(-distance, VFF_R_SONAR_0 + VFF_R_SONAR_OF_M * fabsf(distance));
+#else
+  // TODO: this assumes that you will either have sonar or other agl sensor never both
+  vff_update_agl(-distance, VFF_R_AGL);
+#endif
+    /* reset the counter to indicate we just had a measurement update */
+    ins_int.propagation_cnt = 0;
 }
-#endif // USE_SONAR
+#else
+static void agl_cb(uint8_t __attribute__((unused)) sender_id, __attribute__((unused)) float distance) {}
+#endif
 
 /** copy position and speed to state interface */
 static void ins_ned_to_state(void)
@@ -489,12 +536,12 @@ static void ins_update_from_vff(void)
 /** update ins state from horizontal filter */
 static void ins_update_from_hff(void)
 {
-  ins_int.ltp_accel.x = ACCEL_BFP_OF_REAL(b2_hff_state.xdotdot);
-  ins_int.ltp_accel.y = ACCEL_BFP_OF_REAL(b2_hff_state.ydotdot);
-  ins_int.ltp_speed.x = SPEED_BFP_OF_REAL(b2_hff_state.xdot);
-  ins_int.ltp_speed.y = SPEED_BFP_OF_REAL(b2_hff_state.ydot);
-  ins_int.ltp_pos.x   = POS_BFP_OF_REAL(b2_hff_state.x);
-  ins_int.ltp_pos.y   = POS_BFP_OF_REAL(b2_hff_state.y);
+  ins_int.ltp_accel.x = ACCEL_BFP_OF_REAL(hff.xdotdot);
+  ins_int.ltp_accel.y = ACCEL_BFP_OF_REAL(hff.ydotdot);
+  ins_int.ltp_speed.x = SPEED_BFP_OF_REAL(hff.xdot);
+  ins_int.ltp_speed.y = SPEED_BFP_OF_REAL(hff.ydot);
+  ins_int.ltp_pos.x   = POS_BFP_OF_REAL(hff.x);
+  ins_int.ltp_pos.y   = POS_BFP_OF_REAL(hff.y);
 }
 #endif
 
@@ -520,15 +567,15 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
   ins_int_update_gps(gps_s);
 }
 
+/* body relative velocity estimate
+ *
+ */
 static void vel_est_cb(uint8_t sender_id __attribute__((unused)),
-                       uint32_t stamp,
+                       uint32_t stamp __attribute__((unused)),
                        float x, float y, float z,
-                       float noise __attribute__((unused)))
+                       float noise_x, float noise_y, float noise_z)
 {
-
   struct FloatVect3 vel_body = {x, y, z};
-  static uint32_t last_stamp = 0;
-  float dt = 0;
 
   /* rotate velocity estimate to nav/ltp frame */
   struct FloatQuat q_b2n = *stateGetNedToBodyQuat_f();
@@ -536,28 +583,79 @@ static void vel_est_cb(uint8_t sender_id __attribute__((unused)),
   struct FloatVect3 vel_ned;
   float_quat_vmult(&vel_ned, &q_b2n, &vel_body);
 
-  if (last_stamp > 0) {
-    dt = (float)(stamp - last_stamp) * 1e-6;
-  }
-
-  last_stamp = stamp;
-
+  // abi message contains an update to the horizontal velocity estimate
 #if USE_HFF
-  (void)dt; //dt is unused variable in this define
-
   struct FloatVect2 vel = {vel_ned.x, vel_ned.y};
-  struct FloatVect2 Rvel = {noise, noise};
+  struct FloatVect2 Rvel = {noise_x, noise_y};
 
-  b2_hff_update_vel(vel,  Rvel);
+  hff_update_vel(vel,  Rvel);
   ins_update_from_hff();
 #else
-  ins_int.ltp_speed.x = SPEED_BFP_OF_REAL(vel_ned.x);
-  ins_int.ltp_speed.y = SPEED_BFP_OF_REAL(vel_ned.y);
-  if (last_stamp > 0) {
-    ins_int.ltp_pos.x = ins_int.ltp_pos.x + POS_BFP_OF_REAL(dt * vel_ned.x);
-    ins_int.ltp_pos.y = ins_int.ltp_pos.y + POS_BFP_OF_REAL(dt * vel_ned.y);
+  if (noise_x >= 0.f)
+  {
+    ins_int.ltp_speed.x = SPEED_BFP_OF_REAL(vel_ned.x);
+  }
+  if (noise_y >= 0.f)
+  {
+    ins_int.ltp_speed.y = SPEED_BFP_OF_REAL(vel_ned.y);
+  }
+
+  static uint32_t last_stamp_x = 0, last_stamp_y = 0;
+  if (noise_x >= 0.f) {
+    if (last_stamp_x > 0)
+    {
+      float dt = (float)(stamp - last_stamp_x) * 1e-6;
+      ins_int.ltp_pos.x += POS_BFP_OF_REAL(dt * vel_ned.x);
+    }
+    last_stamp_x = stamp;
+  }
+
+  if (noise_y >= 0.f)
+  {
+    if (last_stamp_y > 0)
+    {
+      float dt = (float)(stamp - last_stamp_y) * 1e-6;
+      ins_int.ltp_pos.y += POS_BFP_OF_REAL(dt * vel_ned.y);
+    }
+    last_stamp_y = stamp;
   }
 #endif
+
+  // abi message contains an update to the vertical velocity estimate
+  vff_update_vz_conf(vel_ned.z, noise_z);
+
+  ins_ned_to_state();
+
+  /* reset the counter to indicate we just had a measurement update */
+  ins_int.propagation_cnt = 0;
+}
+
+/* NED position estimate relative to ltp origin
+ */
+static void pos_est_cb(uint8_t sender_id __attribute__((unused)),
+                       uint32_t stamp __attribute__((unused)),
+                       float x, float y, float z,
+                       float noise_x, float noise_y, float noise_z)
+{
+  
+#if USE_HFF
+  struct FloatVect2 pos = {x, y};
+  struct FloatVect2 Rpos = {noise_x, noise_y};
+
+  hff_update_pos(pos, Rpos);
+  ins_update_from_hff();
+#else
+  if (noise_x >= 0.f)
+  {
+    ins_int.ltp_pos.x = POS_BFP_OF_REAL(x);
+  }
+  if (noise_y >= 0.f)
+  {
+    ins_int.ltp_pos.y = POS_BFP_OF_REAL(y);
+  }
+#endif
+
+  vff_update_z_conf(z, noise_z);
 
   ins_ned_to_state();
 

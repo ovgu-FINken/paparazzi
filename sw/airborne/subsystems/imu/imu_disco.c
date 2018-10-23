@@ -44,8 +44,16 @@ PRINT_CONFIG_VAR(DISCO_MPU_I2C_DEV)
 #define DISCO_LOWPASS_FILTER MPU60X0_DLPF_42HZ
 #define DISCO_SMPLRT_DIV 9
 PRINT_CONFIG_MSG("Gyro/Accel output rate is 100Hz at 1kHz internal sampling")
+#elif PERIODIC_FREQUENCY == 512
+/* Accelerometer: Bandwidth 260Hz, Delay 0ms
+ * Gyroscope: Bandwidth 256Hz, Delay 0.98ms sampling 8kHz
+ */
+#define DISCO_LOWPASS_FILTER MPU60X0_DLPF_256HZ
+#define DISCO_SMPLRT_DIV 3
+PRINT_CONFIG_MSG("Gyro/Accel output rate is 2kHz at 8kHz internal sampling")
 #endif
 #endif
+
 PRINT_CONFIG_VAR(DISCO_SMPLRT_DIV)
 PRINT_CONFIG_VAR(DISCO_LOWPASS_FILTER)
 
@@ -73,7 +81,7 @@ void imu_disco_init(void)
 
 /**
  * Handle all the periodic tasks of the Disco IMU components.
- * Read the MPU60x0 every periodic call and the HMC58XX every 10th call.
+ * Read the MPU60x0 every periodic call and the AKM8963 every 10th call.
  */
 void imu_disco_periodic(void)
 {

@@ -32,6 +32,8 @@
 #include "math/pprz_geodetic_float.h"
 #include "math/pprz_geodetic_int.h"
 
+#include "xsens_parser.h"
+
 #if USE_GPS_XSENS
 #include "subsystems/gps.h"
 #endif
@@ -60,7 +62,7 @@ struct Xsens {
   struct FloatQuat quat;
   struct FloatEulers euler;
 
-  volatile bool msg_received;
+  struct XsensParser parser;
   volatile bool new_attitude;
 
   bool gyro_available;

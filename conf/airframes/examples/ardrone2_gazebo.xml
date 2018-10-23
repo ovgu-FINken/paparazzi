@@ -22,18 +22,24 @@
     <module name="stabilization" type="int_quat"/>
     <module name="ahrs" type="int_cmpl_quat"/>
     <module name="ins" type="extended"/>
-  </firmware>
-
-  <modules main_freq="512">
+    
     <module name="bat_voltage_ardrone2"/>
-    <!-- remove the gps_ubx_ucenter module if you use the sirf gps (flight recorder) -->
-    <module name="gps" type="ubx_ucenter"/>
+    
     <module name="send_imu_mag_current"/>
     <module name="air_data"/>
     <module name="geo_mag"/>
-    <!--module name="logger_file"/-->
-    <module name="video_thread">
+    
+    <module name="video_thread"/>
+    
+    <module name="cv_opticflow">
+      <define name="OPTICFLOW_CAMERA" value="bottom_camera"/>
+      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_X" value="0.8"/> <!--Obtained from a linefit--> 
+      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_Y" value="0.85"/> <!--Obtained from a linefit-->
+      <!-- ARDrone2 FPS improvements - Remaining in sync with real life-->
+      <define name="OPTICFLOW_PYRAMID_LEVEL" value="0"/>
+      <define name="OPTICFLOW_FEATURE_MANAGEMENT" value="1"/> 
     </module>
+
     <module name="cv_colorfilter">
       <define name="COLORFILTER_CAMERA" value="front_camera"/>
       <!--define name="COLORFILTER_SEND_OBSTACLE" value="TRUE"/-->  <!-- If you want to test out the guided flightplan, uncomment this define-->  
@@ -44,7 +50,7 @@
       <define name="VIEWVIDEO_DOWNSIZE_FACTOR" value="4"/>
       <define name="VIEWVIDEO_QUALITY_FACTOR" value="60"/>
     </module>
-  </modules>
+  </firmware>
 
   <commands>
     <axis name="PITCH" failsafe_value="0"/>
@@ -185,13 +191,10 @@
 
   <section name="SIMULATOR" prefix="NPS_">
     <define name="ACTUATOR_NAMES" value="nw_motor, ne_motor, se_motor, sw_motor" type="string[]"/>
-    <define name="ACTUATOR_THRUSTS" value="1.55, 1.55, 1.55, 1.55" type="double[]"/>
-    <define name="ACTUATOR_TORQUES" value="0.155, -0.155, 0.155, -0.155" type="double[]"/>
     <define name="JSBSIM_MODEL" value="simple_ardrone2" type="string"/>
     <define name="SENSORS_PARAMS" value="nps_sensors_params_ardrone2.h" type="string"/>
-    <define name="BYPASS_AHRS" value="1"/>
-    <define name="SIMULATE_VIDEO" value="1"/>
   </section>
+  <include href="conf/simulator/gazebo/airframes/ardrone2.xml"/>
 
   <section name="AUTOPILOT">
     <define name="MODE_STARTUP" value="AP_MODE_NAV"/>

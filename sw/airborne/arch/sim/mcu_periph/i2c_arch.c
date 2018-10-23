@@ -30,7 +30,7 @@
 bool i2c_idle(struct i2c_periph *p __attribute__((unused))) { return true; }
 bool i2c_submit(struct i2c_periph *p __attribute__((unused)), struct i2c_transaction *t __attribute__((unused))) { return true;}
 void i2c_event(void) { }
-void i2c2_setbitrate(int bitrate __attribute__((unused))) { }
+void i2c_setbitrate(struct i2c_periph *p __attribute__((unused)), int bitrate __attribute__((unused))) { }
 
 #if USE_I2C0
 struct i2c_errors i2c0_errors;
@@ -41,13 +41,6 @@ void i2c0_hw_init(void)
   ZEROS_ERR_COUNTER(i2c0_errors);
 }
 
-void i2c0_ev_isr(void)
-{
-}
-
-void i2c0_er_isr(void)
-{
-}
 #endif
 
 #if USE_I2C1
@@ -59,13 +52,6 @@ void i2c1_hw_init(void)
   ZEROS_ERR_COUNTER(i2c1_errors);
 }
 
-void i2c1_ev_isr(void)
-{
-}
-
-void i2c1_er_isr(void)
-{
-}
 #endif
 
 #if USE_I2C2
@@ -77,11 +63,4 @@ void i2c2_hw_init(void)
   ZEROS_ERR_COUNTER(i2c2_errors);
 }
 
-void i2c2_ev_isr(void)
-{
-}
-
-void i2c2_er_isr(void)
-{
-}
 #endif

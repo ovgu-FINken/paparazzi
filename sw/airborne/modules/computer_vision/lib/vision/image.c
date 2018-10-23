@@ -27,6 +27,7 @@
 #include "image.h"
 #include <stdlib.h>
 #include <string.h>
+#include "lucas_kanade.h"
 
 /**
  * Create a new image
@@ -84,6 +85,8 @@ void image_copy(struct image_t *input, struct image_t *output)
   output->h = input->h;
   output->buf_size = input->buf_size;
   output->ts = input->ts;
+  output->eulers = input->eulers;
+  output->pprz_ts = input->pprz_ts;
   memcpy(output->buf, input->buf, input->buf_size);
 }
 
@@ -121,6 +124,8 @@ void image_to_grayscale(struct image_t *input, struct image_t *output)
 
   // Copy the creation timestamp (stays the same)
   output->ts = input->ts;
+  output->eulers = input->eulers;
+  output->pprz_ts = input->pprz_ts;
 
   // Copy the pixels
   for (int y = 0; y < output->h; y++) {
@@ -150,8 +155,8 @@ uint16_t image_yuv422_colorfilt(struct image_t *input, struct image_t *output, u
                                 uint8_t u_M, uint8_t v_m, uint8_t v_M)
 {
   uint16_t cnt = 0;
-  uint8_t *source = input->buf;
-  uint8_t *dest = output->buf;
+  uint8_t *source = (uint8_t *)input->buf;
+  uint8_t *dest = (uint8_t *)output->buf;
 
   // Copy the creation timestamp (stays the same)
   output->ts = input->ts;
@@ -193,6 +198,87 @@ uint16_t image_yuv422_colorfilt(struct image_t *input, struct image_t *output, u
   }
   return cnt;
 }
+
+/**
+ * Checks the color of a single pixel in a YUV422 image.
+ * 1 means that it passes the filter, 0 that it does not.
+ *
+ * @param[in] im The input image to filter
+ * @param[in] x The x-coordinate of the pixel
+ * @param[in] y The y-coordinate of the pixel
+ * @param[in] y_m The Y minimum value
+ * @param[in] y_M The Y maximum value
+ * @param[in] u_m The U minimum value
+ * @param[in] u_M The U maximum value
+ * @param[in] v_m The V minimum value
+ * @param[in] v_M The V maximum value
+ * @return The success of the filter.
+ */
+
+int check_color_yuv422(struct image_t *im, int x, int y, uint8_t y_m, uint8_t y_M, uint8_t u_m, uint8_t u_M, uint8_t v_m, uint8_t v_M)
+{
+  // odd pixels are uy
+  // even pixels are vy
+  // adapt x, so that we always have u-channel in index 0:
+  if (x % 2 == 1) { x--; }
+
+  // Is the pixel inside the image?
+  if (x < 0 || x >= im->w || y < 0 || y >= im->h) {
+    return 0;
+  }
+
+  // Take the right place in the buffer:
+  uint8_t *buf = im->buf;
+  buf += 2 * (y * (im->w) + x); // each pixel has two bytes
+
+  if (
+    (buf[1] >= y_m)
+    && (buf[1] <= y_M)
+    && (buf[0] >= u_m)
+    && (buf[0] <= u_M)
+    && (buf[2] >= v_m)
+    && (buf[2] <= v_M)
+  ) {
+    // the pixel passes:
+    return 1;
+  } else {
+    // the pixel does not:
+    return 0;
+  }
+}
+
+/**
+ * Sets Y,U,V for a single pixel.
+ *
+ * @param[in] im The input image to filter
+ * @param[in] x The x-coordinate of the pixel
+ * @param[in] y The y-coordinate of the pixel
+ * @param[in] Y The Y-value.
+ * @param[in] U The U-value.
+ * @param[in] V The V value
+ */
+void set_color_yuv422(struct image_t *im, int x, int y, uint8_t Y, uint8_t U, uint8_t V) {
+
+  // odd pixels are uy
+  // even pixels are vy
+  // adapt x, so that we always have u-channel in index 0:
+  if (x % 2 == 1) { x--; }
+
+  // Is the pixel inside the image?
+  if (x < 0 || x >= im->w || y < 0 || y >= im->h) {
+    return;
+  }
+
+  // Take the right place in the buffer:
+  uint8_t *buf = im->buf;
+  buf += 2 * (y * (im->w) + x); // each pixel has two bytes
+
+  buf[0] = U;
+  buf[1] = Y;
+  buf[2] = V;
+  buf[3] = Y;
+}
+
 
 /**
 * Simplified high-speed low CPU downsample function without averaging
@@ -334,7 +420,7 @@ void pyramid_next_level(struct image_t *input, struct image_t *output, uint8_t b
  * @param[in]  border_size  - amount of padding around image. Padding is made by reflecting image elements at the edge
  *                  Example: f e d c b a | a b c d e f | f e d c b a
  */
-void pyramid_build(struct image_t *input, struct image_t *output_array, uint8_t pyr_level, uint8_t border_size)
+void pyramid_build(struct image_t *input, struct image_t *output_array, uint8_t pyr_level, uint16_t border_size)
 {
   // Pad input image and save it as '0' pyramid level
   image_add_border(input, &output_array[0], border_size);
@@ -370,8 +456,8 @@ void image_subpixel_window(struct image_t *input, struct image_t *output, struct
   // Calculate the window size
   uint16_t half_window = output->w / 2;
 
-  uint32_t subpixel_w = (input->w -2) * subpixel_factor;
-  uint32_t subpixel_h = (input->h -2) * subpixel_factor;
+  uint32_t subpixel_w = (input->w - 2) * subpixel_factor;
+  uint32_t subpixel_h = (input->h - 2) * subpixel_factor;
 
   // Go through the whole window size in normal coordinates
   for (uint16_t i = 0; i < output->w; i++) {
@@ -551,20 +637,56 @@ int32_t image_multiply(struct image_t *img_a, struct image_t *img_b, struct imag
  */
 void image_show_points(struct image_t *img, struct point_t *points, uint16_t points_cnt)
 {
+  uint8_t color[4];
+  color[0] = 255;
+  color[1] = 255;
+  color[2] = 255;
+  color[3] = 255;
+
+  image_show_points_color(img, points, points_cnt, color);
+
+}
+
+/**
+ * Show points in an image by coloring them through giving
+ * the pixels the maximum value.
+ * This works with YUV422 and grayscale images
+ * @param[in,out] *img The image to place the points on
+ * @param[in] *points The points to show
+ * @param[in] *points_cnt The amount of points to show
+ * @param[in] *color The color of the points as a [U, Y1, V, Y2] uint8_t array, or a uint8_t value pointer for grayscale images.
+ *                   Example colors: white = {127, 255, 127, 255}, green = {0, 127, 0, 127};
+ */
+void image_show_points_color(struct image_t *img, struct point_t *points, uint16_t points_cnt, uint8_t *color)
+{
   uint8_t *img_buf = (uint8_t *)img->buf;
   uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
 
+  int cross_hair = 1;
+  int size_crosshair = 5;
+
   // Go trough all points and color them
   for (int i = 0; i < points_cnt; i++) {
-    uint32_t idx = pixel_width * points[i].y * img->w + points[i].x * pixel_width;
-    img_buf[idx] = 255;
-
-    // YUV422 consists of 2 pixels
-    if (img->type == IMAGE_YUV422) {
-      idx++;
+    if (!cross_hair) {
+      uint32_t idx = pixel_width * points[i].y * img->w + points[i].x * pixel_width;
       img_buf[idx] = 255;
+
+      // YUV422 consists of 2 pixels
+      if (img->type == IMAGE_YUV422) {
+        idx++;
+        img_buf[idx] = 255;
+      }
+    } else {
+      image_draw_crosshair(img, &(points[i]), color, size_crosshair);
     }
   }
+}
+
+void image_show_flow(struct image_t *img, struct flow_t *vectors, uint16_t points_cnt, uint8_t subpixel_factor)
+{
+  static uint8_t color[4] = {255, 255, 255, 255};
+  static uint8_t bad_color[4] = {0, 0, 0, 0};
+  image_show_flow_color(img, vectors, points_cnt, subpixel_factor, color, bad_color);
 }
 
 /**
@@ -573,21 +695,175 @@ void image_show_points(struct image_t *img, struct point_t *points, uint16_t poi
  * @param[in,out] *img The image to show the flow on
  * @param[in] *vectors The flow vectors to show
  * @param[in] *points_cnt The amount of points and vectors to show
+ * @param[in] subpixel_factor
+ * @param[in] color: color for good vectors
+ * @param[in] bad_color:  color for bad vectors
  */
-void image_show_flow(struct image_t *img, struct flow_t *vectors, uint16_t points_cnt, uint8_t subpixel_factor)
+void image_show_flow_color(struct image_t *img, struct flow_t *vectors, uint16_t points_cnt, uint8_t subpixel_factor,
+                           const uint8_t *color, const uint8_t *bad_color)
 {
+  static int size_crosshair = 5;
+
   // Go through all the points
   for (uint16_t i = 0; i < points_cnt; i++) {
     // Draw a line from the original position with the flow vector
     struct point_t from = {
-      vectors[i].pos.x / subpixel_factor,
-      vectors[i].pos.y / subpixel_factor
+      .x = vectors[i].pos.x / subpixel_factor,
+      .y = vectors[i].pos.y / subpixel_factor
     };
     struct point_t to = {
-      (vectors[i].pos.x + vectors[i].flow_x) / subpixel_factor,
-      (vectors[i].pos.y + vectors[i].flow_y) / subpixel_factor
+      .x = (vectors[i].pos.x + vectors[i].flow_x) / subpixel_factor,
+      .y = (vectors[i].pos.y + vectors[i].flow_y) / subpixel_factor
     };
-    image_draw_line(img, &from, &to);
+
+    if (vectors[i].error >= LARGE_FLOW_ERROR) {
+      image_draw_crosshair(img, &to, bad_color, size_crosshair);
+      image_draw_line_color(img, &from, &to, bad_color);
+    } else {
+      image_draw_crosshair(img, &to, color, size_crosshair);
+      image_draw_line_color(img, &from, &to, color);
+    }
+  }
+}
+/**
+ * Get the gradient at a pixel location
+ * @param[in,out] *img The image
+ * @param[in] loc The location at which to get the gradient
+ * @param[in] method 0 = {-1, 0, 1}, 1 = Sobel {-1, 0, 1; -2, 0, 2; -1, 0, 1}
+ * @param[in] dx The gradient in x-direction
+ * @param[in] dy The gradient in y-direction
+ */
+void image_gradient_pixel(struct image_t *img, struct point_t *loc, int method, int *dx, int *dy)
+{
+  // create the simple and sobel filter only once:
+
+  int gradient_x, gradient_y, index;
+  gradient_x = 0;
+  gradient_y = 0;
+
+  // get image buffer and take into account YUV vs. grayscale:
+  uint8_t *img_buf = (uint8_t *)img->buf;
+  uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
+  uint8_t add_ind = pixel_width - 1;
+
+  // check if all pixels will fall in the image:
+  if (loc->x >= 1 && (loc->x + 1) < img->w && loc->y >= 1 && (loc->y + 1) < img->h) {
+    if (method == 0) {
+
+      // *************
+      // Simple method
+      // *************
+
+      // dx:
+      index = loc->y * img->w * pixel_width + (loc->x - 1) * pixel_width;
+      gradient_x -= (int) img_buf[index + add_ind];
+      index = loc->y * img->w * pixel_width + (loc->x + 1) * pixel_width;
+      gradient_x += (int) img_buf[index + add_ind];
+      // dy:
+      index = (loc->y - 1) * img->w * pixel_width + loc->x * pixel_width;
+      gradient_y -= (int) img_buf[index + add_ind];
+      index = (loc->y + 1) * img->w * pixel_width + loc->x * pixel_width;
+      gradient_y += (int) img_buf[index + add_ind];
+    } else {
+
+      // *****
+      // Sobel
+      // *****
+      static int Sobel[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1};
+      static int total_sobel = 8;
+
+      int filt_ind_y = 0;
+      int filt_ind_x;
+      for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+          index = (loc->y + y) * img->w * pixel_width + (loc->x + x) * pixel_width;
+          if (x != 0) {
+            filt_ind_x = (x + 1) % 3 + (y + 1) * 3;
+            gradient_x += Sobel[filt_ind_x] * (int) img_buf[index + add_ind];
+          }
+          if (y != 0) {
+            gradient_y += Sobel[filt_ind_y] * (int) img_buf[index + add_ind];
+          }
+          filt_ind_y++;
+        }
+      }
+      gradient_x /= total_sobel;
+    }
+  }
+
+  // TODO: more efficient would be to use dx, dy directly:
+  (*dx) = gradient_x;
+  (*dy) = gradient_y;
+}
+
+/**
+ * Draw a rectangle on the image
+ * @param[in,out] *img The image to show the line on
+ * @param[in] x_min start in x
+ * @param[in] x_max end of x
+ * @param[in] y_min start in y
+ * @param[in] y_max end of y
+ * @param[in] color in [U, Y, V, Y] format
+ */
+void image_draw_rectangle(struct image_t *img, int x_min, int x_max, int y_min, int y_max, uint8_t *color)
+{
+  struct point_t from, to;
+
+  // bottom from left to right:
+  from.x = x_min;
+  from.y = y_min;
+  to.x = x_max;
+  to.y = y_min;
+  image_draw_line_color(img, &from, &to, color);
+
+  // from bottom right to top right:
+  from.x = x_max;
+  from.y = y_min;
+  to.x = x_max;
+  to.y = y_max;
+  image_draw_line_color(img, &from, &to, color);
+
+  // from top right to top left:
+  from.x = x_max;
+  from.y = y_max;
+  to.x = x_min;
+  to.y = y_max;
+  image_draw_line_color(img, &from, &to, color);
+
+  // from top left to bottom left:
+  from.x = x_min;
+  from.y = y_max;
+  to.x = x_min;
+  to.y = y_min;
+  image_draw_line_color(img, &from, &to, color);
+
+}
+
+/**
+ * Draw a cross-hair on the image
+ * @param[in,out] *img The image to show the line on
+ * @param[in] loc The location of the cross-hair
+ * @param[in] color The line color as a [U, Y1, V, Y2] uint8_t array, or a uint8_t value pointer for grayscale images.
+ *                   Example colors: white = {127, 255, 127, 255}, green = {0, 127, 0, 127};
+ * @param[in] size_crosshair Actually the half size of the cross hair
+ */
+void image_draw_crosshair(struct image_t *img, struct point_t *loc, const uint8_t *color, uint32_t size_crosshair)
+{
+  struct point_t from, to;
+
+  if (loc->x >= size_crosshair && loc->x < img->w - size_crosshair
+      && loc->y >= size_crosshair && loc->y < img->h - size_crosshair) {
+    // draw the lines:
+    from.x = loc->x - size_crosshair;
+    from.y = loc->y;
+    to.x = loc->x + size_crosshair;
+    to.y = loc->y;
+    image_draw_line_color(img, &from, &to, color);
+    from.x = loc->x;
+    from.y = loc->y - size_crosshair;
+    to.x = loc->x;
+    to.y = loc->y + size_crosshair;
+    image_draw_line_color(img, &from, &to, color);
   }
 }
 
@@ -597,10 +873,12 @@ void image_show_flow(struct image_t *img, struct flow_t *vectors, uint16_t point
  * @param[in] *from The point to draw from
  * @param[in] *to The point to draw to
  */
-void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *to) {
+void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *to)
+{
   static uint8_t color[4] = {255, 255, 255, 255};
   image_draw_line_color(img, from, to, color);
 }
+
 
 /**
  * Draw a line on the image
@@ -610,13 +888,15 @@ void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *
  * @param[in] *color The line color as a [U, Y1, V, Y2] uint8_t array, or a uint8_t value pointer for grayscale images.
  *                   Example colors: white = {127, 255, 127, 255}, green = {0, 127, 0, 127};
  */
-void image_draw_line_color(struct image_t *img, struct point_t *from, struct point_t *to, uint8_t *color)
+void image_draw_line_color(struct image_t *img, struct point_t *from, struct point_t *to, const uint8_t *color)
 {
   int xerr = 0, yerr = 0;
   uint8_t *img_buf = (uint8_t *)img->buf;
   uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
   uint16_t startx = from->x;
   uint16_t starty = from->y;
+
+  uint8_t temp_color[4] = {color[0], color[1], color[2], color[3]};
 
   /* compute the distances in both directions */
   int32_t delta_x = to->x - from->x;
@@ -645,15 +925,24 @@ void image_draw_line_color(struct image_t *img, struct point_t *from, struct poi
   /* draw the line */
   for (uint16_t t = 0; /* starty >= 0 && */ starty < img->h && /* startx >= 0 && */ startx < img->w
        && t <= distance + 1; t++) {
+
+    // depending on startx being odd or even, we first have to set U or V
+    if (startx % 2 == 1) {
+      temp_color[0] = color[2];
+      temp_color[2] = color[0];
+    } else {
+      temp_color[0] = color[0];
+      temp_color[2] = color[2];
+    }
     uint32_t buf_loc = img->w * pixel_width * starty + startx * pixel_width;
-    img_buf[buf_loc] = (t <= 3) ? 0 : color[0]; // u (or grayscale)
+    img_buf[buf_loc] = temp_color[0]; // u (when startx even)
 
     if (img->type == IMAGE_YUV422) {
-      img_buf[buf_loc + 1] = color[1]; // y1
+      img_buf[buf_loc + 1] = temp_color[1]; // y1
 
       if (startx + 1 < img->w) {
-        img_buf[buf_loc + 2] = (t <= 3) ? 0 : color[2]; // v
-        img_buf[buf_loc + 3] = color[3]; // y2
+        img_buf[buf_loc + 2] = temp_color[2]; // v (when startx even)
+        img_buf[buf_loc + 3] = temp_color[3]; // y2
       }
     }
 

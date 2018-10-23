@@ -193,6 +193,8 @@ void vff_update(float z_meas)
 
 void vff_update_z_conf(float z_meas, float conf)
 {
+  if (conf < 0.f) { return; }
+
   update_z_conf(z_meas, conf);
 }
 
@@ -246,10 +248,13 @@ static inline void update_vz_conf(float vz, float conf)
 
 void vff_update_vz_conf(float vz_meas, float conf)
 {
+  if (conf < 0.f) { return; }
+
   update_vz_conf(vz_meas, conf);
 }
 
 void vff_realign(float z_meas)
 {
-  vff_init(z_meas, 0., 0.);
+  vff.z    = z_meas;
+  vff.zdot = 0.;
 }
