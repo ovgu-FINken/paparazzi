@@ -41,3 +41,7 @@
 [submodule "sw/ext/eigen"]
 	path = sw/ext/eigen
 	url = https://github.com/eigenteam/eigen-git-mirror.git
+[submodule "sw/ext/pprzlink"]
+	path = sw/ext/pprzlink
+	url = https://github.com/ovgu-FINken/pprzlink.git
+	branch = swarmlab
