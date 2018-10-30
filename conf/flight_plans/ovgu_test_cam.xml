@@ -6,8 +6,13 @@
   </header>
   <waypoints>
     <waypoint name="HOME" x="0.0" y="0.0" alt="47"/>
-    <waypoint name="A" x="5.0" y="5.0"/>
-    <waypoint name="B" x="-5.0" y="-5.0"/>
+    <waypoint name="A" x="5.0" y="0.0"/>
+    <waypoint name="B" x="0.0" y="5.0"/>
+    <waypoint name="C" x="-5.0" y="0.0"/>
+    <waypoint name="D" x="0.0" y="-5.0"/>
+
+
+
   </waypoints>
   <blocks>
     <block name="Wait GPS">
@@ -44,6 +49,14 @@
     </block>
     <block name="B">
       <go wp="B" approaching_time="0"/>
+      <deroute block="C"/>
+    </block>
+    <block name="C">
+      <go wp="C" approaching_time="0"/>
+      <deroute block="D"/>
+    </block>
+    <block name="D">
+      <go wp="D" approaching_time="0"/>
       <deroute block="A"/>
     </block>
     <block name="flare">
