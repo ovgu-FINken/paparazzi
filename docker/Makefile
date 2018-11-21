@@ -35,6 +35,13 @@ bash terminator:
 paparazzi:
 	@bash run.sh -i -t paparazziuav/pprz-dev ./paparazzi
 
+    xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
+
+    # options to grant access to the Xserver
+    X_WINDOW_OPTS="--volume=$XSOCK:$XSOCK --volume=$XAUTH:$XAUTH --env=XAUTHORITY=${XAUTH} --env=DISPLAY=${DISPLAY}"
+fi
+
+# using xauth w
 start:
 	@bash run.sh -i -t paparazziuav/pprz-dev ./start.py
 

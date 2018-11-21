@@ -16,8 +16,9 @@
             <message name="RC" period="1.0"/>
             <message name="ALIVE" period="2.1"/>
             <message name="DATALINK_REPORT" period="5.1"/>
-
-        </mode>
+	    <message name="GPS" period="1.0"/>
+	    <message name="GPS_INT" period="1.0"/>
+        </mode>	
 
 
 
