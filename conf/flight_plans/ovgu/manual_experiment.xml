@@ -1,0 +1,18 @@
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
+
+<flight_plan alt="152" ground_alt="147" lat0="43 33 50.83" lon0="1 28 52.61" max_dist_from_home="150" name="Manual Flight" security_height="2">
+  <header>
+#include "autopilot.h"
+  </header>
+  <waypoints>
+    <waypoint name="HOME" x="0.0" y="0.0"/>
+  </waypoints>
+  <blocks>
+	<!-- Endlos Schleife da wir nur manuell fliegen-->
+
+    <block name="Infinity Loop">
+      <while cond="1"/>
+    </block>
+   
+  </blocks>
+</flight_plan>

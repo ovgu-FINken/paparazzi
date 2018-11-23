@@ -1,0 +1,105 @@
+<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+
+<!-- lat0 and lon0
+Defines the latitude and longitude coordinates of the reference point {0,0} in WGS84 (World Geodetic System ) degree coordinates
+Location of the FIN via https://www.latlong.net/
+https://www.latlong.net/c/?lat=52.138796&long=11.645910
+-->
+
+<!-- ground_alt
+The ground altitude (in meters), Above Sea Level where you are flying. It defines the GROUND_ALT constant value which can be used in combination with a waypoint <height> parameter to define a waypoint height
+Sea level of lat0 and lon0 via https://www.freemaptools.com/elevation-finder.htm = 54.2 m
+We set it to 54m so we dont have to carry the 0.2
+-->
+
+<flight_plan alt="55" ground_alt="54" lat0="52.138796" lon0="11.645910" max_dist_from_home="5" name="Speed-Experiments" security_height="0">
+<header> #include "autopilot.h" </header>
+
+<!-- The waypoints are the geographic locations used to specify the trajectories. A waypoint is specified by it's name and coordinates
+ <waypoint name wpx wpy [alt] [height]/> 
+where wpx and wpy are real positional coordinates ( lat/lon ) or UTM coordinates ( utm_x0/utm_y0 ) or relative coordinates ( x/y ) in meters from your reference point {0,0}
+alt is an optional parameter and can be used to assign an altitude to a particular waypoint that is different from the globally defined alt parameter of the flightplan
+The height attribute can be used to set the waypoint height relative to the ground altitude (ground_alt) of the flight plan for this waypoint.
+A waypoints index/reference pointer is derived by prefixing the waypoint name with "WP_". Useful when a call function uses the waypoints reference index vs. it's name.
+-->
+<waypoints>
+	<waypoint name="HOME" x="0.0" y="0.0" height="0" />
+	<waypoint name="STARTPOINT" x="0.0" y="0.0" height="0" />
+	<waypoint name="ENDPOINT" x="0.0" y="0.0" height="0" />
+</waypoints>
+
+
+<!--
+It is possible to declare a list of variables that will be automatically created during the flight plan generation and available for the rest of the system from the generated flight plan header and of course inside the flight plan itself. With appropriate attributes, it is also possible to make the variables accessible from the telemetry as a setting.
+To produce an automatic setting for a variable, at least min, max and step attributes need to be specified:
+ So more attributes can be specified: shortname, unit, alt_unit, alt_unit_coef, values
+-->
+
+<variables>
+	<variable var="flight_speed" init="1" min="0." max="10." step="0.1" shortname="Hover Height" />
+</variables>
+
+<!--
+Block elements are the main part of a flight plan: they describe each unit of the mission. They are made of various primitives, called stages and exceptions, you can put one after the other. When a stage (or a block) is finished, the autopilot goes to the next one. The behaviour after the last stage of the last block is undefined.
+-->
+<blocks>
+
+	<!-- Most flight plans will have three blocks of flight plan initialization blocks. -->
+
+	<!-- The first block waits until the GPS fix has been established -->
+	<block name="Wait GPS">
+		<call_once fun="NavKillThrottle()"/>
+		<while cond="!GpsFixValid()"/>
+	</block>
+
+	<!-- The second block updates the local waypoints with respect to the UAV. -->
+	<block name="Geo init">
+		<while cond="LessThan(NavBlockTime(), 10)"/>
+		<call_once fun="NavSetGroundReferenceHere()"/>
+	</block>
+
+	<!-- This next block prevents the UAV from starting the engine and taking off -->
+	<block name="HoldPoint">
+		<call_once fun="NavKillThrottle()"/>
+		<attitude pitch="0" roll="0" throttle="0" vmode="throttle" />
+	</block>
+
+	<!-- Fly to start point, wait there, then fly at flight speed to end point -->
+
+	<!-- Start Engine -->
+	<block name="Start Engine">
+		<call_once fun="NavResurrect()"/>
+		<attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+	</block>
+
+	<!-- Go to start point -->
+	<block name="TakeOffToHeight">
+		<go wp="HOVERPOINT"/>
+	</block>
+    	
+	<!-- Wait at start point-->
+
+	<!-- Fly to end point at flight speed -->
+
+	<!-- Wait at end point -->
+
+	<!-- Fly back to start point -->
+
+	<!-- Stay at hover waypoint-->
+	<block name="StayAtHeight">
+		<stay wp="HOVERPOINT" until="stage_time > hover_time"/>
+	</block>
+	
+	<!-- Land Quadcopter and go back to home -->
+	<block name="GoToHome">
+		<go wp="HOME" />
+	</block>
+
+	<!-- Go back to start -->
+	<block name="BackToStart">
+	      <deroute block="HoldPoint"/>
+	</block>
+
+</blocks>
+
+</flight_plan>

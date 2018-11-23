@@ -1,0 +1,46 @@
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
+
+<flight_plan alt="1" ground_alt="0" lat0="52 8 16.760" lon0="11 38 44.703" max_dist_from_home="10" name="Rotorcraft Basic (Enac)" security_height="0">
+  <header>
+#include "autopilot.h"
+  </header>
+  <waypoints>
+    <waypoint name="HOME" x="0.0" y="0.0" alt="2"/>
+    <waypoint name="TEST" x="0.0" y="0.0" alt="2"/>
+  </waypoints>
+  <blocks>
+    <block name="Wait GPS">
+      <call_once fun="NavKillThrottle()"/>
+      <while cond="!GpsFixValid()"/>
+    </block>
+    <block name="Geo init">
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="TRUE"/>
+      <while cond="LessThan(NavBlockTime(), 30)"/>
+      <call_once fun="NavSetGroundReferenceHere()"/>
+      <call_once fun="NavSetAltitudeReferenceHere()"/>
+    </block>
+    <block name="Holding point">
+      <call_once fun="NavKillThrottle()"/>
+      <while cond="LessThan(NavBlockTime(), 10)"/>
+      <call_once fun="NavSetWaypointHere(WP_HOME)"/>
+      <call_once fun="NavSetWaypointHere(WP_TEST)"/>
+    </block>
+    <block name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
+      <call_once fun="NavResurrect()"/>
+      <exception cond="stateGetPositionEnu_f()->z > 1.5" deroute="Standby"/>
+      <stay vmode="climb" climb="nav_climb_vspeed" wp="TEST"/>
+    </block>
+    <block name="Standby" strip_button="Standby" strip_icon="home.png">
+	    <stay wp="TEST"/>
+    </block>
+    <block name="flare">
+      <exception cond="NavDetectGround()" deroute="Holding point"/>
+      <exception cond="!nav_is_in_flight()" deroute="landed"/>
+      <call_once fun="NavStartDetectGround()"/>
+      <stay climb="nav_descend_vspeed" vmode="climb" wp="TEST"/>
+    </block>
+    <block name="landed">
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+    </block>
+  </blocks>
+</flight_plan>
