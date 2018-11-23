@@ -1,0 +1,14 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="sbrk_fix" dir="sensors">
+  <doc>
+    <description>
+      Emulates the sbrk function as nema for gps needs it and is not in standard library. See paparazzi #120
+    </description>
+  </doc>
+
+  <makefile target="ap">
+    <file name="sbrk_fix.c"/>
+  </makefile>
+
+</module>
