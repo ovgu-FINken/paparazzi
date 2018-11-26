@@ -12,10 +12,9 @@
   #define ADDRESS 0x30
 #endif
 
-static uint32_t intDistance;
-static float    floatDistance;
+float floatDistance;
 static float    pressure;
-
+static uint32_t intDistance;
 
 enum SonarState{
 	READY,
