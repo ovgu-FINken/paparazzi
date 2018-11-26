@@ -40,9 +40,7 @@
 	-->
     	<module name="gps"           type="datalink"/>
 
-    	<module name="virt_baro_ir_adc.xml">
-      		<configure name="ADC_IR" value="ADC_3"/>
-    	</module>
+    	<module name="virt_baro_tera_ranger_one.xml"/>
 
 	<module name="virt_magnetometer.xml"/>
         <!-- <module name="geo_mag"/> -->

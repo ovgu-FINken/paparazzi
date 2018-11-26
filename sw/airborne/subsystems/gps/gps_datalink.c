@@ -155,6 +155,7 @@ static void parse_gps_datalink(uint8_t numsv, int32_t ecef_x, int32_t ecef_y, in
 
   gps_datalink.ecef_vel.x = ecef_xd;
   gps_datalink.ecef_vel.y = ecef_yd;
+  // TODO set ecef_zd correctly
   gps_datalink.ecef_vel.z = ecef_zd;
   SetBit(gps_datalink.valid_fields, GPS_VALID_VEL_ECEF_BIT);
 
