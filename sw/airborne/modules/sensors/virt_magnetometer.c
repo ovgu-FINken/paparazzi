@@ -30,7 +30,7 @@ static void send_virt_mag(struct transport_tx* trans, struct link_device* dev)
     			 &mag.z);
 }
 
-//Still have to figure out...!!!
+
 void getTheta(void)
 {
     cameraHeading = DL_CAMERA_THETA_theta(dl_buffer);

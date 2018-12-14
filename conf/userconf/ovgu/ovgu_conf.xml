@@ -16,7 +16,7 @@
    airframe="airframes/ovgu/Indoor.xml"
    radio="radios/dummy.xml"
    telemetry="telemetry/ovgu/FINkenDefault.xml"
-   flight_plan="flight_plans/ovgu/manual_flying.xml"
+   flight_plan="flight_plans/ovgu/vertical_flight_test.xml"
    settings="settings/rotorcraft_basic.xml"
    settings_modules="modules/ahrs_float_cmpl_quat.xml modules/air_data.xml modules/stabilization_int_quat.xml modules/nav_basic_rotorcraft.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/gps.xml modules/logger_sd_spi_direct.xml"
    gui_color="blue"

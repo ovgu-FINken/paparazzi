@@ -49,7 +49,7 @@ To produce an automatic setting for a variable, at least min, max and step attri
 	<variable var="test_descend_speed" init="-0.6" min="-10" max="-0.1" step="0.1" shortname="Test Descend Speed"/>
 
     <variable var="current_iteration" init="0"/>
-    <variable var="iterations" init="1"/>
+    <variable var="iterations" init="3"/>
 </variables>
 
 <!--
@@ -77,6 +77,7 @@ Block elements are the main part of a flight plan: they describe each unit of th
 
 	<!-- Wait until Nav mode to continue-->
 	<block name="Wait for NAV">
+	<call_once fun="NavSetWaypointHere(WP_HOVER_BASE)"/>
         <while cond="!(autopilot_get_mode() == AP_MODE_NAV)"/>
 	</block>
 
