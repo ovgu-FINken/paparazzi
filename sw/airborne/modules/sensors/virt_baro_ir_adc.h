@@ -3,6 +3,9 @@
 
 #include "std.h"
 
+extern float ir_distance;
+extern float ir_distance_equalized;
+
 extern void virt_baro_ir_adc_init(void);
 extern void virt_baro_ir_adc_periodic(void);
 
