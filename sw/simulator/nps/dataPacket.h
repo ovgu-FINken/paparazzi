@@ -1,4 +1,7 @@
+#pragma once
 #include <boost/serialization/vector.hpp>
+
+enum class SensorTypes {Sonar, Position, Height, Attitude, Acceleration};
 
 typedef struct{
     int ac_id;
