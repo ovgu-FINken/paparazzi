@@ -1,0 +1,26 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="sonar">
+  <doc>
+    <description>
+			I2C Sonar driver
+    </description>
+    <define name="SONAR_I2C_DEV" value="i2cX" description="set i2c peripheral (default: i2c0)"/>
+    <define name="SONAR_ADDR_START" value="0x71" description="set i2c peripheral (default: i2c0)"/>
+    <define name="SONAR_OFFSET" value="offset" description="sensor reading offset (default: 0)"/>
+    <define name="SONAR_SCALE" value="scale" description="sensor scale factor (default: 0.00)"/>
+  </doc>
+
+  <header>
+		<file name="sonar_array_i2c.h"/>
+  </header>
+	<init fun="sonar_array_i2c_init()"/>
+  <periodic fun="sonar_array_i2c_periodic()" freq="20"/>
+
+  <makefile>
+    <file name="sonar_array_i2c.c"/>
+  </makefile>
+  <makefile target="ap">
+  </makefile>
+
+</module>
