@@ -18,7 +18,7 @@
         </module>
 
         <!--USE SD CARD FOR LOGGING-->
-	<module name="logger_sd_spi_direct.xml">
+	    <module name="logger_sd_spi_direct.xml">
             <configure name="LOGGER_LED" value="5"/>
             <configure name="SDLOGGER_ON_ARM" value="1"/>
             <configure name="SDLOGGER_DIRECT_CONTROL_SWITCH" value="RADIO_AUX3"/>
@@ -26,24 +26,15 @@
             <configure name="SDLOGGER_DIRECT_SPI_SLAVE" value="SPI_SLAVE1"/>
         </module>
 
-
         <!--USE GPS BOARD-->
-	<!-- 
         <module name="gps" type="nmea">
             <configure name="GPS_BAUD" value="B9600"/>
             <configure name="GPS_PORT" value="UART2"/>
-        </module> 
-	-->
+        </module>
         <!--DIRTY HACK TO FIX NMEA -->
-	<!-- 
         <module name="sbrk_fix"></module>
-	-->
-    	<module name="gps"           type="datalink"/>
 
-    	<module name="virt_baro_tera_ranger_one.xml"/>
-
-	<module name="virt_magnetometer.xml"/>
-        <!-- <module name="geo_mag"/> -->
+        <module name="geo_mag"/>
 
 	<!-- These should stay constant normally-->
         <module name="radio_control" type="spektrum">
@@ -222,7 +213,7 @@
 
     <section name="AUTOPILOT">
         <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
-        <define name="MODE_AUTO1" value="AP_MODE_ATTITUDE_Z_HOLD"/>
+        <define name="MODE_AUTO1" value="AP_MODE_NAV"/>
         <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
         <define name="USE_KILL_SWITCH_FOR_MOTOR_ARMING" value="TRUE"/>
     </section>

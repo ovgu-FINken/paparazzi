@@ -32,6 +32,7 @@
 #include "subsystems/gps.h"
 #include "subsystems/abi.h"
 #include "subsystems/datalink/datalink.h"
+#include "modules/sensors/virt_baro_tera_ranger_one.h"
 
 struct LtpDef_i ltp_def;
 
@@ -132,19 +133,29 @@ static void parse_gps_datalink(uint8_t numsv, int32_t ecef_x, int32_t ecef_y, in
 {
   gps_datalink.lla_pos.lat = lat;
   gps_datalink.lla_pos.lon = lon;
+
+
+  //gps altitude : gps.lla_pos.alt is height in mm above WGS84 reference ellipsoid
+  // hard to calculate here...
   gps_datalink.lla_pos.alt = alt;
   SetBit(gps_datalink.valid_fields, GPS_VALID_POS_LLA_BIT);
 
-  gps_datalink.hmsl        = hmsl;
+  //gps.hmsl is height in mm above mean sea level (height above geoid)
+  // Magdeburg is 43m above sealevel so 43000mm
+  // floatDistance from tera ranger is in meter, so times 1000 to convert to mm
+  gps_datalink.hmsl        = (int32_t)(floatDistance * 1000)+43000;
   SetBit(gps_datalink.valid_fields, GPS_VALID_HMSL_BIT);
 
   gps_datalink.ecef_pos.x = ecef_x;
   gps_datalink.ecef_pos.y = ecef_y;
-  gps_datalink.ecef_pos.z = ecef_z;
+
+  // ecef data is in cm, so convert floatDistance from m to cm and add it to base ecef_z
+  gps_datalink.ecef_pos.z = ecef_z + (int32_t)(floatDistance * 100);
   SetBit(gps_datalink.valid_fields, GPS_VALID_POS_ECEF_BIT);
 
   gps_datalink.ecef_vel.x = ecef_xd;
   gps_datalink.ecef_vel.y = ecef_yd;
+  // TODO set ecef_zd correctly
   gps_datalink.ecef_vel.z = ecef_zd;
   SetBit(gps_datalink.valid_fields, GPS_VALID_VEL_ECEF_BIT);
 

@@ -3,75 +3,88 @@
 #include <std.h>
 #include <subsystems/datalink/downlink.h>
 #include <subsystems/datalink/telemetry.h>
-#include <messages.h>
-#include <dl_protocol.h>
+#include <pprzlink/messages.h>
+#include <pprzlink/dl_protocol.h>
 #include <math.h>
+#include <state.h>
 #include <subsystems/ins/ins_int.h>
+#include <subsystems/gps.h>
 #include <firmwares/rotorcraft/navigation.h>
 #include <firmwares/rotorcraft/guidance.h>
-#include <firmwares/rotorcraft/autopilot.h>
+#include <autopilot.h>
+#include "subsystems/navigation/waypoints.h"
 
-const float insToMeter = 0.0039063;
+static gps_node_t swarm[SWARM_SIZE];
+bool is_running;
+float point;
+struct EnuCoor_f Target_waypoint;
 
-static ins_node_t swarm[SWARM_SIZE];
+//Reminder: ecef is in cm from earth's centre
+const int wall_top_x = 384205148; //384205118
+const int wall_bottom_x = 384205341; //bigger value
+const int wall_left_y = 79184823;
+const int wall_right_y = 79185130; //bigger value
+const int safe_dist = 60;
 
 void copter_swarm_init( void ) {
 	int i = 0;
 	for( ; i < SWARM_SIZE; i++){
 		swarm[i].ac_id=-1;
 	}	
+	is_running = false;
 }
 
-void copter_ins_action(void) { // if this does not get called, put the COPTER_INS message into the datalink section of messages.xml
+void copter_gps_action(void) { // if this does not get called, put the COPTER_GPS message into the datalink section of messages.xml
 
 	//To get the current copter id
-	int copter_ac_id = DL_COPTER_INS_ac_id(dl_buffer);
+	int copter_ac_id = DL_COPTER_GPS_ac_id(dl_buffer);
 	// we already know own position so skip this.
-	if(DL_COPTER_INS_copter_id(dl_buffer) == AC_ID)
+	if(DL_COPTER_GPS_copter_id(dl_buffer) == AC_ID)
 		return;
 	
 
-	// gather all recieved INS values and store them in the list
-	int ac_id = DL_COPTER_INS_copter_id(dl_buffer);
+	// gather all recieved GPS values and store them in the list
+	int ac_id = DL_COPTER_GPS_copter_id(dl_buffer);
 	// To use call by reference manage memory
-	fill_ins_node(ac_id, swarm);
+	fill_gps_node(ac_id, swarm);
 
 }
 
 
-void fill_ins_node(int ac_id, ins_node_t* copter_ins)
+void fill_gps_node(int ac_id, gps_node_t* copter_gps)
 {
+	// return for invalid copters
 	int i=0;
-	if(copter_ins == NULL){
+	if(copter_gps == NULL){
 		return;
 	}
 
-	while (copter_ins->ac_id != -1 && i < SWARM_SIZE){
-		if(ac_id == copter_ins->ac_id)
+	// run through current swarm and look for the ac_id of the current GPS-data
+	while (copter_gps->ac_id != -1 && i < SWARM_SIZE){
+		if(ac_id == copter_gps->ac_id)
 		{
+			// stop if the ac_id is already inside the swarm
 			break;
 		}
+		// or search for an empty place in the swarm when the ac_id is not inside the swarm
 		i++;
-		copter_ins++;
+		copter_gps++;
 	}
 
 	
-
-	
+	// fill the current position of the swarm with the given data
+	// either it already existed and gets new data
+	// or a new copter is added to the swarm 
 	if(i < SWARM_SIZE)
 	{
-		copter_ins->ac_id = ac_id;
-		copter_ins->ins_x = DL_COPTER_INS_ins_x(dl_buffer);
-		copter_ins->ins_y = DL_COPTER_INS_ins_y(dl_buffer);
-		copter_ins->ins_z = DL_COPTER_INS_ins_z(dl_buffer);
+		copter_gps->ac_id = ac_id;
+		copter_gps->ecef_x = DL_COPTER_GPS_ecef_x(dl_buffer);
+		copter_gps->ecef_y = DL_COPTER_GPS_ecef_y(dl_buffer);
+		copter_gps->ecef_z = DL_COPTER_GPS_ecef_z(dl_buffer);
 
-		copter_ins->ins_xd = DL_COPTER_INS_ins_xd(dl_buffer);
-		copter_ins->ins_yd = DL_COPTER_INS_ins_yd(dl_buffer);
-		copter_ins->ins_zd = DL_COPTER_INS_ins_zd(dl_buffer);
-
-		copter_ins->ins_xdd = DL_COPTER_INS_ins_xdd(dl_buffer);
-		copter_ins->ins_ydd = DL_COPTER_INS_ins_ydd(dl_buffer);
-		copter_ins->ins_zdd = DL_COPTER_INS_ins_zdd(dl_buffer);
+		copter_gps->ecef_xd = DL_COPTER_GPS_ecef_xd(dl_buffer);
+		copter_gps->ecef_yd = DL_COPTER_GPS_ecef_yd(dl_buffer);
+		copter_gps->ecef_zd = DL_COPTER_GPS_ecef_zd(dl_buffer);
 		
 	}
 
@@ -81,7 +94,8 @@ void fill_ins_node(int ac_id, ins_node_t* copter_ins)
 
 void copter_swarm_periodic(void)
 {
-	ins_node_t* copter = swarm;
+    if(is_running){
+	gps_node_t* copter = swarm;
 	int i = 0;	
 	double fx_sum = 0;
 	double fy_sum = 0;
@@ -97,50 +111,76 @@ void copter_swarm_periodic(void)
 		fy_sum += fy;
 		copter++;
 	}
-	// TODO limit speed
 
-	// TODO transform forces to speed command
-	struct EnuCoor_i myPos = *(stateGetPositionEnu_i());
+	wall_avoid(&fx_sum, &fy_sum);
+	
+	struct EnuCoor_f myPos = *(stateGetPositionEnu_f());
 
 	autopilot_set_mode(AP_MODE_NAV);
 	
-	struct EnuCoor_i Target_waypoint;
-	
-	//Target_waypoint.x = myPos.x + fx_sum;
-	//Target_waypoint.y = myPos.y + fy_sum;
-	//Target_waypoint.z = myPos.z;
-	Target_waypoint.x = 35;
-	Target_waypoint.y = 53;
-	Target_waypoint.z = 14;
+	Target_waypoint.x = (myPos.x + fy_sum);
+	Target_waypoint.y = (myPos.y + (-fx_sum));
+	Target_waypoint.z = 0.5;
+	//Target_waypoint.x = -1.5;
+	//Target_waypoint.y = 0;
+	//Target_waypoint.z = 0.4;
 
-	waypoint_move_enu_i( 0, &Target_waypoint);	
-	NavGotoWaypoint(0);	
-	
+	waypoint_set_enu(1, &Target_waypoint);
+    }
 	
 }
 
-//function to calculate the force
-void calcForce(ins_node_t* copter0, double* fx_out, double* fy_out){
-	ins_node_t copter1;
-	copter1.ac_id = AC_ID;
-	copter1.ins_x = ins_int.ltp_pos.x;
-	copter1.ins_y = ins_int.ltp_pos.y;
-	copter1.ins_z = ins_int.ltp_pos.z;
+//function for Wall Avoidance
+void wall_avoid(double* fx_out, double* fy_out){
+	float constant = 1.5;
+	float d = 0.0;
+	if (gps.ecef_pos.x < (wall_top_x + safe_dist) ){
+		d = (wall_top_x+safe_dist) - gps.ecef_pos.x;
+		*fx_out = *fx_out + (constant * d/100);
+	}
+	else if (gps.ecef_pos.x > (wall_bottom_x - safe_dist) ){
+		d = gps.ecef_pos.x - (wall_bottom_x - safe_dist) ;
+		*fx_out = *fx_out - (constant * d/100);
+	}
 
-	float cons = 10.0;
-	float d = 0.5;
+	if (gps.ecef_pos.y < (wall_left_y + safe_dist) ){
+		d = (wall_left_y+safe_dist) - gps.ecef_pos.y;
+		*fy_out = *fy_out + (constant * d/100);
+	}
+	else if (gps.ecef_pos.y > (wall_right_y - safe_dist) ){
+		d = gps.ecef_pos.y - (wall_right_y - safe_dist) ;
+		*fy_out = *fy_out - (constant * d/100);
+	}
+
+
+
+}
+
+//function to calculate the force
+void calcForce(gps_node_t* copter0, double* fx_out, double* fy_out){
+	gps_node_t copter1;
+	copter1.ac_id = AC_ID;
+	copter1.ecef_x = gps.ecef_pos.x;
+	copter1.ecef_y = gps.ecef_pos.y;
+	copter1.ecef_z = gps.ecef_pos.z;
+
+	// making prediction of own movement
+	copter1.ecef_x = copter1.ecef_x + gps.ecef_vel.x / 10;
+	copter1.ecef_y = copter1.ecef_y + gps.ecef_vel.y / 10;
+
+	float cons = 0.3;
+	float d = 0.8; //in metres
 	float diff_x;
 	float diff_y;
 	double dist;
 
-	diff_x = copter1.ins_x - copter0->ins_x;
-	diff_y = copter1.ins_y - copter0->ins_y; 
-	diff_x = diff_x * insToMeter;
-	diff_y = diff_y * insToMeter;
-	dist = sqrt((diff_x*diff_x) + (diff_y*diff_y));	
+	diff_x = (copter1.ecef_x - copter0->ecef_x) /100.0; //in metres (as ecef gets us cm)
+	diff_y = (copter1.ecef_y - copter0->ecef_y) /100.0;  
+		dist = sqrt((diff_x * diff_x) + (diff_y * diff_y));	
 
+	// Repel when the copters are close
 	if(dist < d){
-		cons = 0.6;
+		cons = 1.5;
 	}
 
     	*fx_out = - cons*(dist-d) * diff_x;
@@ -149,6 +189,13 @@ void calcForce(ins_node_t* copter0, double* fx_out, double* fy_out){
 	// To return fx and fy
 }
 
+void enableCopterSwarm(){
+	is_running = true;
+}
 
-//void copter_swarm_deinit( void ) {}
+
+void disableCopterSwarm(void){
+	is_running = false;
+}
+
 

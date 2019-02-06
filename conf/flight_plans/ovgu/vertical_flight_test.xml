@@ -1,0 +1,161 @@
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
+
+<!-- LAT0 LON0
+Defines the latitude and longitude coordinates of the reference point {0,0} in WGS84 (World Geodetic System ) degree coordinates
+Location of the FIN via https://www.latlong.net/
+https://www.latlong.net/c/?lat=52.138796&long=11.645910
+-->
+
+<!-- GROUND ALT
+The ground altitude (in meters), Above Sea Level where you are flying. It defines the GROUND_ALT constant value which can be used in combination with a waypoint <height> parameter to define a waypoint height
+Sea level of lat0 and lon0 via https://www.freemaptools.com/elevation-finder.htm = 54.2 m
+We set it to 54m so we dont have to carry the 0.2
+-->
+<!-- ALT
+The default altitude of waypoints (Above Sea Level). So if your ground altitude is 400 then alt needs to be a value greater than ground altitude and above any obstructions in the flight plan.
+-->
+<!-- Values set here dont really matter, as they are normall overwritten by the GPS and the NavSetGroundReference() here function -->
+<flight_plan alt="55" ground_alt="54" lat0="52.138796" lon0="11.645910" max_dist_from_home="5" name="Vertical Flight Test" security_height="0">
+<header> #include "autopilot.h" </header>
+
+<!-- The waypoints are the geographic locations used to specify the trajectories. A waypoint is specified by it's name and coordinates
+ <waypoint name wpx wpy [alt] [height]/>
+where wpx and wpy are real positional coordinates ( lat/lon ) or UTM coordinates ( utm_x0/utm_y0 ) or relative coordinates ( x/y ) in meters from your reference point {0,0}
+alt is an optional parameter and can be used to assign an altitude to a particular waypoint that is different from the globally defined alt parameter of the flightplan
+The height attribute can be used to set the waypoint height relative to the ground altitude (ground_alt) of the flight plan for this waypoint.
+A waypoints index/reference pointer is derived by prefixing the waypoint name with "WP_". Useful when a call function uses the waypoints reference index vs. it's name.
+-->
+<waypoints>
+	<waypoint name="HOME" x="0.0" y="0.0" />
+    <waypoint name="LANDINGPOINT" x="0.0" y="0.0" />
+	<waypoint name="HOVER_BASE" x="0.0" y="0.0" />
+	<waypoint name="HOVER_TEST" x="0.0" y="0.0"/>
+</waypoints>
+
+
+<!--
+It is possible to declare a list of variables that will be automatically created during the flight plan generation and available for the rest of the system from the generated flight plan header and of course inside the flight plan itself. With appropriate attributes, it is also possible to make the variables accessible from the telemetry as a setting.
+To produce an automatic setting for a variable, at least min, max and step attributes need to be specified:
+ So more attributes can be specified: shortname, unit, alt_unit, alt_unit_coef, values
+-->
+
+<variables>
+	<variable var="base_height" init="1" min="0.1" max="3." step="0.1" shortname="Base Height" />
+	<variable var="base_time" init="10" min="10" max="300." step="5" shortname="Base Time" />
+
+    <variable var="test_height" init="2" min="1" max="3" step="0.1" shortname="Test Height" />
+	<variable var="test_time" init="30" min="10" max="300" step="5" shortname="Test Time" />
+	<variable var="test_climb_speed" init="0.8" min="0.1" max="10" step="0.1" shortname="Test Climb Speed" />
+	<variable var="test_descend_speed" init="-0.6" min="-10" max="-0.1" step="0.1" shortname="Test Descend Speed"/>
+
+    <variable var="current_iteration" init="0"/>
+    <variable var="iterations" init="3"/>
+</variables>
+
+<!--
+Block elements are the main part of a flight plan: they describe each unit of the mission. They are made of various primitives, called stages and exceptions, you can put one after the other. When a stage (or a block) is finished, the autopilot goes to the next one. The behaviour after the last stage of the last block is undefined.
+-->
+<blocks>
+	<!-- Most flight plans will have three blocks of flight plan initialization blocks. -->
+
+	<!-- Set AutoPilot Mode to Nav so that several commands will work-->
+	<!--<block name="SetNavMode">-->
+		<!--<call_once fun="autopilot_set_mode(AP_MODE_NAV)"/> &lt;!&ndash; set autpilot mode to NAV Mode&ndash;&gt;-->
+	<!--</block>-->
+
+	<!-- The first block waits until the GPS fix has been established -->
+	<block name="Wait GPS">
+		<call_once fun="NavKillThrottle()"/>	<!--   ({ if (autopilot_mode == AP_MODE_NAV) { autopilot_set_motors_on(FALSE); } FALSE; }) -->
+		<while cond="!GpsFixValid()"/>	<!-- (gps.fix >= GPS_FIX_3D) -->
+	</block>
+
+	<!-- The second block updates the local waypoints with respect to the UAV. -->
+	<block name="Geo init">
+		<while cond="LessThan(NavBlockTime(), 10)"/>	<!-- Wait until GPS signal is stabilized -->
+		<call_once fun="NavSetGroundReferenceHere()"/>	<!-- Set Ground Reference to current gps position-->
+	</block>
+
+	<!-- Wait until Nav mode to continue-->
+	<block name="Wait for NAV">
+	<call_once fun="NavSetWaypointHere(WP_HOVER_BASE)"/>
+        <while cond="!(autopilot_get_mode() == AP_MODE_NAV)"/>
+	</block>
+
+    <!--<block name="Holding point">-->
+      <!--&lt;!&ndash;set var="nav_mode" value="NAV_MODE_ROLL"/&ndash;&gt;-->
+      <!--<set value="1" var="kill_throttle"/>-->
+      <!--<attitude roll="0" throttle="0" vmode="throttle"/>-->
+    <!--</block>-->
+
+	<!-- Start Engine -->
+	<block name="Start Engine">
+        <call_once fun="NavResurrect()"/>	<!-- if AP_MODE_NAV set motors on True-->
+
+        <attitude until="TRUE" pitch="0" roll="0" throttle="0" vmode="throttle"/>
+	</block>
+
+    <!--DO FLIGHT PATTERN-->
+
+	<!-- Climb to base height-->
+	<block name="Climb to Base" >
+		<exception cond="stateGetPositionEnu_f()->z > base_height" deroute="Stay at Base"/>
+		<call_once fun="NavSetWaypointHere(WP_HOVER_BASE)"/>
+		<stay climb="nav_climb_vspeed" vmode="climb" wp="HOVER_BASE"/>
+	</block>
+
+	<!-- Stay at base point for base_time -->
+	<block name="Stay at Base">
+		<call_once fun="NavSetWaypointHere(WP_HOVER_BASE)"/>
+		<stay wp="HOVER_BASE" until="stage_time > base_time"/>
+	</block>
+
+    <!--CHECK HERE IF WE SHOULD DO ANOTHER TEST-->
+    <block name="Check Iteration" >
+         <exception cond="current_iteration >= iterations" deroute="Land here"/>
+    </block>
+
+	<!-- Climb to test height-->
+	<block name="Climb to Test Height" >
+		<exception cond="stateGetPositionEnu_f()->z > test_height" deroute="Stay at Test Height"/>
+		<call_once fun="NavSetWaypointHere(WP_HOVER_TEST)"/>
+		<stay climb="test_climb_speed" vmode="climb" wp="HOVER_TEST"/>
+	</block>
+
+    <!-- Stay at test height for test_time -->
+	<block name="Stay at Test Height">
+		<call_once fun="NavSetWaypointHere(WP_HOVER_TEST)"/>
+		<stay wp="HOVER_TEST" until="stage_time > test_time"/>
+	</block>
+
+    <!-- Descend to base height-->
+	<block name="Descend to Base" >
+        <set var="iterations" value="iterations + 1"/>
+		<exception cond="base_height > stateGetPositionEnu_f()->z" deroute="Stay at Base"/>
+		<call_once fun="NavSetWaypointHere(WP_HOVER_BASE)"/>
+		<stay climb="test_descend_speed" vmode="climb" wp="HOVER_BASE"/>
+	</block>
+
+
+	<!-- Land Quadcopter -->
+	<block name="Land here">
+		<call_once fun="NavSetWaypointHere(WP_LANDINGPOINT)"/>
+		<go wp="LANDINGPOINT"/>
+	</block>
+
+	<block name="Flare">
+		<!--<exception cond="NavDetectGround()" deroute="Holding point"/>-->
+		<exception cond="!nav_is_in_flight()" deroute="Landed"/>
+		<exception cond="0.10 > stateGetPositionEnu_f()->z" deroute="Landed"/>
+		<call_once fun="NavStartDetectGround()"/>
+		<stay climb="nav_descend_vspeed" vmode="climb" wp="LANDINGPOINT"/>
+	</block>
+
+	<block name="Landed">
+		<call_once fun="NavKillThrottle()"/>
+		<attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+	</block>
+
+
+</blocks>
+
+</flight_plan>

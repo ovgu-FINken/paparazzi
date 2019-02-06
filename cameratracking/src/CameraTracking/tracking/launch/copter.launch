@@ -1,7 +1,0 @@
-<launch>
-  <include file="$(find camera_pylon)/launch/cams.launch"/>
-  <node name="track0" pkg="tracking" type="pose.py">
-        <param name="homography_file" value="$(find swarmlab_tracking)/common/arena_new.npy" />
-	<remap to="/camera/0" from="/camera/image"/>
-  </node>
-</launch>

@@ -1,0 +1,26 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="virt_baro_tera_ranger_one" dir="sensors">
+  <doc>
+    <description>
+      Virtual barometer fed by a distance sensor looking towards ground.
+      Sends the BARO_ABS ABI message with the current height converted to absolute pressure.
+    </description>
+    <configure name="I2C_DEV" value="I2CX" description="choose which I2C the Tera Ranger is connected to"/>
+  </doc>
+
+  <header>
+    <file name="virt_baro_tera_ranger_one.h"/>
+  </header>
+  <init fun="virt_baro_tera_ranger_one_init()"/>
+  <periodic fun="virt_baro_tera_ranger_one_periodic()" freq="10."/>
+
+  <makefile target="ap">
+    <configure name="I2C_DEV" default="i2c1" case="upper|lower"/>
+    <file name="virt_baro_tera_ranger_one.c"/>
+    <define name="USE_BARO_BOARD" value="FALSE"/>
+    <define name="USE_$(I2C_DEV_UPPER)" value="1" />
+    <define name="TERA_I2C_DEV" value="$(I2C_DEV_LOWER)" />
+  </makefile>
+
+</module>
