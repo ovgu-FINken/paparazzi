@@ -26,12 +26,12 @@ typedef struct{
 
 
 typedef struct{
-    std::vector<double> pos = {0,0,0};
-    std::vector<double> quat = {0,0,0,0};
-    std::vector<double> vel = {0,0,0};
-    std::vector<double> rotVel ={0,0,0};
-    std::vector<double> accel = {0,0,0};
-    std::vector<double> rotAccel ={0,0,0};
+    std::vector<float> pos = {0,0,0};
+    std::vector<float> quat = {0,0,0,0};
+    std::vector<float> vel = {0,0,0};
+    std::vector<float> rotVel ={0,0,0};
+    std::vector<float> accel = {0,0,0};
+    std::vector<float> rotAccel ={0,0,0};
     double simTime = 0;
     double dt;
 
