@@ -45,10 +45,14 @@ Clock::time_point runEnd;
 const std::chrono::milliseconds timeout(34);
 
 Eigen::Matrix3d rotMatrix;
+int i = 0;
 
 std::string homepath = getenv("HOME");
 std::string pprzHome=std::getenv("PAPARAZZI_HOME");
 
+/**
+ *  \brief Class for annotating log with time points
+ */
 class LogLine {
   private:
     std::ostream& o;
@@ -69,6 +73,9 @@ class LogLine {
     }
   friend class VrepLog;
 };
+/**
+ * \brief Class for creating a log file
+ */
 class VrepLog {
   private:
     std::ofstream log;
@@ -82,11 +89,21 @@ class VrepLog {
     }
 } vrepLog;
 
+
+
 int iTest = 1;
+/**
+ * \class VRepClient
+ * \brief boost::Asio client class to establish new connections to V-REP copters.
+ * @see Async_Server::handle_accept()
+ */
 class VRepClient {
   private:
     tcp::iostream s;
     bool connected=false;
+    /**
+     * Function to establish a new connection
+     */
     void connect() {
         while(!connected){
           try
@@ -110,24 +127,31 @@ class VRepClient {
         }
     }
   public:
+      /**
+       * Function to send command data to the paired copter and receive new position data. Called once every loop.
+       * This function also fills all the necessary Paparazzi strctures, handling coordinate transformations.
+       * @param commands pointer to the command vector to send
+       * @param commands_nb number of commands stored in the vector
+       * @see Finken::run()
+       */
       double update(double *commands, const int& commands_nb) {
         outPacket.ac_id = 1;
-        outPacket.pitch = commands[0];
-	outPacket.roll = commands[1];
-	outPacket.yaw = commands[2];
-        outPacket.thrust = commands[3];
+        outPacket.north_east = commands[0];
+	outPacket.south_east = commands[1];
+	outPacket.south_west = commands[2];
+        outPacket.north_west = commands[3];
         outPacket.block_ID = nav_block;
         connect();
         try {
             {
-                auto then = std::chrono::high_resolution_clock::now();
                 boost::archive::binary_oarchive out(s, boost::archive::no_header);
                 out << outPacket;
-                auto now = std::chrono::high_resolution_clock::now();
-                vrepLog << "[PPRZ] sending data computation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
             }
+	    
+           
+	    vrepLog << "[PPRZ] Commands sent: " << i++ << std::endl;
 
-            vrepLog << "[PPRZ] Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
+            //vrepLog << "[PPRZ] Commands sent: " << outPacket.pitch << " | " << outPacket.roll << " | " << outPacket.yaw << " | " << outPacket.thrust << std::endl;
 
 
             auto then = std::chrono::high_resolution_clock::now();
@@ -173,11 +197,13 @@ class VRepClient {
                 lla_of_ecef_d(&fdm.lla_pos, &fdm.ecef_pos);
 		ned_of_ecef_point_d(&fdm.ltpprz_pos, &ltpRef, &fdm.ecef_pos);
                 fdm.hmsl = fdm.lla_pos.alt;
-                vrepLog << "[pprz] copter position: " << std::endl
+                /*
+		vrepLog << "[pprz] copter position: " << std::endl
 			<< " ecef: " << fdm.ecef_pos.x << " | " << fdm.ecef_pos.y << " | " << fdm.ecef_pos.z << std::endl
 			<< " LLA:  " << fdm.lla_pos.lat << " | " << fdm.lla_pos.lon << " | " << fdm.lla_pos.alt << std::endl
 			<< " ENU:  " << enu.x << " | " << enu.y << " | " << enu.z << std::endl
 			<< " NED:  " << fdm.ltpprz_pos.x << " | " << fdm.ltpprz_pos.y << " | " << fdm.ltpprz_pos.z << std::endl;
+		*/
 
                 //convert velocity & acceleration from enu to body:
 		Eigen::Vector3d body_vel(enu_vel.x, enu_vel.y, enu_vel.z);
@@ -271,8 +297,8 @@ class VRepClient {
                 }
 
             auto now = std::chrono::high_resolution_clock::now();
-            vrepLog << "[PPRZ] reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
-            vrepLog << "[PPRZ] Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
+            //vrepLog << "[PPRZ] reading data  coomputation time: " << std::chrono::nanoseconds(now-then).count()/1000000 << "ms" << std::endl;
+            //vrepLog << "[PPRZ] Position received " << inPacket.pos[0] << " | " << inPacket.pos[1] << " | " << inPacket.pos[3] << " | "  << std::endl;
             return dt;
 
         }
@@ -286,6 +312,9 @@ class VRepClient {
 
 VRepClient client;
 
+/**
+ * Initializes the data structures
+ */
 void nps_fdm_init(double dt) {
 
   std::string pprzHome=std::getenv("PAPARAZZI_HOME");
@@ -315,22 +344,26 @@ void nps_fdm_init(double dt) {
   fdm.ecef_ecef_accel.z=0.0f;
   fdm.time=0;
   fdm.init_dt=dt;
-  vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
+  //vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm init: dt=" << dt << endl;
   lastUpdate = Clock::now();
   runEnd = Clock::now();
 }
 
+/**
+ * Main paparazzi control function, called once every simulation step. This calls for the data to be updated via
+ * VRepClient::update. The Paparazzi counterpart of FinkenPlugin::action.
+ */
 double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
 
   Clock::time_point now = Clock::now();
 
   auto runStart = Clock::now();
-  vrepLog << "[PPRZ] time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
+  //vrepLog << "[PPRZ] time betweeen 2 consecutive client updates: " << std::chrono::nanoseconds(runStart-runEnd).count()/1000000 << "ms" << std::endl;
 
 
   lastUpdate = now;
   //fdm.time+=fdm.init_dt;
-  vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
+  //vrepLog << "[PPRZ] [" << fdm.time << "] vrep fdm step: launch=" << (launch?"yes":"no") << " commands=[";
 
   if (curBlock != nav_block) {
     curBlock = nav_block;
@@ -340,27 +373,30 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   }
 
   csvdata << fdm.time << ",";
+  /*  
   for(int i=0;i<commands_nb;i++) {
     vrepLog << commands[i] << ((i==commands_nb-1)?"":", ");
     csvdata << commands[i] << ((i==commands_nb-1)?",":",");
   }
   vrepLog << "]" << endl;
+  */
   auto then = std::chrono::high_resolution_clock::now();
   double dt = client.update(commands, commands_nb);
   auto after = std::chrono::high_resolution_clock::now();
-  vrepLog << "[PPRZ] Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
+  //vrepLog << "[PPRZ] Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
   runEnd = Clock::now();
   return dt;
 }
-
+/** Currently unused function to set wind in the simulation */
 void nps_fdm_set_wind(double speed, double dir) {
   //vrepLog << "[" << fdm.time << "] vrep fdm set wind: speed=" << speed << " dir=" << dir << endl;
 }
+/** Currently unused function to set wind in the simulation */
 
 void nps_fdm_set_wind_ned(double wind_north, double wind_east, double wind_down) {
   //vrepLog << "[" << fdm.time << "] vrep fdm set ned wind_north=" << wind_north << " wind_east=" <<  wind_east << " wind_down=" <<  wind_down << endl;
 }
-
+/** Currently unused function to set turbulence in the simulation */
 void nps_fdm_set_turbulence(double wind_speed, int turbulence_severity) {
   //vrepLog << "[" << fdm.time << "] vrep fdm set turbulance: wind_speed=" << wind_speed << " severity=" << turbulence_severity << endl;
 }
