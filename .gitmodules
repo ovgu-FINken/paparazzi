@@ -45,3 +45,6 @@
 	path = sw/ext/pprzlink
 	url = https://github.com/ovgu-FINken/pprzlink.git
 	branch = swarmlab
+[submodule "DWM1000_Copter_Integration"]
+	path = DWM1000_Copter_Integration
+	url = git@github.com:ovgu-FINken/DWM1000_Copter_Integration.git
