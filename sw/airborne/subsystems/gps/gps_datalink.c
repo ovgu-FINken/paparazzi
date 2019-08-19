@@ -32,6 +32,7 @@
 #include "subsystems/gps.h"
 #include "subsystems/abi.h"
 #include "subsystems/datalink/datalink.h"
+#include "modules/sensors/virt_baro_ir_adc.h"
 
 struct LtpDef_i ltp_def;
 
@@ -132,10 +133,10 @@ static void parse_gps_datalink(uint8_t numsv, int32_t ecef_x, int32_t ecef_y, in
 {
   gps_datalink.lla_pos.lat = lat;
   gps_datalink.lla_pos.lon = lon;
-  gps_datalink.lla_pos.alt = alt;
+  gps_datalink.lla_pos.alt = (int32_t)(ir_distance_equalized * 1000)+43000; //alt + hmsl;
   SetBit(gps_datalink.valid_fields, GPS_VALID_POS_LLA_BIT);
 
-  gps_datalink.hmsl        = hmsl;
+  gps_datalink.hmsl        = (int32_t)(ir_distance_equalized * 1000)+43000; //hmsl;
   SetBit(gps_datalink.valid_fields, GPS_VALID_HMSL_BIT);
 
   gps_datalink.ecef_pos.x = ecef_x;
