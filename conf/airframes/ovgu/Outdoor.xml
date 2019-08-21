@@ -31,6 +31,10 @@
             <configure name="GPS_BAUD" value="B9600"/>
             <configure name="GPS_PORT" value="UART2"/>
         </module>
+        <module name="gps_nmea_mtk3339.xml">
+          <configure name="MTK_BAUD" value="38400"/>
+          <configure name="MTK_PERIOD" value="250"/>
+        </module>
         <!--DIRTY HACK TO FIX NMEA -->
         <module name="sbrk_fix"></module>
 
@@ -55,6 +59,9 @@
             <configure name="AHRS_USE_GPS_HEADING" value="FALSE"/>
         </module>
         <module name="ins"/>
+        <module name="virt_baro_tera_ranger_one">
+          <configure name="I2C_DEV" value="I2C1"/>
+        </module>
     </firmware>
 
   <modules>
@@ -63,14 +70,15 @@
 
     <!--SET OUTPUT FOR CURRENT SENSOR-->
     <section name="BAT">
-        <define name="CATASTROPHIC_BAT_LEVEL" value="9.3" unit="V"/>
-        <define name="CRITIC_BAT_LEVEL" value="9.6" unit="V"/>
-        <define name="LOW_BAT_LEVEL" value="10.1" unit="V"/>
-        <define name="MAX_BAT_LEVEL" value="12.4" unit="V"/>
-        <define name="ADC_CHANNEL_CURRENT" value="ADC_2"/>
-        <define name="MilliAmpereOfAdc(adc)"
-                value="(adc*3300)/4096"/> <!--Orig:18*(adc-2048)-200 | i=73,3A * V/Vcc + 36,7A; V=adc*Vcc/4096; i=73300mA*adc/4096 + 36700mA; i=(2048-adc)*18-->
+      <define name="CATASTROPHIC_BAT_LEVEL" value="9.3" unit="V"/>
+      <define name="CRITIC_BAT_LEVEL" value="9.6" unit="V"/>
+      <define name="LOW_BAT_LEVEL" value="10.1" unit="V"/>
+      <define name="MAX_BAT_LEVEL" value="12.4" unit="V"/>
+      <define name="ADC_CHANNEL_CURRENT" value="ADC_2"/>
+      <define name="MilliAmpereOfAdc(adc)" value="CUR_SENS_MULT*3.3*adc/4096+CUR_SENS_OFF"/>
     </section>
+
+    <include href="conf/ovgu/FINken/$AC_ID/current.xml"/>
 
     <servos driver="Pwm">
         <servo name="NW" no="5" min="1000" neutral="1100" max="1900"/>
@@ -213,8 +221,8 @@
 
     <section name="AUTOPILOT">
         <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
-        <define name="MODE_AUTO1" value="AP_MODE_NAV"/>
-        <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+        <define name="MODE_AUTO1" value="AP_MODE_HOVER_Z_HOLD"/>
+        <define name="MODE_AUTO2" value="AP_MODE_ATTITUDE_Z_HOLD"/>
         <define name="USE_KILL_SWITCH_FOR_MOTOR_ARMING" value="TRUE"/>
     </section>
 

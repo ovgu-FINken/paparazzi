@@ -1,0 +1,6 @@
+<airframe>
+  <section name="BAT">
+    <define name="CUR_SENS_MULT" value=" 16109"/>
+    <define name="CUR_SENS_OFF"  value="-25800"/>
+  </section>
+</airframe>
