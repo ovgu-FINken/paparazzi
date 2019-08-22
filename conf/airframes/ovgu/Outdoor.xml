@@ -32,8 +32,7 @@
             <configure name="GPS_PORT" value="UART2"/>
         </module>
         <module name="gps_nmea_mtk3339.xml">
-          <configure name="MTK_BAUD" value="38400"/>
-          <configure name="MTK_PERIOD" value="250"/>
+          <configure name="MTK_UPDATE_PERIOD" value="200"/>
         </module>
         <!--DIRTY HACK TO FIX NMEA -->
         <module name="sbrk_fix"></module>
@@ -55,8 +54,8 @@
         <module name="stabilization" type="int_quat"/>
         <module name="air_data"/>
         <module name="ahrs" type="float_cmpl_quat">
-            <configure name="USE_MAGNETOMETER" value="TRUE"/>
-            <configure name="AHRS_USE_GPS_HEADING" value="FALSE"/>
+            <configure name="USE_MAGNETOMETER" value="FALSE"/>
+            <configure name="AHRS_USE_GPS_HEADING" value="TRUE"/>
         </module>
         <module name="ins"/>
         <module name="virt_baro_tera_ranger_one">
@@ -212,11 +211,11 @@
 
     <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
         <define name="MAX_BANK" value="20" unit="deg"/>
-        <define name="USE_SPEED_REF" value="TRUE"/>
-        <define name="PGAIN" value="50"/>
-        <define name="DGAIN" value="100"/>
-        <define name="AGAIN" value="70"/>
-        <define name="IGAIN" value="20"/>
+        <define name="USE_SPEED_REF" value="FALSE"/>
+        <define name="PGAIN" value="75"/>
+        <define name="DGAIN" value="30"/>
+        <define name="AGAIN" value="0"/>
+        <define name="IGAIN" value="15"/>
     </section>
 
     <section name="AUTOPILOT">

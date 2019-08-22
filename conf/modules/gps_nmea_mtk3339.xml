@@ -5,16 +5,17 @@
     <description>
       Addon driver for NMEA mode of MTK3339 enabling higher update rate
     </description>
-    <configure name="MTK_BAUD_RATE" value="B38400" description="UART baud rate"/>
-    <configure name="MTK_UPDATE_PERIOD" value="B200" description="Update Period in ms"/>
+    <configure name="MTK_UPDATE_PERIOD" value="250" description="Update Period in ms"/>
   </doc>
+  <header>
+    <file name="gps_nmea_mtk3339.h" dir="modules/gps"/>
+  </header>
+  <periodic fun="nmea_parse_prop_update()" freq="1" autorun="TRUE"/>
   <makefile target="ap">
-    <configure name="MTK_BAUD_RATE" default="38400" description="UART baud rate"/>
     <configure name="MTK_UPDATE_PERIOD" default="250" description="Update Period in ms"/>
 
     <file name="gps_nmea_mtk3339.c" dir="modules/gps"/>
 
-    <define name="MTK_BAUD" value="$(MTK_BAUD_RATE)"/>
     <define name="MTK_PERIOD" value="$(MTK_UPDATE_PERIOD)"/>
   </makefile>
 </module>

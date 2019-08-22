@@ -1,4 +1,5 @@
 #include <subsystems/gps/gps_nmea.h>
+#include <modules/gps/gps_nmea_mtk3339.h>
 
 #ifndef MTK_PERIOD
   #error "Undefined update rate for mtk3339"
@@ -9,7 +10,8 @@
 #define MTK_UPDATE_PERIOD_CMD "$PMTK220,"
 
 #define MTK_DATA_CONFIG_CMD "$PMTK314,"
-#define MTK_DATA_CONFIG_STRING "0,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+//#define MTK_DATA_CONFIG_STRING "0,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+#define MTK_DATA_CONFIG_STRING "0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
 
 static uint8_t toHex(uint8_t digit){
   return digit<10?digit+'0':digit-10+'A';
@@ -56,6 +58,7 @@ static bool findNextDatum(uint8_t* pos, uint8_t* next, char c) {
 }
 
 static bool nmea_parse_vtg(void) {
+  gps_nmea.state.sacc++;
   uint8_t pos=0;
   uint8_t next;
   if(!findNextDatum(&pos, &next, 'T'))
@@ -75,7 +78,7 @@ static bool nmea_parse_vtg(void) {
 }
 
 enum mtk_states {
-  INIT,
+  INIT=1,
   WAIT_FOR_ACK_OF_DATA,
   SEND_RATE_CONFIG,
   WAIT_FOR_ACK_OF_RATE,
@@ -85,6 +88,26 @@ enum mtk_states {
 };
 
 static enum mtk_states mtk_state;
+
+static void updateStateMachine(enum mtk_states newState) {
+  mtk_state=newState;
+  switch(mtk_state) {
+    case(WAIT_FOR_ACK_OF_DATA):
+    case(INIT):
+      sendCmd(MTK_DATA_CONFIG_CMD, sizeof(MTK_DATA_CONFIG_CMD)-1, 
+              MTK_DATA_CONFIG_STRING  , sizeof(MTK_DATA_CONFIG_STRING)-1  );
+      mtk_state=WAIT_FOR_ACK_OF_DATA;
+      break;
+    case(WAIT_FOR_ACK_OF_RATE):
+    case(SEND_RATE_CONFIG):
+      sendCmd(MTK_UPDATE_PERIOD_CMD, sizeof(MTK_UPDATE_PERIOD_CMD)-1, 
+              MTK_PERIOD_STRING  , sizeof(MTK_PERIOD_STRING)-1  );
+      mtk_state=WAIT_FOR_ACK_OF_RATE;
+      break;
+    default: break;
+  }
+  gps_nmea.state.pacc=mtk_state;
+}
 
 static bool nmea_parse_ack(void) {
   uint8_t pos=findNextComma(0)+1;
@@ -96,37 +119,30 @@ static bool nmea_parse_ack(void) {
   gps_nmea.msg_buf[next]='\0';
   uint8_t state = atoi(gps_nmea.msg_buf+pos);
   if(cmd==314) {
-    if(state==3)
-      mtk_state=SEND_RATE_CONFIG;
-    else
-      mtk_state=FAILED_DATA;
+    if(state==3) {
+      updateStateMachine(SEND_RATE_CONFIG);
+    } else
+      updateStateMachine(FAILED_DATA);
   }
   if(cmd==220) {
     if(state==3)
-      mtk_state=DONE;
+      updateStateMachine(DONE);
     else
-      mtk_state=FAILED_RATE;
+      updateStateMachine(FAILED_RATE);
   }
   return true;
 }
 
-
 void nmea_parse_prop_init(void) {
-  mtk_state=INIT;
+  updateStateMachine(INIT);
+}
+
+void nmea_parse_prop_update(void) {
+  updateStateMachine(mtk_state);
 }
 
 bool nmea_parse_prop_msg(void) {
-  gps_nmea.state.pacc=mtk_state;
-  if(mtk_state==INIT) {
-    sendCmd(MTK_DATA_CONFIG_CMD, sizeof(MTK_DATA_CONFIG_CMD)-1, 
-            MTK_DATA_CONFIG_STRING  , sizeof(MTK_DATA_CONFIG_STRING)-1  );
-    mtk_state=WAIT_FOR_ACK_OF_DATA;
-  }
-  if(mtk_state==SEND_RATE_CONFIG) {
-    sendCmd(MTK_UPDATE_PERIOD_CMD, sizeof(MTK_UPDATE_PERIOD_CMD)-1, 
-            MTK_PERIOD_STRING  , sizeof(MTK_PERIOD_STRING)-1  );
-    mtk_state=WAIT_FOR_ACK_OF_RATE;
-  } 
+  updateStateMachine(mtk_state);
   if( gps_nmea.msg_len > 5 && !strncmp(&gps_nmea.msg_buf[2], "VTG", 3))
     return nmea_parse_vtg();
   if( gps_nmea.msg_len > 5 && !strncmp(&gps_nmea.msg_buf[0], "PMTK001", 7))
