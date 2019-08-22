@@ -5,7 +5,7 @@ This just initializes the absolute basics required for valid compilation.
 The actual flightplan stays in the same block forever.
 
 -->
-<flight_plan name="RadioControl" lat0="43 33 50.83" lon0="1 28 52.61" ground_alt="147" security_height="0.001" alt="150" max_dist_from_home="150" >
+<flight_plan name="RadioControl" lat0="52 8 16.60" lon0="11 38 44.65" ground_alt="147" security_height="0.001" alt="150" max_dist_from_home="150" >
   
   <header>
     #include "autopilot.h"
