@@ -80,6 +80,7 @@
   <section name="MIXING" prefix="MOTOR_MIXING_">
     <!-- front left (CW), front right (CCW), back right (CW), back left (CCW) -->
     <define name="TYPE" value="QUAD_X"/>
+    <define name="REVERSE" value="TRUE"/>
   </section>
 
   <command_laws>
@@ -147,12 +148,12 @@
     <define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
 
     <!-- feedback -->
-    <define name="PHI_PGAIN"  value="1000"/>
-    <define name="PHI_DGAIN"  value="400"/>
+    <define name="PHI_PGAIN"  value="340"/>
+    <define name="PHI_DGAIN"  value="150"/>
     <define name="PHI_IGAIN"  value="200"/>
 
-    <define name="THETA_PGAIN"  value="1000"/>
-    <define name="THETA_DGAIN"  value="400"/>
+    <define name="THETA_PGAIN"  value="340"/>
+    <define name="THETA_DGAIN"  value="150"/>
     <define name="THETA_IGAIN"  value="200"/>
 
     <define name="PSI_PGAIN"  value="500"/>
