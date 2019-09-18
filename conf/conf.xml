@@ -33,6 +33,17 @@
    gui_color="blue"
   />
   <aircraft
+   name="OutdoorNew"
+   ac_id="1"
+   airframe="airframes/ovgu/Outdoor.xml"
+   radio="radios/dummy.xml"
+   telemetry="telemetry/ovgu/FINkenDefault.xml"
+   flight_plan="flight_plans/ovgu/manual_flying.xml"
+   settings="settings/rotorcraft_basic.xml"
+   settings_modules=""
+   gui_color="blue"
+  />
+  <aircraft
    name="VirtGPSFinken01"
    ac_id="3"
    airframe="airframes/ovgu/VirtGPSFinken.xml"

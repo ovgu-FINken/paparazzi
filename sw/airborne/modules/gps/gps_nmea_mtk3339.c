@@ -11,7 +11,7 @@
 
 #define MTK_DATA_CONFIG_CMD "$PMTK314,"
 //#define MTK_DATA_CONFIG_STRING "0,1,1,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
-#define MTK_DATA_CONFIG_STRING "0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+#define MTK_DATA_CONFIG_STRING "5,1,0,1,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
 
 static uint8_t toHex(uint8_t digit){
   return digit<10?digit+'0':digit-10+'A';

@@ -55,8 +55,7 @@
 
   <modules>
     <module name="gps_nmea_mtk3339.xml">
-      <configure name="MTK_BAUD" value="38400"/>
-      <configure name="MTK_PERIOD" value="250"/>
+      <configure name="MTK_UPDATE_PERIOD" value="250"/>
     </module>
     <module name="sbrk_fix"/>
     <module name="geo_mag"/>

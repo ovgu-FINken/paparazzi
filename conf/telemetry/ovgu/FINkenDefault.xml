@@ -6,18 +6,24 @@
     <!--Needed for SD Card Logger-->
     <process name="Logger">
         <mode name="default">
-            <message name="ENERGY" period="0.005"/>
-            <message name="ATTITUDE" period="0.005"/>
-            <message name="ROTORCRAFT_FP" period="0.005"/>
-            <message name="INS" period="0.005"/>
+            <message name="ENERGY" period="0.01"/>
+            <message name="ATTITUDE" period="0.01"/>
+            <message name="ROTORCRAFT_FP" period="0.01"/>
+            <message name="INS" period="0.01"/>
             <message name="IMU_GYRO_SCALED" period="0.1"/>
             <message name="IMU_ACCEL_SCALED" period="0.1"/>
-            <message name="IMU_MAG_SCALED" period="0.1"/>
-            <message name="ROTORCRAFT_NAV_STATUS" period="0.1"/>
-            <message name="ROTORCRAFT_STATUS" period="0.1"/>
-            <message name="VIRT_BARO" period="0.05"/>
-            <message name="VIRT_MAG" period="0.05"/>
-            <message name="GPS_INT" period=".01"/>
+            <message name="IMU_MAG_SCALED" period="0.05"/>
+            <message name="IMU_GYRO_RAW" period="0.01"/>
+            <message name="IMU_ACCEL_RAW" period="0.01"/>
+            <message name="IMU_MAG_RAW" period="0.01"/>
+            <message name="ROTORCRAFT_NAV_STATUS" period="1"/>
+            <message name="ROTORCRAFT_STATUS" period="1"/>
+            <message name="ROTORCRAFT_CMD" period="0.01"/>
+            <message name="VERT_LOOP" period="0.01"/>
+            <message name="HOVER_LOOP" period="0.01"/>
+            <message name="VIRT_BARO" period="0.1"/>
+            <message name="VIRT_MAG" period="0.1"/>
+            <message name="GPS_INT" period=".02"/>
         </mode>
     </process>
 
@@ -43,6 +49,16 @@
             <message name="RC" period="1.0"/>
             <message name="ALIVE" period="2.1"/>
 
+        </mode>
+        <mode name="raw_sensors">
+            <message name="ROTORCRAFT_STATUS"             period="1.2"/>
+            <message name="DL_VALUE"                      period="0.5"/>
+            <message name="ALIVE"                         period="2.1"/>
+            <message name="IMU_ACCEL_RAW"                 period=".05"/>
+            <message name="IMU_GYRO_RAW"                  period=".05"/>
+            <message name="IMU_MAG_RAW"                   period=".05"/>
+            <message name="BARO_RAW"                      period=".1"/>
+            <message name="ARDRONE_NAVDATA"               period=".05"/>
         </mode>
 
         <!--Needed for sd card logging -->

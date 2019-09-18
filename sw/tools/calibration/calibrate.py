@@ -84,7 +84,7 @@ def main():
         sensor_ref = 1.
         sensor_res = 11
         noise_window = 10
-        noise_threshold = options.noise_threshold
+        noise_threshold = int(options.noise_threshold)
 
     if options.verbose:
         print("reading file "+filename+" for aircraft "+options.ac_id+" and sensor "+options.sensor)
@@ -154,8 +154,7 @@ def main():
     else:
         print("optimized guess : avg "+str(np1.mean())+" std "+str(np1.std()))
 
-    if not optimze_failed:
-        calibration_utils.print_xml(p1, options.sensor, sensor_res)
+    calibration_utils.print_xml(p1, options.sensor, sensor_res)
 
     if options.plot:
         # if we are calibrating a mag, just draw first plot (non-blocking), then show the second
