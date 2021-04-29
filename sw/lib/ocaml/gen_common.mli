@@ -22,55 +22,30 @@
  *
  *)
 
-(* Module configuration:
-  * Xml node
-  * file (with path)
-  * file name only
-  * optional vpath
-  * parameters
-  * extrat targets
-  *)
-type module_conf = { xml : Xml.xml; file : string; filename : string; vpath : string option; param : Xml.xml list; extra_targets : string list; }
+(* simple boolean expressions *)
+type bool_expr =
+  | Any
+  | Var of string
+  | Not of bool_expr
+  | And of bool_expr * bool_expr
+  | Or of bool_expr * bool_expr
 
-(* Modules directory *)
-val modules_dir : string
+val eval_bool : string -> bool_expr -> bool
+val print_bool : string -> bool_expr -> unit
+val sprint_bool : string -> bool_expr -> string
+val sprint_expr : bool_expr -> string
 
 (** remove all duplicated elements of a list *)
-val singletonize : 'a list -> 'a list
+val singletonize : ?compare: ('a -> 'a -> int) -> 'a list -> 'a list
 
-(** [targets_of_field] Xml node, default
- * Returns the targets of a makefile node in modules
- * Default "ap|sim" *)
-val targets_of_field : Xml.xml -> string -> string list
+(** [bool_expr_of_string] string
+ * Returns the boolean expression of a string
+ *)
+val bool_expr_of_string : string option -> bool_expr
 
-(** [get_modules_of_airframe xml]
- * Returns a list of pair (modules ("load" node), targets) from airframe file *)
-val get_modules_of_airframe : Xml.xml -> module_conf list
+(** [test_targets target targets]
+ * Test if [target] is allowed [targets]
+ * Return true if target is allowed, false if target is not in list or rejected (prefixed by !) *)
+val test_targets : string -> bool_expr -> bool
 
-(** [get_targets_of_module xml] Returns the list of targets of a module *)
-val get_targets_of_module : module_conf -> string list
-
-(** [unload_unused_modules modules ?print_error]
- * Returns a list of [modules] where unused modules are removed
- * If [print_error] is true, a warning is printed *)
-val unload_unused_modules : module_conf list -> bool -> module_conf list
-
-(** [get_modules_name xml]
- * Returns a list of loaded modules' name *)
-val get_modules_name : Xml.xml -> string list
-
-(** [get_modules_dir xml]
- * Returns the list of modules directories *)
-val get_modules_dir : module_conf list -> string list
-
-(** [get_autopilot_of_airframe xml]
- * Returns (autopilot file, main freq) from airframe xml file
- * Raise Not_found if no autopilot
- * Fail if more than one *)
-val get_autopilot_of_airframe : Xml.xml -> (string * string option)
-
-(** [is_element_unselected target file]
- * Returns True if [target] is supported the element [file],
- * [file] being the file name of an Xml file (module or setting) *)
-val is_element_unselected : ?verbose:bool -> string -> string -> bool
 

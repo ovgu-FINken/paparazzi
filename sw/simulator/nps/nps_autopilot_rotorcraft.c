@@ -35,19 +35,26 @@
 #include "subsystems/ins.h"
 #include "math/pprz_algebra.h"
 
+#ifndef NPS_NO_MOTOR_MIXING
 #include "subsystems/actuators/motor_mixing.h"
+
+#if NPS_COMMANDS_NB != MOTOR_MIXING_NB_MOTOR
+#warning "NPS_COMMANDS_NB does not match MOTOR_MIXING_NB_MOTOR!"
+#endif
+#endif
 
 #include "subsystems/abi.h"
 
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 // for datalink_time hack
 #include "subsystems/datalink/datalink.h"
+#include "subsystems/actuators.h"
 
-struct NpsAutopilot autopilot;
-bool_t nps_bypass_ahrs;
-bool_t nps_bypass_ins;
+struct NpsAutopilot nps_autopilot;
+bool nps_bypass_ahrs;
+bool nps_bypass_ins;
 
 #ifndef NPS_BYPASS_AHRS
 #define NPS_BYPASS_AHRS TRUE
@@ -57,14 +64,13 @@ bool_t nps_bypass_ins;
 #define NPS_BYPASS_INS TRUE
 #endif
 
-#if NPS_COMMANDS_NB != MOTOR_MIXING_NB_MOTOR
-#error "NPS_COMMANDS_NB does not match MOTOR_MIXING_NB_MOTOR!"
+#if INDI_RPM_FEEDBACK
+#error "INDI_RPM_FEEDBACK can not be used in simulation!"
 #endif
 
 void nps_autopilot_init(enum NpsRadioControlType type_rc, int num_rc_script, char *rc_dev)
 {
-  autopilot.launch = TRUE;
-  autopilot.datalink_enabled = TRUE;
+  nps_autopilot.launch = TRUE;
 
   nps_radio_control_init(type_rc, num_rc_script, rc_dev);
   nps_electrical_init();
@@ -107,27 +113,46 @@ void nps_autopilot_run_step(double time)
   }
 
   if (nps_sensors_baro_available()) {
+    uint32_t now_ts = get_sys_time_usec();
     float pressure = (float) sensors.baro.value;
-    AbiSendMsgBARO_ABS(BARO_SIM_SENDER_ID, pressure);
+    AbiSendMsgBARO_ABS(BARO_SIM_SENDER_ID, now_ts, pressure);
     main_event();
   }
 
+  if (nps_sensors_temperature_available()) {
+    AbiSendMsgTEMPERATURE(BARO_SIM_SENDER_ID, (float)sensors.temp.value);
+  }
+
+#if USE_AIRSPEED
+  if (nps_sensors_airspeed_available()) {
+    stateSetAirspeed_f((float)sensors.airspeed.value);
+    AbiSendMsgAIRSPEED(AIRSPEED_NPS_ID, (float)sensors.airspeed.value);
+  }
+#endif
+
 #if USE_SONAR
   if (nps_sensors_sonar_available()) {
+    uint32_t now_ts = get_sys_time_usec();
     float dist = (float) sensors.sonar.value;
-    AbiSendMsgAGL(AGL_SONAR_NPS_ID, dist);
+    if (dist >= 0.0) {
+      AbiSendMsgAGL(AGL_SONAR_NPS_ID, now_ts, dist);
+    }
 
+#ifdef SENSOR_SYNC_SEND_SONAR
     uint16_t foo = 0;
     DOWNLINK_SEND_SONAR(DefaultChannel, DefaultDevice, &foo, &dist);
+#endif
 
     main_event();
   }
 #endif
 
+#if USE_GPS
   if (nps_sensors_gps_available()) {
     gps_feed_value();
     main_event();
   }
+#endif
 
   if (nps_bypass_ahrs) {
     sim_overwrite_ahrs();
@@ -141,12 +166,12 @@ void nps_autopilot_run_step(double time)
 
   /* scale final motor commands to 0-1 for feeding the fdm */
   for (uint8_t i = 0; i < NPS_COMMANDS_NB; i++) {
-    autopilot.commands[i] = (double)motor_mixing.commands[i] / MAX_PPRZ;
-  }
-
-  // hack to reset datalink_time, since we don't use actual dl_parse_msg
-  if (autopilot.datalink_enabled) {
-    datalink_time = 0;
+#if NPS_NO_MOTOR_MIXING
+    actuators_pprz[i] = autopilot_get_motors_on() ? actuators_pprz[i] : 0;
+    nps_autopilot.commands[i] = (double)actuators_pprz[i] / MAX_PPRZ;
+#else
+    nps_autopilot.commands[i] = (double)motor_mixing.commands[i] / MAX_PPRZ;
+#endif
   }
 }
 

@@ -35,6 +35,7 @@ SRC_MODULES=modules
 
 CFG_SHARED=$(PAPARAZZI_SRC)/conf/firmwares/subsystems/shared
 
+VPATH += $(PAPARAZZI_HOME)/var/share
 
 #
 # common test
@@ -68,7 +69,7 @@ COMMON_DEMO_SRCS += $(SRC_ARCH)/led_hw.c
 COMMON_DEMO_SRCS += $(SRC_ARCH)/mcu_periph/gpio_arch.c
 endif
 
-COMMON_DEMO_SRCS += mcu_periph/i2c.c $(SRC_ARCH)/mcu_periph/i2c_arch.c
+COMMON_DEMO_SRCS += mcu_periph/i2c.c mcu_periph/softi2c.c $(SRC_ARCH)/mcu_periph/i2c_arch.c
 COMMON_DEMO_SRCS += mcu_periph/uart.c
 COMMON_DEMO_SRCS += $(SRC_ARCH)/mcu_periph/uart_arch.c
 ifeq ($(ARCH), linux)

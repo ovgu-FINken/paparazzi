@@ -36,14 +36,21 @@ ifeq ($(shell which $(PREFIX)-gcc),)
   endif
 endif
 
-CC   = $(PREFIX)-gcc
-LD   = $(PREFIX)-gcc
-AR   = $(PREFIX)-ar
-CP   = $(PREFIX)-objcopy
-DMP  = $(PREFIX)-objdump
-NM   = $(PREFIX)-nm
-SIZE = $(PREFIX)-size
-GDB  = $(PREFIX)-gdb
+CC    = $(PREFIX)-gcc
+CXX   = $(PREFIX)-g++
+LD    = $(PREFIX)-g++
+AR    = $(PREFIX)-ar
+CP    = $(PREFIX)-objcopy
+DMP   = $(PREFIX)-objdump
+NM    = $(PREFIX)-nm
+SIZE  = $(PREFIX)-size
+STRIP = $(PREFIX)-strip
+
+GDB = $(shell $(PREFIX)-gdb)
+ifeq ($(GDB),)
+GDB = $(shell which gdb-multiarch)
+endif
+
 
 # some general commands
 RM = rm

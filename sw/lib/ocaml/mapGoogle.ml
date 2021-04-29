@@ -27,6 +27,7 @@ let array_forall = fun f a ->
 
 open Printf
 
+
 module LL = Latlong
 
 (** Quadtreee of displayed tiles *)
@@ -130,7 +131,7 @@ let fill_window = fun (geomap:MapCanvas.widget) zoomlevel ->
   (** Go through the quadtree and look for the holes *)
   let rec loop = fun twest tsouth tsize trees i zoom key ->
     (* Check for intersection *)
-    if not (twest > east || (twest+.tsize < west && (east < 1. (* Standard case *) || twest+.2.>east (* Over 180° *))) || tsouth > north || tsouth+.tsize < south) then
+    if not (twest > east || (twest+.tsize < west && (east < 1. (* Standard case *) || twest+.2.>east (* Over 180ï¿½ *))) || tsouth > north || tsouth+.tsize < south) then
       let tsize2 = tsize /. 2. in
       try
         match trees.(i) with

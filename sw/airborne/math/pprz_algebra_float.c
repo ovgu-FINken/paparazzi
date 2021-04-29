@@ -124,6 +124,26 @@ void float_rmat_transp_vmult(struct FloatVect3 *vb, struct FloatRMat *m_b2a, str
   vb->z = m_b2a->m[2] * va->x + m_b2a->m[5] * va->y + m_b2a->m[8] * va->z;
 }
 
+/** rotate angle by rotation matrix.
+ * rb = m_a2b * ra
+ */
+void float_rmat_mult(struct FloatEulers *rb, struct FloatRMat *m_a2b, struct FloatEulers *ra)
+{
+  rb->phi = m_a2b->m[0] * ra->phi + m_a2b->m[1] * ra->theta + m_a2b->m[2] * ra->psi;
+  rb->theta = m_a2b->m[3] * ra->phi + m_a2b->m[4] * ra->theta + m_a2b->m[5] * ra->psi;
+  rb->psi = m_a2b->m[6] * ra->phi + m_a2b->m[7] * ra->theta + m_a2b->m[8] * ra->psi;
+}
+
+/** rotate angle by transposed rotation matrix.
+ * rb = m_b2a^T * ra
+ */
+void float_rmat_transp_mult(struct FloatEulers *rb, struct FloatRMat *m_b2a, struct FloatEulers *ra)
+{
+  rb->phi = m_b2a->m[0] * ra->phi + m_b2a->m[3] * ra->theta + m_b2a->m[6] * ra->psi;
+  rb->theta = m_b2a->m[1] * ra->phi + m_b2a->m[4] * ra->theta + m_b2a->m[7] * ra->psi;
+  rb->psi = m_b2a->m[2] * ra->phi + m_b2a->m[5] * ra->theta + m_b2a->m[8] * ra->psi;
+}
+
 /** rotate anglular rates by rotation matrix.
  * rb = m_a2b * ra
  */
@@ -248,7 +268,7 @@ void float_rmat_integrate_fi(struct FloatRMat *rm, struct FloatRates *omega, flo
     }
   };
   struct FloatRMat R_tdt;
-  FLOAT_RMAT_COMP(R_tdt, *rm, exp_omega_dt);
+  float_rmat_comp(&R_tdt, rm, &exp_omega_dt);
   memcpy(rm, &R_tdt, sizeof(R_tdt));
 }
 
@@ -448,12 +468,18 @@ void float_quat_derivative_lagrange(struct FloatQuat *qd, struct FloatRates *r, 
   qd->qz = -0.5 * (-r->r * q->qi - r->q * q->qx + r->p * q->qy +      c * q->qz);
 }
 
+/**
+ * @brief quat of euler roation 'ZYX'
+ *
+ * @param q Quat output
+ * @param e Euler input
+ */
 void float_quat_of_eulers(struct FloatQuat *q, struct FloatEulers *e)
 {
 
-  const float phi2   = e->phi / 2.0;
-  const float theta2 = e->theta / 2.0;
-  const float psi2   = e->psi / 2.0;
+  const float phi2   = e->phi / 2.f;
+  const float theta2 = e->theta / 2.f;
+  const float psi2   = e->psi / 2.f;
 
   const float s_phi2   = sinf(phi2);
   const float c_phi2   = cosf(phi2);
@@ -468,10 +494,64 @@ void float_quat_of_eulers(struct FloatQuat *q, struct FloatEulers *e)
   q->qz =  c_phi2 * c_theta2 * s_psi2 - s_phi2 * s_theta2 * c_psi2;
 }
 
+/**
+ * @brief quat from euler rotation 'ZXY'
+ * This rotation order is useful if you need 90 deg pitch
+ *
+ * @param q Quat output
+ * @param e Euler input
+ */
+void float_quat_of_eulers_zxy(struct FloatQuat *q, struct FloatEulers *e)
+{
+  const float phi2   = e->phi / 2.f;
+  const float theta2 = e->theta / 2.f;
+  const float psi2   = e->psi / 2.f;
+
+  const float s_phi2   = sinf(phi2);
+  const float c_phi2   = cosf(phi2);
+  const float s_theta2 = sinf(theta2);
+  const float c_theta2 = cosf(theta2);
+  const float s_psi2   = sinf(psi2);
+  const float c_psi2   = cosf(psi2);
+
+  q->qi =  c_phi2 * c_theta2 * c_psi2 - s_phi2 * s_theta2 * s_psi2;
+  q->qx =  s_phi2 * c_theta2 * c_psi2 - c_phi2 * s_theta2 * s_psi2;
+  q->qy =  c_phi2 * s_theta2 * c_psi2 + s_phi2 * c_theta2 * s_psi2;
+  q->qz =  s_phi2 * s_theta2 * c_psi2 + c_phi2 * c_theta2 * s_psi2;
+}
+
+/**
+ * @brief quat from euler rotation 'YXZ'
+ * This function calculates a quaternion from Euler angles with the order YXZ,
+ * so pitch, roll, yaw, instead of the conventional ZYX order.
+ * See https://en.wikipedia.org/wiki/Euler_angles
+ *
+ * @param q Quat output
+ * @param e Euler input
+ */
+void float_quat_of_eulers_yxz(struct FloatQuat *q, struct FloatEulers *e)
+{
+  const float phi2   = e->phi / 2.f;
+  const float theta2 = e->theta / 2.f;
+  const float psi2   = e->psi / 2.f;
+
+  const float s_phi2   = sinf(phi2);
+  const float c_phi2   = cosf(phi2);
+  const float s_theta2 = sinf(theta2);
+  const float c_theta2 = cosf(theta2);
+  const float s_psi2   = sinf(psi2);
+  const float c_psi2   = cosf(psi2);
+
+  q->qi =  c_theta2 * c_phi2 * c_psi2 + s_theta2 * s_phi2 * s_psi2;
+  q->qx =  c_theta2 * s_phi2 * c_psi2 + s_theta2 * c_phi2 * s_psi2;
+  q->qy =  s_theta2 * c_phi2 * c_psi2 - c_theta2 * s_phi2 * s_psi2;
+  q->qz =  c_theta2 * c_phi2 * s_psi2 - s_theta2 * s_phi2 * c_psi2;
+}
+
 void float_quat_of_axis_angle(struct FloatQuat *q, const struct FloatVect3 *uv, float angle)
 {
-  const float san = sinf(angle / 2.);
-  q->qi = cosf(angle / 2.);
+  const float san = sinf(angle / 2.f);
+  q->qi = cosf(angle / 2.f);
   q->qx = san * uv->x;
   q->qy = san * uv->y;
   q->qz = san * uv->z;
@@ -549,14 +629,24 @@ void float_eulers_of_rmat(struct FloatEulers *e, struct FloatRMat *rm)
 {
   const float dcm00 = rm->m[0];
   const float dcm01 = rm->m[1];
-  const float dcm02 = rm->m[2];
+  float dcm02 = rm->m[2];
   const float dcm12 = rm->m[5];
   const float dcm22 = rm->m[8];
+
+  // asinf does not exist outside [-1,1]
+  BoundAbs(dcm02, 1.0);
+
   e->phi   = atan2f(dcm12, dcm22);
   e->theta = -asinf(dcm02);
   e->psi   = atan2f(dcm01, dcm00);
 }
 
+/**
+ * @brief euler rotation 'ZYX'
+ *
+ * @param e Euler output
+ * @param q Quat input
+ */
 void float_eulers_of_quat(struct FloatEulers *e, struct FloatQuat *q)
 {
   const float qx2  = q->qx * q->qx;
@@ -570,11 +660,335 @@ void float_eulers_of_quat(struct FloatEulers *e, struct FloatQuat *q)
   const float qyqz = q->qy * q->qz;
   const float dcm00 = 1.0 - 2.*(qy2 +  qz2);
   const float dcm01 =       2.*(qxqy + qiqz);
-  const float dcm02 =       2.*(qxqz - qiqy);
+  float dcm02 =       2.*(qxqz - qiqy);
   const float dcm12 =       2.*(qyqz + qiqx);
   const float dcm22 = 1.0 - 2.*(qx2 +  qy2);
+
+  // asinf does not exist outside [-1,1]
+  BoundAbs(dcm02, 1.0);
 
   e->phi = atan2f(dcm12, dcm22);
   e->theta = -asinf(dcm02);
   e->psi = atan2f(dcm01, dcm00);
+}
+
+/**
+ * @brief euler rotation 'YXZ'
+ * This function calculates from a quaternion the Euler angles with the order YXZ,
+ * so pitch, roll, yaw, instead of the conventional ZYX order.
+ * See https://en.wikipedia.org/wiki/Euler_angles
+ *
+ * @param e Euler output
+ * @param q Quat input
+ */
+void float_eulers_of_quat_yxz(struct FloatEulers *e, struct FloatQuat *q)
+{
+  const float qx2  = q->qx * q->qx;
+  const float qy2  = q->qy * q->qy;
+  const float qz2  = q->qz * q->qz;
+  const float qi2  = q->qi * q->qi;
+  const float qiqx = q->qi * q->qx;
+  const float qiqy = q->qi * q->qy;
+  const float qiqz = q->qi * q->qz;
+  const float qxqy = q->qx * q->qy;
+  const float qxqz = q->qx * q->qz;
+  const float qyqz = q->qy * q->qz;
+  const float r11  = 2.f * (qxqz + qiqy);
+  const float r12  = qi2 - qx2 + qy2 + qz2;
+  float r21  = -2.f * (qyqz - qiqx);
+  const float r31  = 2.f * (qxqy + qiqz);
+  const float r32  = qi2 - qx2 + qy2 - qz2;
+
+  // asinf does not exist outside [-1,1]
+  BoundAbs(r21, 1.0);
+
+  e->theta = atan2f(r11, r12);
+  e->phi = asinf(r21);
+  e->psi = atan2f(r31, r32);
+}
+
+/**
+ * @brief euler rotation 'ZXY'
+ * This rotation order is useful if you need 90 deg pitch
+ *
+ * @param e Euler output
+ * @param q Quat input
+ */
+void float_eulers_of_quat_zxy(struct FloatEulers *e, struct FloatQuat *q)
+{
+  const float qx2  = q->qx * q->qx;
+  const float qy2  = q->qy * q->qy;
+  const float qz2  = q->qz * q->qz;
+  const float qi2  = q->qi * q->qi;
+  const float qiqx = q->qi * q->qx;
+  const float qiqy = q->qi * q->qy;
+  const float qiqz = q->qi * q->qz;
+  const float qxqy = q->qx * q->qy;
+  const float qxqz = q->qx * q->qz;
+  const float qyqz = q->qy * q->qz;
+  const float r11  = -2 * (qxqy - qiqz);
+  const float r12  = qi2 - qx2 + qy2 - qz2;
+  float r21  =  2 * (qyqz + qiqx);
+  const float r31  = -2 * (qxqz - qiqy);
+  const float r32  = qi2 - qx2 - qy2 + qz2;
+
+  // asinf does not exist outside [-1,1]
+  BoundAbs(r21, 1.0);
+
+  e->psi = atan2f(r11, r12);
+  e->phi = asinf(r21);
+  e->theta = atan2f(r31, r32);
+}
+
+/**
+ * @brief 2x2 matrix inverse
+ *
+ * @param inv_out[4] inverted matrix output
+ * @param mat_in[4] matrix to be inverted
+ *
+ * @return success (0) or not invertible (1)
+ */
+bool float_mat_inv_2d(float inv_out[4], float mat_in[4])
+{
+  float det = mat_in[0] * mat_in[3] - mat_in[1] * mat_in[2];
+
+  if (fabsf(det) < 1e-4) { return 1; } //not invertible
+
+  inv_out[0] =  mat_in[3] / det;
+  inv_out[1] = -mat_in[1] / det;
+  inv_out[2] = -mat_in[2] / det;
+  inv_out[3] =  mat_in[0] / det;
+
+  return 0; //return success
+}
+
+/**
+ * @brief Multiply 2D matrix with vector
+ *
+ * @param vect_out output vector
+ * @param mat[4] Matrix input
+ * @param vect_in Vector input
+ */
+void float_mat2_mult(struct FloatVect2 *vect_out, float mat[4], struct FloatVect2 vect_in)
+{
+  vect_out->x = mat[0] * vect_in.x + mat[1] * vect_in.y;
+  vect_out->y = mat[2] * vect_in.x + mat[3] * vect_in.y;
+}
+
+/*
+ * 4x4 Matrix inverse.
+ * obtained from: http://rodolphe-vaillant.fr/?e=7
+ */
+
+static float float_mat_minor_4d(float m[16], int r0, int r1, int r2, int c0, int c1, int c2)
+{
+  return m[4 * r0 + c0] * (m[4 * r1 + c1] * m[4 * r2 + c2] - m[4 * r2 + c1] * m[4 * r1 + c2]) -
+         m[4 * r0 + c1] * (m[4 * r1 + c0] * m[4 * r2 + c2] - m[4 * r2 + c0] * m[4 * r1 + c2]) +
+         m[4 * r0 + c2] * (m[4 * r1 + c0] * m[4 * r2 + c1] - m[4 * r2 + c0] * m[4 * r1 + c1]);
+}
+
+
+static void float_mat_adjoint_4d(float adjOut[16], float m[16])
+{
+  adjOut[ 0] =  float_mat_minor_4d(m, 1, 2, 3, 1, 2, 3);
+  adjOut[ 1] = -float_mat_minor_4d(m, 0, 2, 3, 1, 2, 3);
+  adjOut[ 2] =  float_mat_minor_4d(m, 0, 1, 3, 1, 2, 3);
+  adjOut[ 3] = -float_mat_minor_4d(m, 0, 1, 2, 1, 2, 3);
+  adjOut[ 4] = -float_mat_minor_4d(m, 1, 2, 3, 0, 2, 3);
+  adjOut[ 5] =  float_mat_minor_4d(m, 0, 2, 3, 0, 2, 3);
+  adjOut[ 6] = -float_mat_minor_4d(m, 0, 1, 3, 0, 2, 3);
+  adjOut[ 7] =  float_mat_minor_4d(m, 0, 1, 2, 0, 2, 3);
+  adjOut[ 8] =  float_mat_minor_4d(m, 1, 2, 3, 0, 1, 3);
+  adjOut[ 9] = -float_mat_minor_4d(m, 0, 2, 3, 0, 1, 3);
+  adjOut[10] =  float_mat_minor_4d(m, 0, 1, 3, 0, 1, 3);
+  adjOut[11] = -float_mat_minor_4d(m, 0, 1, 2, 0, 1, 3);
+  adjOut[12] = -float_mat_minor_4d(m, 1, 2, 3, 0, 1, 2);
+  adjOut[13] =  float_mat_minor_4d(m, 0, 2, 3, 0, 1, 2);
+  adjOut[14] = -float_mat_minor_4d(m, 0, 1, 3, 0, 1, 2);
+  adjOut[15] =  float_mat_minor_4d(m, 0, 1, 2, 0, 1, 2);
+}
+
+static float float_mat_det_4d(float m[16])
+{
+  return m[0] * float_mat_minor_4d(m, 1, 2, 3, 1, 2, 3) -
+         m[1] * float_mat_minor_4d(m, 1, 2, 3, 0, 2, 3) +
+         m[2] * float_mat_minor_4d(m, 1, 2, 3, 0, 1, 3) -
+         m[3] * float_mat_minor_4d(m, 1, 2, 3, 0, 1, 2);
+}
+
+/**
+ * 4x4 Matrix inverse
+ *
+ * @param invOut output array, inverse of mat_in
+ * @param mat_in input array
+ */
+bool float_mat_inv_4d(float invOut[16], float mat_in[16])
+{
+  float_mat_adjoint_4d(invOut, mat_in);
+
+  float det = float_mat_det_4d(mat_in);
+  if (fabsf(det) < 1e-4) { return 1; } //not invertible
+
+  float inv_det = 1.0f / det;
+  int i;
+  for (i = 0; i < 16; ++i) {
+    invOut[i] = invOut[i] * inv_det;
+  }
+
+  return 0; //success
+}
+
+/** Calculate inverse of any n x n matrix (passed as C array) o = mat^-1
+Algorithm verified with Matlab.
+Thanks to: https://www.quora.com/How-do-I-make-a-C++-program-to-get-the-inverse-of-a-matrix-100-X-100
+*/
+void float_mat_invert(float **o, float **mat, int n)
+{
+  int i, j, k;
+  float t;
+  float a[n][2 * n];
+
+  // Append an identity matrix on the right of the original matrix
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < 2 * n; j++) {
+      if (j < n) {
+        a[i][j] = mat[i][j];
+      } else if ((j >= n) && (j == i + n)) {
+        a[i][j] = 1.0;
+      } else {
+        a[i][j] = 0.0;
+      }
+    }
+  }
+
+  // Do the inversion
+  for (i = 0; i < n; i++) {
+    t = a[i][i]; // Store diagonal variable (temp)
+
+    for (j = i; j < 2 * n; j++) {
+      a[i][j] = a[i][j] / t; // Divide by the diagonal value
+    }
+
+    for (j = 0; j < n; j++) {
+      if (i != j) {
+        t = a[j][i];
+        for (k = 0; k < 2 * n; k++) {
+          a[j][k] = a[j][k] - t * a[i][k];
+        }
+      }
+    }
+  }
+
+  // Cut out the identity, which has now moved to the left side
+  for (i = 0 ; i < n ; i++) {
+    for (j = n; j < 2 * n; j++) {
+      o[i][j - n] = a[i][j];
+    }
+  }
+}
+
+/*
+ * o[n][n] = e^a[n][n]
+ * Replicates expm(a) in Matlab
+ *
+ * Adapted from the following reference:
+ * Cleve Moler, Charles VanLoan,
+ * Nineteen Dubious Ways to Compute the Exponential of a Matrix,
+ * Twenty-Five Years Later, SIAM Review, Volume 45, Number 1, March 2003, pages 3-49.
+ * https://people.sc.fsu.edu/~jburkardt/c_src/matrix_exponential/matrix_exponential.c
+ */
+void float_mat_exp(float **a, float **o, int n)
+{
+  float a_norm, c, t;
+  const int q = 6;
+  float d[n][n];
+  float x[n][n];
+  float a_copy[n][n];
+  int ee, k, s;
+  int p;
+
+  MAKE_MATRIX_PTR(_a,  a,  n);
+  MAKE_MATRIX_PTR(_o,  o,  n);
+  MAKE_MATRIX_PTR(_d,  d,  n);
+  MAKE_MATRIX_PTR(_x,  x,  n);
+  MAKE_MATRIX_PTR(_a_copy, a_copy, n);
+
+  float_mat_copy(_a_copy, _a, n, n); // Make a copy of a to compute on
+  a_norm = float_mat_norm_li(_a_copy, n, n);  // Compute the infinity norm of the matrix
+  ee = (int)(float_log_n(a_norm, 2)) + 1;
+  s = Max(0, ee + 1);
+  t = 1.0 / powf(2.0, s);
+  float_mat_scale(_a_copy, t, n, n);
+  float_mat_copy(_x, _a_copy, n, n);  // x = a_copy
+  c = 0.5;
+
+  float_mat_diagonal_scal(_o, 1.0, n);  // make identiy
+  float_mat_sum_scaled(_o, _a_copy, c, n, n);
+
+  float_mat_diagonal_scal(_d, 1.0, n);
+  float_mat_sum_scaled(_d, _a_copy, -c, n, n);
+
+  p = 1;
+  for (k = 2; k <= q; k++) {
+    c = c * (float)(q - k + 1) / (float)(k * (2 * q - k + 1));
+    float_mat_mul_copy(_x, _x, _a_copy, n, n, n);
+
+    float_mat_sum_scaled(_o, _x, c, n, n);
+
+    if (p) {
+      float_mat_sum_scaled(_d, _x, c, n, n);
+    } else {
+      float_mat_sum_scaled(_d, _x, -c, n, n);
+    }
+    p = !p;
+  }
+
+  // E -> inverse(D) * E
+  float temp[n][n];
+  MAKE_MATRIX_PTR(_temp, temp, n);
+  float_mat_invert(_temp, _d, n);
+  float_mat_mul_copy(_o, _temp, _o, n, n, n);
+
+  // E -> E^(2*S)
+  for (k = 1; k <= s; k++) {
+    float_mat_mul_copy(_o, _o, _o, n, n, n);
+  }
+
+}
+
+/* Returns L-oo of matrix a */
+float float_mat_norm_li(float **a, int m, int n)
+{
+  float row_sum;
+  float value;
+
+  value = 0.0;
+  for (int i = 0; i < m; i++) {
+    row_sum = 0.0;
+    for (int j = 0; j < n; j++) {
+      row_sum = row_sum + fabsf(a[i][j]);
+    }
+    value = Max(value, row_sum);
+  }
+  return value;
+}
+
+/* Scale a 3D vector to within a 2D bound */
+void vect_bound_in_2d(struct FloatVect3 *vect3, float bound) {
+  float norm = FLOAT_VECT2_NORM(*vect3);
+  if(norm>bound) {
+    float scale = bound/norm;
+    vect3->x *= scale;
+    vect3->y *= scale;
+  }
+}
+
+/* Scale a 3D vector to a certain length in 2D */
+void vect_scale(struct FloatVect3 *vect3, float norm_des) {
+  float norm = FLOAT_VECT2_NORM(*vect3);
+  if(norm>0.1) {
+    float scale = norm_des/norm;
+    vect3->x *= scale;
+    vect3->y *= scale;
+  }
 }

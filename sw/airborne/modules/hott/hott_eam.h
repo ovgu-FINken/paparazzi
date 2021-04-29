@@ -100,7 +100,7 @@ struct HOTT_EAM_MSG {
 
   uint16_t batt2_voltage;      //#23 #24 battery 2 voltage 0.02V steps
 
-  int8_t temp1;                //#25 Temperature sensor 1. 0°=20, 26°=46
+  int8_t temp1;                //#25 Temperature sensor 1. 0Â°=20, 26Â°=46
   int8_t temp2;                //#26 temperature sensor 2
 
   uint16_t altitude;          //#27 #28 Attitude lower value. unit: meters. Value of 500 = 0m
@@ -139,24 +139,23 @@ static void hott_init_eam_msg(struct HOTT_EAM_MSG *hott_eam_msg)
 
 static void hott_update_eam_msg(struct HOTT_EAM_MSG *hott_eam_msg)
 {
-
-  hott_eam_msg->batt1_voltage = electrical.vsupply;
-  hott_eam_msg->batt2_voltage = electrical.vsupply;
+  hott_eam_msg->batt1_voltage = electrical.vsupply * 5;  // convert from V to steps of 0.2V
+  hott_eam_msg->batt2_voltage = electrical.vsupply * 5;  // convert from V to steps of 0.2V
   //hott_eam_msg->temp1 = 20 + imu.temperature / 10;
   //hott_eam_msg->temp2 = 20 + imu.temperature / 10;
   hott_eam_msg->altitude = (uint16_t)(500 + (stateGetPositionEnu_i()->z) / (1 << INT32_POS_FRAC));
-  hott_eam_msg->current = electrical.current / 100;
-  hott_eam_msg->main_voltage = electrical.vsupply;
+  hott_eam_msg->current = electrical.current * 10;  // convert to deciA
+  hott_eam_msg->main_voltage = electrical.vsupply * 10;  // convert to deciV
   hott_eam_msg->batt_cap = 0;
-  uint16_t speed_buf = (uint16_t)(*stateGetHorizontalSpeedNorm_i() * 36 / 10 / (1 << INT32_SPEED_FRAC));
-  hott_eam_msg->speed_L = speed_buf && 0xFF;
-  hott_eam_msg->speed_H = (speed_buf >> 8) && 0xFF;
+  uint16_t speed_buf = (uint16_t)(stateGetHorizontalSpeedNorm_i() * 36 / 10 / (1 << INT32_SPEED_FRAC));
+  hott_eam_msg->speed_L = speed_buf & 0xFF;
+  hott_eam_msg->speed_H = (speed_buf >> 8) & 0xFF;
 
   hott_eam_msg->climbrate = (uint16_t)(30000 + (stateGetSpeedEnu_i()->z) * 100 / (1 << INT32_SPEED_FRAC));
   hott_eam_msg->climbrate3s = (uint8_t)(120 + (stateGetSpeedEnu_i()->z) * 3 / (1 << INT32_SPEED_FRAC));
 
   //display ON when motors are armed
-  if (autopilot_motors_on) {
+  if (autopilot_get_motors_on()) {
     hott_eam_msg->alarm_invers2 |= 0x80;
   } else {
     hott_eam_msg->alarm_invers2 &= 0x7f;

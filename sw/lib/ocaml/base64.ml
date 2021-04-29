@@ -28,6 +28,8 @@
 (** Exception raised when there's an attempt to encode a chunk incorrectly *)
 exception Invalid_encode_chunk of int
 
+
+
 (** The character map of all base64 characters *)
 
 let char_map = [|
@@ -48,28 +50,28 @@ let encode_chunk chars =
   let llength = List.length chars in
   if(llength = 0 || llength > 3) then
     raise (Invalid_encode_chunk(llength));
-  let chunk = String.make 4 '=' in
+  let chunk = Bytes.make 4 '=' in
   let a = List.hd chars in
   let tmpa = (((Char.code a) land 3) lsl 4) in
-  chunk.[0] <- char_map.( (Char.code a) lsr 2);
+  Bytes.set chunk 0 char_map.( (Char.code a) lsr 2);
   (* Check for another character *)
   if (llength < 2) then (
-    chunk.[1] <- char_map.(tmpa);
-    chunk;
+    Bytes.set chunk 1 char_map.(tmpa);
+    Bytes.to_string chunk;
   ) else (
     let b = List.nth chars 1 in
     let tmpb = ((Char.code b) lsr 4) in
     let tmpa2 = ((Char.code b) land 0x0f) lsl 2 in
-    chunk.[1] <- char_map.(tmpa lor tmpb);
+    Bytes.set chunk 1 char_map.(tmpa lor tmpb);
     if (llength < 3) then (
-      chunk.[2] <- char_map.(tmpa2);
-      chunk
+      Bytes.set chunk 2 char_map.(tmpa2);
+      Bytes.to_string chunk
     ) else (
       let c = List.nth chars 2 in
       let tmpb2 = ((Char.code c) land 0xc0) lsr 6 in
-      chunk.[2] <- char_map.(tmpa2 lor tmpb2);
-      chunk.[3] <- char_map.((Char.code c) land 0x3f);
-      chunk
+      Bytes.set chunk 2 char_map.(tmpa2 lor tmpb2);
+      Bytes.set chunk 3 char_map.((Char.code c) land 0x3f);
+      Bytes.to_string chunk
     )
   )
 
@@ -200,7 +202,7 @@ let decode_string s = decode_to_string (Stream.of_string s)
 (** Simple test function. *)
 
 let test() =
-  let wordlist = ["A";"AB";"ABC";"Dustin";String.create 128] in
+  let wordlist = ["A";"AB";"ABC";"Dustin";Bytes.to_string (Bytes.create 128)] in
   print_endline("String:");
   List.iter (fun x -> print_endline(encode_string x))
     wordlist;

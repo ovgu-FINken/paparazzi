@@ -3,10 +3,9 @@
 from __future__ import print_function
 
 import lxml.etree as ET
-import StringIO
+from io import StringIO
 
 import xml_common
-import paparazzi
 
 
 def find_and_add(source, target, search):
@@ -36,7 +35,7 @@ def find_or_add_group(source, target, search):
 
 
 def reorganize_airframe_xml(airframe_xml):
-    some_file_like_object = StringIO.StringIO("<airframe/>")
+    some_file_like_object = StringIO(u"<airframe/>")
     airframe_xml_tree = ET.parse(some_file_like_object)
     airframe = airframe_xml_tree.getroot()
 
@@ -44,6 +43,8 @@ def reorganize_airframe_xml(airframe_xml):
         print("Airframe has no name!")
     else:
         airframe.set('name', airframe_xml.getroot().get('name'))
+
+    find_and_add(airframe_xml, airframe, "description")
 
     find_or_add_group(airframe_xml, airframe, "FIRMWARE")
     find_and_add(airframe_xml, airframe, "firmware")
@@ -188,7 +189,7 @@ if __name__ == '__main__':
             if len(sys.argv) > 3:
                 outputfile = airframe_file
     else:
-        airframe_file = "../../../conf/airframes/CDW/yapa_xsens.xml"
+        airframe_file = "../../../conf/airframes/examples/microjet.xml"
 
     print(airframe_file)
     [e, airframe, hdr] = load(airframe_file)

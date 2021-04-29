@@ -34,6 +34,11 @@
 #include <libopencm3/stm32/gpio.h>
 
 /**
+ * Abstract gpio port type for hardware independent part
+ */
+typedef uint32_t gpio_port_t;
+
+/**
  * Setup one or more pins of the given GPIO port as outputs.
  * @param[in] port
  * @param[in] gpios If multiple pins are to be changed, use logical OR '|' to separate them.
@@ -66,9 +71,9 @@ extern void gpio_setup_input_pulldown(uint32_t port, uint16_t gpios);
  * This is an STM32 specific helper funtion and should only be used in stm32 arch code.
  */
 #if defined(STM32F1)
-extern void gpio_setup_pin_af(uint32_t port, uint16_t pin, uint32_t af, bool_t is_output);
+extern void gpio_setup_pin_af(uint32_t port, uint16_t pin, uint32_t af, bool is_output);
 #else
-extern void gpio_setup_pin_af(uint32_t port, uint16_t pin, uint8_t af, bool_t is_output);
+extern void gpio_setup_pin_af(uint32_t port, uint16_t pin, uint8_t af, bool is_output);
 #endif
 
 /**

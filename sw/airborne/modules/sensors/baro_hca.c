@@ -27,7 +27,7 @@
 
 //Messages
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 
@@ -53,7 +53,7 @@
 
 // Global variables
 uint16_t pBaroRaw;
-bool_t baro_hca_valid;
+bool baro_hca_valid;
 float baro_hca_p;
 
 
@@ -62,7 +62,7 @@ struct i2c_transaction baro_hca_i2c_trans;
 void baro_hca_init(void)
 {
   pBaroRaw = 0;
-  baro_hca_valid = TRUE;
+  baro_hca_valid = true;
   baro_hca_i2c_trans.status = I2CTransDone;
 }
 
@@ -82,9 +82,9 @@ void baro_hca_read_event(void)
   pBaroRaw = ((uint16_t)baro_hca_i2c_trans.buf[0] << 8) | baro_hca_i2c_trans.buf[1];
 
   if (pBaroRaw == 0) {
-    baro_hca_valid = FALSE;
+    baro_hca_valid = false;
   } else {
-    baro_hca_valid = TRUE;
+    baro_hca_valid = true;
   }
 
 
@@ -97,8 +97,9 @@ void baro_hca_read_event(void)
       pBaroRaw = BARO_HCA_MAX_OUT;
     }
 
+    uint32_t now_ts = get_sys_time_usec();
     float pressure = BARO_HCA_SCALE * (float)pBaroRaw + BARO_HCA_PRESSURE_OFFSET;
-    AbiSendMsgBARO_ABS(BARO_HCA_SENDER_ID, pressure);
+    AbiSendMsgBARO_ABS(BARO_HCA_SENDER_ID, now_ts, pressure);
   }
   baro_hca_i2c_trans.status = I2CTransDone;
 

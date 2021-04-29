@@ -24,13 +24,14 @@
 Q=@
 
 
-OCAMLC=ocamlfind ocamlc
-OCAMLOPT=ocamlfind ocamlopt
-OCAMLDEP=ocamlfind ocamldep
-OCAMLLEX=ocamllex
-OCAMLYACC=ocamlyacc
-OCAMLMKLIB=ocamlmklib
-OCAMLLIBDIR=$(shell $(OCAMLC) -where)
+#OCAMLC=ocamlfind ocamlc
+#OCAMLOPT=ocamlfind ocamlopt
+#OCAMLDEP=ocamlfind ocamldep
+#OCAMLLEX=ocamllex
+#OCAMLYACC=ocamlyacc
+#OCAMLMKLIB=ocamlmklib
+#OCAMLLIBDIR=$(shell $(OCAMLC) -where)
+include ../../Makefile.ocaml
 
 # verbose ocamlmklib: Print commands before executing them
 #VERBOSITY = -verbose
@@ -48,25 +49,27 @@ ifeq ($(LABLGTK2GNOMECANVAS),)
 LABLGTK2GNOMECANVAS = $(shell ocamlfind query -p-format lablgtk2.gnomecanvas 2>/dev/null)
 endif
 
-NETCLIENT_VER := $(shell ocamlfind query -format '%v' netclient)
-NETCLIENT_MAJOR := $(shell echo $(NETCLIENT_VER) | cut -f1 -d.)
-ifeq ($(shell test $(NETCLIENT_MAJOR) -ge 4; echo $$?),0)
-CAMLP4_DEFS = -DNETCLIENT_V_4
-endif
 CAMLP4_DEFS ?=
+OCAMLC_VER := $(shell ocamlc -version)
+OCAMLC_MAJOR := $(shell echo $(OCAMLC_VER) | cut -f1 -d.)
+OCAMLC_MINOR := $(shell echo $(OCAMLC_VER) | cut -f2 -d.)
+ifeq ($(shell test $(OCAMLC_MAJOR) -ge 4; echo $$?),0)
+ifeq ($(shell test $(OCAMLC_MINOR) -ge 4; echo $$?),0)
+CAMLP4_DEFS += -DOCAML_V404
+endif
+endif
 PP_OPTS = -pp "camlp4o pa_macro.cmo $(CAMLP4_DEFS)"
 
 # which source files to run through caml4p
-PP_SRC = http.ml
-PP_CMO = $(PP_SRC:.ml=.cmo)
-PP_CMX = $(PP_SRC:.ml=.cmx)
+PP_SRC = compat.ml
 
 INCLUDES=
-PKGCOMMON=xml-light,netclient,glibivy,lablgtk2
+PKGCOMMON=pprzlink,xml-light,netclient,nettls-gnutls,glibivy,lablgtk2
 XINCLUDES=
-XPKGCOMMON=xml-light,glibivy,$(LABLGTK2GNOMECANVAS),lablgtk2.glade
+XPKGCOMMON=pprzlink,xml-light,glibivy,$(LABLGTK2GNOMECANVAS),lablgtk2.glade
 
-SRC = fig.ml debug.ml base64.ml serial.ml ocaml_tools.ml expr_syntax.ml expr_parser.ml expr_lexer.ml extXml.ml env.ml xml2h.ml latlong.ml egm96.ml srtm.ml http.ml maps_support.ml gm.ml iGN.ml geometry_2d.ml cserial.o convert.o ubx.ml pprz.ml xbee.ml logpprz.ml xmlCom.ml os_calls.ml editAirframe.ml defivybus.ml fp_proc.ml gen_common.ml
+SRC = compat.ml fig.ml debug.ml base64.ml serial.ml ocaml_tools.ml expr_syntax.ml expr_parser.ml expr_lexer.ml extXml.ml env.ml xml2h.ml latlong.ml egm96.ml srtm.ml http.ml maps_support.ml gm.ml iGN.ml geometry_2d.ml cserial.o ubx.ml xmlCom.ml os_calls.ml editAirframe.ml defivybus.ml fp_proc.ml quaternion.ml
+SRC += gen_common.ml radio.ml settings.ml module.ml flight_plan.ml autopilot.ml airframe.ml telemetry.ml aircraft.ml
 CMO = $(SRC:.ml=.cmo)
 CMX = $(SRC:.ml=.cmx)
 
@@ -103,9 +106,17 @@ xlib-pprz.cmxa dllxlib-pprz.so: $(XCMX)
 
 # trying to set correct dependencies for parallel build
 # these are order only depedencies
+lib-pprz.cma: | liblib-pprz.a dlllib-pprz.so
+
 lib-pprz.cmxa: | liblib-pprz.a dlllib-pprz.so
 
+xlib-pprz.cma: | libxlib-pprz.a dllxlib-pprz.so
+
 xlib-pprz.cmxa: | libxlib-pprz.a dllxlib-pprz.so
+
+xml_get.cmo : xml_get.ml lib-pprz.cma
+	@echo OC $@
+	$(Q)$(OCAMLC) $(INCLUDES) -package $(PKGCOMMON) -I . lib-pprz.cma -c $<
 
 xml_get.out : lib-pprz.cma xml_get.cmo
 	@echo OL $@
@@ -121,27 +132,26 @@ tests : lib-pprz.cma $(TESTS_CMO)
 $(XCMO) $(XCMX): PKGCOMMON=$(XPKGCOMMON)
 
 
-GTKCFLAGS := $(shell pkg-config --cflags gtk+-2.0)
+GTKCFLAGS := $(shell pkg-config --cflags gtk+-2.0) -DGTK_DISABLE_DEPRECATED
 ml_gtk_drag.o : ml_gtk_drag.c
 	@echo OC $<
 	$(Q)$(OCAMLC) $(INCLUDES) -package $(PKGCOMMON) -c -ccopt "$(GTKCFLAGS)" $<
 
-# bit of a hack: only run some specifc files through caml4p
-$(PP_CMO) : $(PP_SRC)
-	@echo OC $<
-	$(Q)$(OCAMLC) $(INCLUDES) $(PP_OPTS) -package $(PKGCOMMON) -c $<
-
-$(PP_CMX) : $(PP_SRC)
-	@echo OOC $<
-	$(Q)$(OCAMLOPT) $(INCLUDES) $(PP_OPTS) -package $(PKGCOMMON) -c $<
-
 %.cmo : %.ml
 	@echo OC $<
-	$(Q)$(OCAMLC) $(INCLUDES) -package $(PKGCOMMON) -c $<
+	@if test $(findstring $<,$(PP_SRC)); then \
+		$(OCAMLC) $(INCLUDES) $(PP_OPTS) -package $(PKGCOMMON) -c $<; \
+	else \
+		$(OCAMLC) $(INCLUDES) -package $(PKGCOMMON) -c $<; \
+	fi;
 
 %.cmx : %.ml
 	@echo OOC $<
-	$(Q)$(OCAMLOPT) $(INCLUDES) -package $(PKGCOMMON) -c $<
+	@if test $(findstring $<,$(PP_SRC)); then \
+		$(OCAMLOPT) $(INCLUDES) $(PP_OPTS) -package $(PKGCOMMON) -c $<; \
+	else \
+		$(OCAMLOPT) $(INCLUDES) -package $(PKGCOMMON) -c $<; \
+	fi;
 
 %.cmi : %.mli
 	@echo OC $<

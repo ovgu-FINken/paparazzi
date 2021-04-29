@@ -34,7 +34,7 @@
 extern float max_dist_from_home;
 extern float dist2_to_home;
 extern float dist2_to_wp;
-extern bool_t too_far_from_home;
+extern bool too_far_from_home;
 
 struct point {
   float x;
@@ -44,6 +44,7 @@ struct point {
 
 #define WaypointX(_wp) (waypoints[_wp].x)
 #define WaypointY(_wp) (waypoints[_wp].y)
+/** waypoint altitude in m above MSL */
 #define WaypointAlt(_wp) (waypoints[_wp].a)
 #define Height(_h) (_h + ground_alt)
 
@@ -53,36 +54,38 @@ extern const uint8_t nb_waypoint;
 extern struct point waypoints[];
 /** size == nb_waypoint, waypoint 0 is a dummy waypoint */
 
-extern float ground_alt; /* m */
+/** altitude of the ground in m above MSL */
+extern float ground_alt;
 
 extern int32_t nav_utm_east0;  /* m */
 extern int32_t nav_utm_north0; /* m */
 extern uint8_t nav_utm_zone0;
 
 
-void compute_dist2_to_home(void);
-unit_t nav_reset_utm_zone(void);
-unit_t nav_reset_reference(void) __attribute__((unused));
-unit_t nav_reset_alt(void) __attribute__((unused));
-unit_t nav_update_waypoints_alt(void) __attribute__((unused));
-void common_nav_periodic_task_4Hz(void);
+extern void compute_dist2_to_home(void);
+extern void nav_reset_utm_zone(void);
+extern void nav_reset_reference(void) __attribute__((unused));
+extern void nav_reset_alt(void) __attribute__((unused));
+extern void nav_update_waypoints_alt(void) __attribute__((unused));
+extern void common_nav_periodic_task_4Hz(void);
+extern float get_time_to_home(void); /* estimated time to home point in seconds */
 
 
-#define NavSetGroundReferenceHere() ({ nav_reset_reference(); nav_update_waypoints_alt(); FALSE; })
+#define NavSetGroundReferenceHere() ({ nav_reset_reference(); nav_update_waypoints_alt(); false; })
 
-#define NavSetAltitudeReferenceHere() ({ nav_reset_alt(); nav_update_waypoints_alt(); FALSE; })
+#define NavSetAltitudeReferenceHere() ({ nav_reset_alt(); nav_update_waypoints_alt(); false; })
 
 #define NavSetWaypointHere(_wp) ({ \
     waypoints[_wp].x = stateGetPositionEnu_f()->x; \
     waypoints[_wp].y = stateGetPositionEnu_f()->y; \
-    FALSE; \
+    false; \
   })
 
 #define NavSetWaypointPosAndAltHere(_wp) ({ \
     waypoints[_wp].x = stateGetPositionEnu_f()->x; \
     waypoints[_wp].y = stateGetPositionEnu_f()->y; \
     waypoints[_wp].a = stateGetPositionEnu_f()->z + ground_alt; \
-    FALSE; \
+    false; \
   })
 
 #endif /* COMMON_NAV_H */

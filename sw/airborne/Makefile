@@ -35,19 +35,24 @@ INCLUDES = -I$(PAPARAZZI_SRC)/sw/include -I$(PAPARAZZI_SRC)/sw/airborne -I$(PAPA
 
 VPATH = .
 
+# AND and OR variables to be used in XML module files
+AND = &&
+OR = ||
+REDIRECT = >
+
 ifneq ($(MAKECMDGOALS),clean)
   include $(AIRCRAFT_BUILD_DIR)/Makefile.ac
   $(TARGET).srcs += $($(TARGET).EXTRA_SRCS)
-  include ../../conf/Makefile.local
+  include $(PAPARAZZI_SRC)/conf/Makefile.local
 
 # check if ARCHDIR is set
   ifeq ($($(TARGET).ARCHDIR), )
     $(error Architecture not set, maybe you forgot to add the target? e.g. <target name="tunnel" board="twog_1.0"/>)
   else
     ifdef $(TARGET).MAKEFILE
-      include ../../conf/Makefile.$($(TARGET).MAKEFILE)
+      include $(PAPARAZZI_SRC)/conf/Makefile.$($(TARGET).MAKEFILE)
     else
-      include ../../conf/Makefile.$($(TARGET).ARCHDIR)
+      include $(PAPARAZZI_SRC)/conf/Makefile.$($(TARGET).ARCHDIR)
     endif
   endif
 

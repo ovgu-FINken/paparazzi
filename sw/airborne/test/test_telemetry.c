@@ -31,6 +31,7 @@
 #include "mcu.h"
 #include "mcu_periph/sys_time.h"
 #include "subsystems/datalink/downlink.h"
+#include "modules/datalink/pprz_dl.h"
 #include "led.h"
 
 static inline void main_init(void);
@@ -57,15 +58,27 @@ static inline void main_init(void)
   mcu_int_enable();
 
   downlink_init();
+  pprz_dl_init();
 }
 
 static inline void main_periodic(void)
 {
-  RunOnceEvery(10, {DOWNLINK_SEND_ALIVE(DefaultChannel, DefaultDevice, 16, MD5SUM);});
+  RunOnceEvery(50, {
+      DOWNLINK_SEND_ALIVE(DefaultChannel, DefaultDevice, 16, MD5SUM);
+#ifdef UART_TX_LED
+      LED_TOGGLE(UART_TX_LED);
+#endif
+    });
   LED_PERIODIC();
 }
 
 static inline void main_event(void)
 {
   mcu_event();
+}
+
+void dl_parse_msg(struct link_device *dev __attribute__((unused)),
+                  struct transport_tx *trans __attribute__((unused)),
+                  uint8_t *buf __attribute__((unused)))
+{
 }

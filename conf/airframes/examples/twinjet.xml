@@ -17,15 +17,21 @@
     <define name="LOITER_TRIM"/>
     <define name="AGR_CLIMB"/>
 
-    <subsystem name="radio_control" type="ppm"/>
-    <subsystem name="telemetry"     type="transparent"/>
-    <subsystem name="control"/>
-    <subsystem name="imu"       type="analog">
+    <module name="radio_control" type="ppm"/>
+    <module name="telemetry"     type="transparent"/>
+    <module name="control"/>
+    <module name="imu"       type="analog">
       <configure name="GYRO_P" value="ADC_3"/>
-    </subsystem>
-    <subsystem name="gps"           type="ublox"/>
-    <subsystem name="navigation"/>
-    <subsystem name="ins" type="gps_passthrough"/>
+    </module>
+    <module name="gps"           type="ublox"/>
+    <module name="navigation"/>
+    <module name="ins" type="gps_passthrough"/>
+    <module name="adc_generic">
+      <configure name="ADC_CHANNEL_GENERIC1" value="ADC_7" />
+    </module>
+    <module name="infrared_adc"/>
+    <module name="ahrs_infrared"/>
+    <module name="nav" type="line"/>
   </firmware>
 
   <firmware name="setup">
@@ -34,16 +40,6 @@
       <configure name="TUNNEL_PORT" value="UART0"/>
     </target>
   </firmware>
-
-  <modules>
-    <load name="adc_generic.xml">
-      <configure name="ADC_CHANNEL_GENERIC1" value="ADC_7" />
-    </load>
-    <load name="infrared_adc.xml"/>
-    <load name="ahrs_infrared.xml"/>
-    <load name="nav_line.xml"/>
-  </modules>
-
 
   <servos>
     <servo name="THROTTLE"      no="0" min="1000" neutral="1000" max="2000"/>

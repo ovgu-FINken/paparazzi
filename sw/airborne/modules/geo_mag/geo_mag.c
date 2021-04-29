@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012  Sergey Krukowski <softsr@yahoo.de>
- * Copyright (C) 2015  OpenUAS <info@openuas.org>
+ * Copyright (C) 2020  OpenUAS <info@openuas.org>
  *
  * This file is part of paparazzi.
  *
@@ -23,11 +23,11 @@
 /**
  * @file modules/geo_mag/geo_mag.c
  * @brief Calculation of the Geomagnetic field vector from current location.
- * This module is based on the WMM2015 model (http://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml).
+ * This module is based on the world magnetic model from (http://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml).
  */
 
 #include "modules/geo_mag/geo_mag.h"
-#include "math/pprz_geodetic_wmm2015.h"
+#include "math/pprz_geodetic_wmm2020.h"
 #include "math/pprz_algebra_double.h"
 #include "subsystems/gps.h"
 #include "subsystems/abi.h"
@@ -44,15 +44,15 @@ struct GeoMag geo_mag;
 
 void geo_mag_init(void)
 {
-  geo_mag.calc_once = FALSE;
-  geo_mag.ready = FALSE;
+  geo_mag.calc_once = false;
+  geo_mag.ready = false;
 }
 
 void geo_mag_periodic(void)
 {
   //FIXME: kill_throttle has no place  in a geomag module
-  if (!geo_mag.ready && gps.fix == GPS_FIX_3D && kill_throttle) {
-    geo_mag.calc_once = TRUE;
+  if (!geo_mag.ready && GpsFixValid() && autopilot_throttle_killed()) {
+    geo_mag.calc_once = true;
   }
 }
 
@@ -86,7 +86,7 @@ void geo_mag_event(void)
     float_vect3_normalize(&h);
     AbiSendMsgGEO_MAG(GEO_MAG_SENDER_ID, &h);
 
-    geo_mag.ready = TRUE;
+    geo_mag.ready = true;
   }
-  geo_mag.calc_once = FALSE;
+  geo_mag.calc_once = false;
 }

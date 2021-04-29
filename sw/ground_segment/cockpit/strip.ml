@@ -23,6 +23,7 @@
  *)
 
 open Printf
+
 module LL=Latlong
 
 let (//) = Filename.concat
@@ -32,7 +33,7 @@ type t =
   connect_shift_alt : (float -> unit) -> unit;
   connect_shift_lateral : (float -> unit) -> unit;
   connect_launch : (float -> unit) -> unit;
-  connect_kill : (float -> unit) -> unit;
+  connect_kill : bool -> (float -> unit) -> unit;
   connect_mode : float -> (float -> unit) -> unit;
   connect_mark : (unit -> unit) -> unit;
   connect_flight_time : (float -> unit) -> unit;
@@ -45,7 +46,7 @@ type t =
   set_climb : float -> unit;
   set_color : string -> string -> unit;
   set_label : string -> string -> unit;
-  set_rc : int -> string -> unit;
+  set_rc : float -> string -> unit;
   connect : (unit -> unit) -> unit;
   hide_buttons : unit -> unit;
   show_buttons : unit -> unit >
@@ -204,7 +205,7 @@ let add = fun config strip_param (strips:GPack.box) ->
   let add_label = fun name value ->
     strip_labels := (name, value) :: !strip_labels in
 
-  let ac_name = Pprz.string_assoc "ac_name" config in
+  let ac_name = PprzLink.string_assoc "ac_name" config in
 
   let file = Env.paparazzi_src // "sw" // "ground_segment" // "cockpit" // "gcs.glade" in
   let strip = new Gtk_strip.eventbox_strip ~file () in
@@ -323,7 +324,7 @@ object
   method set_label name value = set_label !strip_labels name value
   method set_color name value = set_color !strip_labels name value
 
-  method set_rc rate status = rc#set (float_of_int rate) status
+  method set_rc rate status = rc#set rate status
 
     (* add a button widget in a vertical box if it belongs to a group (create new group if needed) *)
   method add_widget ?(group="") w =
@@ -358,13 +359,13 @@ object
         strip#button_right, 5.;
         strip#button_center, 0.]
 
-  method connect_kill = fun callback ->
+  method connect_kill = fun confirm_kill callback ->
     let callback = fun x ->
-      if x = 1. then
+      if x = 1. && confirm_kill then
         match GToolbox.question_box ~title:"Kill throttle" ~buttons:["Kill"; "Cancel"] (sprintf "Kill throttle of A/C %s ?" ac_name) with
             1 -> callback 1.
           | _ -> ()
-      else (* No confirmation for resurrect *)
+      else (* No confirmation for resurrect or confirm_kill = false *)
         callback x
     in
     connect_buttons callback

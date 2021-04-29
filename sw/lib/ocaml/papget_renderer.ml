@@ -59,7 +59,7 @@ object (self)
       PC.property "color" color ]
   method update = fun (value : string) ->
     let renderer = fun x ->
-      try sprintf (Obj.magic format) (float_of_string x) with _ -> x in
+      try sprintf (Scanf.format_from_string format "%f") (float_of_string x) with _ -> x in
     text#set [`SIZE_POINTS size; `TEXT (renderer value); `FILL_COLOR color; `ANCHOR `NW]
 
 
@@ -127,7 +127,7 @@ class canvas_ruler = fun ?(config=[]) canvas_group x y ->
     List.iter (fun i -> i#destroy ()) r#get_items;
     let v = truncate value / step in
     let k = truncate (h /. point_per_unit) / step in
-    for i = Pervasives.max 0 (v - k) to (v + k) do
+    for i = max 0 (v - k) to (v + k) do
       draw i value
     done
   in
@@ -160,7 +160,7 @@ class canvas_gauge = fun ?(config=[]) canvas_group x y ->
   let size = PC.get_prop "size" config "50." in
   (*let text_props = [`ANCHOR `CENTER; `FILL_COLOR "white"] in*)
 
-  let r1 = Pervasives.max 10. ((float_of_string size) /. 2.) in
+  let r1 = max 10. ((float_of_string size) /. 2.) in
   let r2 = r1 +. 3. in
   let r3 = 3.5 in
   let max_rot = 2. *. Latlong.pi /. 3. in
@@ -247,7 +247,7 @@ class canvas_led = fun ?(config=[]) canvas_group x y ->
 
   let root = GnoCanvas.group ~x ~y canvas_group in
 
-  let r = (Pervasives.max 2. (size /. 2.)) +. 1. in
+  let r = (max 2. (size /. 2.)) +. 1. in
   let led = GnoCanvas.ellipse ~x1:r ~y1:r ~x2:(-.r) ~y2:(-.r)
     ~props:[`NO_FILL_COLOR; `OUTLINE_COLOR "grey"; `WIDTH_UNITS 2.]  root in
 
@@ -290,7 +290,7 @@ object
       (* Led drawer *)
     if inv (value = test_value) then led#set [`FILL_COLOR "red"]
     else led#set [`FILL_COLOR "#00ff00"];
-    let r = (Pervasives.max 2. (size /. 2.)) +. 1. in
+    let r = (max 2. (size /. 2.)) +. 1. in
     led#set [`X1 r; `Y1 r; `X2 (-.r); `Y2 (-.r)];
     led_text#set [`TEXT text; `SIZE_POINTS size; `X (-.r-.3.)]
 
@@ -325,13 +325,15 @@ class canvas_mplayer = fun ?(config=[]) canvas_group x y ->
   and height = float_of_string (PC.get_prop "height" config "240.") in
   let socket = GWindow.socket () in
   let group = GnoCanvas.group ~x ~y canvas_group in
-  let _item = GnoCanvas.widget ~width ~height ~widget:socket group in
+  let item = GnoCanvas.widget ~width ~height ~widget:socket group in
 
 object
   method tag = "Mplayer"
   method item = (group :> movable_item)
   method edit = fun (pack:GObj.widget -> unit) -> ()
-  method update = fun (value:string) -> ()
+  method update = fun (value:string) ->
+    let zoom = try float_of_string value with _ -> 1. in
+    item#set [`WIDTH (width /. zoom); `HEIGHT (height /. zoom)]
   method config = fun () ->
     [ PC.property "video_feed" video_feed;
       PC.float_property "width" width;
@@ -351,13 +353,15 @@ class canvas_plugin = fun ?(config=[]) canvas_group x y ->
   and height = float_of_string (PC.get_prop "height" config "240.") in
   let socket = GWindow.socket () in
   let group = GnoCanvas.group ~x ~y canvas_group in
-  let _item = GnoCanvas.widget ~width ~height ~widget:socket group in
+  let item = GnoCanvas.widget ~width ~height ~widget:socket group in
 
 object
   method tag = "Plugin"
   method item = (group :> movable_item)
   method edit = fun (pack:GObj.widget -> unit) -> ()
-  method update = fun (value:string) -> ()
+  method update = fun (value:string) ->
+    let zoom = try float_of_string value with _ -> 1. in
+    item#set [`WIDTH (width /. zoom); `HEIGHT (height /. zoom) ]
   method config = fun () ->
     [ PC.property "command" command;
       PC.float_property "width" width;

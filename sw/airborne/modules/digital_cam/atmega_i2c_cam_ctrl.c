@@ -34,13 +34,16 @@
 #include "led.h"
 
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 // In I2C mode we can not inline this function:
 void dc_send_command(uint8_t cmd)
 {
   atmega_i2c_cam_ctrl_send(cmd);
+
+  // call command send_command function
+  dc_send_command_common(cmd);
 }
 
 static struct i2c_transaction atmega_i2c_cam_ctrl_trans;

@@ -57,16 +57,16 @@ endif
 # define some paths
 #
 LIB=sw/lib
-STATICINCLUDE =$(PAPARAZZI_HOME)/var/include
+STATICINCLUDE=$(PAPARAZZI_HOME)/var/include
 CONF=$(PAPARAZZI_SRC)/conf
 AIRBORNE=sw/airborne
 SIMULATOR=sw/simulator
-MULTIMON=sw/ground_segment/multimon
 COCKPIT=sw/ground_segment/cockpit
 TMTC=sw/ground_segment/tmtc
 GENERATORS=$(PAPARAZZI_SRC)/sw/tools/generators
 JOYSTICK=sw/ground_segment/joystick
 EXT=sw/ext
+TOOLS=sw/tools
 
 #
 # build some stuff in subdirs
@@ -76,12 +76,18 @@ PPRZCENTER=sw/supervision
 MISC=sw/ground_segment/misc
 LOGALIZER=sw/logalizer
 
-SUBDIRS = $(PPRZCENTER) $(MISC) $(LOGALIZER)
+SUBDIRS = $(PPRZCENTER) $(LOGALIZER) sw/tools
+SUBDIRS_EXTRA = $(MISC)
+
+#
+# Communication protocol version
+#
+PPRZLINK_LIB_VERSION ?= 2.0
 
 #
 # xml files used as input for header generation
 #
-MESSAGES_XML = $(CONF)/messages.xml
+CUSTOM_MESSAGES_XML = $(CONF)/messages.xml
 ABI_XML = $(CONF)/abi.xml
 UBX_XML = $(CONF)/ubx.xml
 MTK_XML = $(CONF)/mtk.xml
@@ -90,19 +96,19 @@ XSENS_XML = $(CONF)/xsens_MTi-G.xml
 #
 # generated header files
 #
-MESSAGES_H=$(STATICINCLUDE)/messages.h
-MESSAGES2_H=$(STATICINCLUDE)/messages2.h
+PPRZLINK_DIR=sw/ext/pprzlink
+PPRZLINK_INSTALL=$(PAPARAZZI_HOME)/var/lib
+MESSAGES_INSTALL=$(PAPARAZZI_HOME)/var
 UBX_PROTOCOL_H=$(STATICINCLUDE)/ubx_protocol.h
 MTK_PROTOCOL_H=$(STATICINCLUDE)/mtk_protocol.h
 XSENS_PROTOCOL_H=$(STATICINCLUDE)/xsens_protocol.h
-DL_PROTOCOL_H=$(STATICINCLUDE)/dl_protocol.h
-DL_PROTOCOL2_H=$(STATICINCLUDE)/dl_protocol2.h
 ABI_MESSAGES_H=$(STATICINCLUDE)/abi_messages.h
+MAVLINK_DIR=$(STATICINCLUDE)/mavlink/
+MAVLINK_PROTOCOL_H=$(MAVLINK_DIR)protocol.h
 
-GEN_HEADERS = $(MESSAGES_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(ABI_MESSAGES_H)
+GEN_HEADERS = $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(ABI_MESSAGES_H) $(MAVLINK_PROTOCOL_H)
 
-
-all: ground_segment ext lpctools
+all: ground_segment ext subdirs_extra lpctools
 
 _print_building:
 	@echo "------------------------------------------------------------"
@@ -124,22 +130,27 @@ update_google_version:
 init:
 	@[ -d $(PAPARAZZI_HOME) ] || (echo "Copying config example in your $(PAPARAZZI_HOME) directory"; mkdir -p $(PAPARAZZI_HOME); cp -a conf $(PAPARAZZI_HOME); cp -a data $(PAPARAZZI_HOME); mkdir -p $(PAPARAZZI_HOME)/var/maps; mkdir -p $(PAPARAZZI_HOME)/var/include)
 
-conf: conf/conf.xml conf/control_panel.xml conf/maps.xml
+conf: conf/conf.xml conf/control_panel.xml conf/maps.xml conf/tools/blacklisted
 
 conf/%.xml :conf/%_example.xml
 	[ -L $@ ] || [ -f $@ ] || cp $< $@
 
+conf/tools/blacklisted: conf/tools/blacklisted_example
+	cp conf/tools/blacklisted_example conf/tools/blacklisted
 
-ground_segment: _print_building update_google_version conf libpprz subdirs commands static
+ground_segment: _print_building update_google_version conf libpprz subdirs static
 ground_segment.opt: ground_segment cockpit.opt tmtc.opt
 
 static: cockpit tmtc generators sim_static joystick static_h
 
-libpprz: _save_build_version
-	$(MAKE) -C $(LIB)/ocaml
+libpprzlink.update:
+	$(MAKE) -C $(EXT) pprzlink.update
 
-multimon:
-	$(MAKE) -C $(MULTIMON)
+libpprzlink.install:
+	$(Q)Q=$(Q) MAKEFLAGS=-j1 DESTDIR=$(PPRZLINK_INSTALL) PPRZLINK_LIB_VERSION=${PPRZLINK_LIB_VERSION} $(MAKE) -C $(PPRZLINK_DIR) libpprzlink-install
+
+libpprz: libpprzlink.update libpprzlink.install _save_build_version
+	$(MAKE) -C $(LIB)/ocaml
 
 cockpit: libpprz
 	$(MAKE) -C $(COCKPIT)
@@ -147,10 +158,10 @@ cockpit: libpprz
 cockpit.opt: libpprz
 	$(MAKE) -C $(COCKPIT) opt
 
-tmtc: libpprz cockpit multimon
+tmtc: libpprz cockpit
 	$(MAKE) -C $(TMTC)
 
-tmtc.opt: libpprz cockpit.opt multimon
+tmtc.opt: libpprz cockpit.opt
 	$(MAKE) -C $(TMTC) opt
 
 generators: libpprz
@@ -164,37 +175,42 @@ sim_static: libpprz
 
 ext:
 	$(MAKE) -C $(EXT)
+	$(MAKE) -C $(TOOLS)/bluegiga_usb_dongle
+
+opencv_bebop:
+	$(MAKE) -C $(EXT) opencv_bebop
 
 #
 # make misc subdirs
 #
 subdirs: $(SUBDIRS)
+subdirs_extra: $(SUBDIRS_EXTRA)
 
-$(SUBDIRS):
+$(MISC): ext
+
+$(SUBDIRS): libpprz
+	$(MAKE) -C $@
+
+$(SUBDIRS_EXTRA): libpprz
 	$(MAKE) -C $@
 
 $(PPRZCENTER): libpprz
 
 $(LOGALIZER): libpprz
 
+static_h: pprzlink_protocol $(GEN_HEADERS)
 
-static_h: $(GEN_HEADERS)
-
-$(MESSAGES_H) : $(MESSAGES_XML) generators
+pprzlink_protocol : libpprz
 	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
-	@echo GENERATE $@
-	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(GENERATORS)/gen_messages.out $< telemetry > $($@_TMP)
-	$(Q)mv $($@_TMP) $@
-	$(Q)chmod a+r $@
+	$(Q)test -d $(STATICLIB) || mkdir -p $(STATICLIB)
+ifeq ("$(wildcard $(CUSTOM_MESSAGES_XML))","")
+	@echo GENERATE $@ with default messages
+	$(Q)Q=$(Q) MESSAGES_INSTALL=$(MESSAGES_INSTALL) VALIDATE_XML=FALSE PPRZLINK_LIB_VERSION=${PPRZLINK_LIB_VERSION} $(MAKE) -C $(PPRZLINK_DIR) pymessages
+else
+	@echo GENERATE $@ with custome messages from $(CUSTOM_MESSAGES_XML)
+	$(Q)Q=$(Q) MESSAGES_XML=$(CUSTOM_MESSAGES_XML) MESSAGES_INSTALL=$(MESSAGES_INSTALL) PPRZLINK_LIB_VERSION=${PPRZLINK_LIB_VERSION} $(MAKE) -C $(PPRZLINK_DIR) pymessages
+endif
 
-$(MESSAGES2_H) : $(MESSAGES_XML) generators
-	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
-	@echo GENERATE $@
-	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(GENERATORS)/gen_messages2.out $< telemetry > $($@_TMP)
-	$(Q)mv $($@_TMP) $@
-	$(Q)chmod a+r $@
 
 $(UBX_PROTOCOL_H) : $(UBX_XML) generators
 	@echo GENERATE $@
@@ -217,26 +233,15 @@ $(XSENS_PROTOCOL_H) : $(XSENS_XML) generators
 	$(Q)mv $($@_TMP) $@
 	$(Q)chmod a+r $@
 
-$(DL_PROTOCOL_H) : $(MESSAGES_XML) generators
-	@echo GENERATE $@
-	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(GENERATORS)/gen_messages.out $< datalink > $($@_TMP)
-	$(Q)mv $($@_TMP) $@
-	$(Q)chmod a+r $@
-
-$(DL_PROTOCOL2_H) : $(MESSAGES_XML) generators
-	@echo GENERATE $@
-	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(GENERATORS)/gen_messages2.out $< datalink > $($@_TMP)
-	$(Q)mv $($@_TMP) $@
-	$(Q)chmod a+r $@
-
 $(ABI_MESSAGES_H) : $(ABI_XML) generators
 	@echo GENERATE $@
 	$(eval $@_TMP := $(shell $(MKTEMP)))
 	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(GENERATORS)/gen_abi.out $< airborne > $($@_TMP)
 	$(Q)mv $($@_TMP) $@
 	$(Q)chmod a+r $@
+
+$(MAVLINK_PROTOCOL_H) :
+	$(Q)make -C $(PAPARAZZI_HOME)/sw/ext mavlink
 
 #
 # code generation for aircrafts from xml files
@@ -248,19 +253,9 @@ ac_h ac fbw ap: static conf generators ext
 sim: sim_static
 
 
-#
-# Commands
-#
-
 # stuff to build and upload the lpc bootloader ...
 include Makefile.lpctools
 lpctools: lpc21iap
-
-commands: paparazzi
-
-paparazzi:
-	cat src/paparazzi | sed s#OCAMLRUN#$(OCAMLRUN)# | sed s#OCAML#$(OCAML)# > $@
-	chmod a+x $@
 
 
 #
@@ -268,6 +263,7 @@ paparazzi:
 #
 dox:
 	$(Q)PAPARAZZI_HOME=$(PAPARAZZI_HOME) sw/tools/doxygen_gen/gen_modules_doc.py -pv
+	$(Q)PAPARAZZI_HOME=$(PAPARAZZI_HOME) sw/tools/doxygen_gen/gen_messages_doc.py -pv
 	@echo "Generationg doxygen html documentation in doc/generated/html"
 	$(Q)( cat Doxyfile ; echo "PROJECT_NUMBER=$(./paparazzi_version)"; echo "QUIET=YES") | doxygen -
 	@echo "Done. Open doc/generated/html/index.html in your browser to view it."
@@ -279,13 +275,17 @@ dox:
 clean:
 	$(Q)rm -fr dox build-stamp configure-stamp conf/%gconf.xml
 	$(Q)rm -f  $(GEN_HEADERS)
+	$(Q)MESSAGES_INSTALL=$(MESSAGES_INSTALL) $(MAKE) -C $(PPRZLINK_DIR) uninstall
+	$(Q)rm -fr $(MAVLINK_DIR)
 	$(Q)find . -mindepth 2 -name Makefile -a ! -path "./sw/ext/*" -exec sh -c 'echo "Cleaning {}"; $(MAKE) -C `dirname {}` $@' \;
 	$(Q)$(MAKE) -C $(EXT) clean
 	$(Q)find . -name '*~' -exec rm -f {} \;
+	$(Q)find . -name '*.pyc' -exec rm -f {} \;
+	$(Q)find . -name 'Cargo.lock' -exec rm -f {} \;
 
 cleanspaces:
-	find sw -path sw/ext -prune -o -name '*.[ch]' -exec sed -i {} -e 's/[ \t]*$$//' \;
-	find sw -path sw/ext -prune -o -name '*.py' -exec sed -i {} -e 's/[ \t]*$$//' \;
+	find sw -path sw/ext -prune -o -type f -name '*.[ch]' -exec sed -i {} -e 's/[ \t]*$$//' \;
+	find sw -path sw/ext -prune -o -type f -name '*.py' -exec sed -i {} -e 's/[ \t]*$$//' \;
 	find conf -name '*.makefile' -exec sed -i {} -e 's/[ \t]*$$//' ';'
 	find . -path ./sw/ext -prune -o -name Makefile -exec sed -i {} -e 's/[ \t]*$$//' ';'
 	find sw -name '*.ml' -o -name '*.mli' -exec sed -i {} -e 's/[ \t]*$$//' ';'
@@ -307,11 +307,36 @@ ab_clean:
 #
 # Tests
 #
-test: test_math test_examples
+test: test_math test_examples test_modules
+
+# subset of airframes for coverity test to pass the limited build time on travis
+test_coverity: all
+	CONF_XML=conf/conf_tests_coverity.xml prove tests/aircrafts/
+
+# test AggieAir conf
+test_aggieair: all
+	CONF_XML=conf/airframes/AGGIEAIR/aggieair_conf.xml prove tests/aircrafts/
+	
+# test Open UAS conf
+test_openuas: all
+	CONF_XML=conf/userconf/OPENUAS/openuas_conf.xml prove tests/aircrafts/
+	
+# test TU Delft conf
+test_tudelft: all
+	CONF_XML=conf/userconf/tudelft/conf.xml prove tests/aircrafts/
 
 # compiles all aircrafts in conf_tests.xml
 test_examples: all
-	CONF_XML=conf/conf_tests.xml prove tests/examples/
+	CONF_XML=conf/conf_tests.xml prove tests/aircrafts/
+
+# test compilation of modules
+test_modules: all
+	prove -v tests/modules/test_modules.py
+
+test_all_confs: all opencv_bebop
+	$(Q)$(eval $CONFS:=$(shell ./find_confs.py))
+	@echo "************\nFound $(words $($CONFS)) config files: $($CONFS)"
+	$(Q)$(foreach conf,$($CONFS),echo "\n************\nTesting all aircrafts in conf: $(conf)\n************" && (CONF_XML=$(conf) prove tests/aircrafts/ || echo "failed $(conf)" >> TEST_ALL_CONFS_FAILED);) test -f TEST_ALL_CONFS_FAILED && cat TEST_ALL_CONFS_FAILED && rm -f TEST_ALL_CONFS_FAILED && exit 1; exit 0
 
 # run some math tests that don't need whole paparazzi to be built
 test_math:
@@ -324,7 +349,7 @@ test_sim: all
 	prove tests/sim
 
 .PHONY: all print_build_version _print_building _save_build_version update_google_version init dox ground_segment ground_segment.opt \
-subdirs $(SUBDIRS) conf ext libpprz multimon cockpit cockpit.opt tmtc tmtc.opt generators\
-static sim_static lpctools commands \
+subdirs $(SUBDIRS) conf ext libpprz libpprzlink.update libpprzlink.install cockpit cockpit.opt tmtc tmtc.opt generators\
+static sim_static lpctools opencv_bebop\
 clean cleanspaces ab_clean dist_clean distclean dist_clean_irreversible \
-test test_examples test_math test_sim
+test test_examples test_math test_sim test_all_confs

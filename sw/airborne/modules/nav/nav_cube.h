@@ -122,10 +122,10 @@ struct NavCube {
 
 extern struct NavCube nav_cube;
 
-extern bool_t nav_cube_setup(uint8_t turb, uint8_t tb, uint8_t te);
-bool_t nav_cube_run(int8_t j, int8_t i,
-                    uint8_t dest_b, uint8_t dest_e,
-                    uint8_t src_b, uint8_t src_e);
+extern void nav_cube_setup(uint8_t turb, uint8_t tb, uint8_t te);
+extern bool nav_cube_run(int8_t j, int8_t i,
+                         uint8_t dest_b, uint8_t dest_e,
+                         uint8_t src_b, uint8_t src_e);
 
 #define nav_cube_SetAlpha(i) { nav_cube.alpha=i; }
 #define nav_cube_SetSect(i)  { nav_cube.sect=i; }
@@ -134,9 +134,9 @@ bool_t nav_cube_run(int8_t j, int8_t i,
 #define nav_cube_SetSizeX(i) { nav_cube.size.x=i; }
 #define nav_cube_SetSizeY(i) { nav_cube.size.y=i; }
 #define nav_cube_SetSizeZ(i) { nav_cube.size.z=i; }
-#define nav_cube_SetOffsX(i) { nav_cube.offs.x=i; }
-#define nav_cube_SetOffsY(i) { nav_cube.offs.y=i; }
-#define nav_cube_SetOffsZ(i) { nav_cube.offs.z=i; }
+#define nav_cube_SetOffsX(i) { nav_cube.offset.x=i; }
+#define nav_cube_SetOffsY(i) { nav_cube.offset.y=i; }
+#define nav_cube_SetOffsZ(i) { nav_cube.offset.z=i; }
 #define nav_cube_SetNSectX(i) { nav_cube.nsect_x=i; }
 #define nav_cube_SetNSectZ(i) { nav_cube.nsect_z=i; }
 

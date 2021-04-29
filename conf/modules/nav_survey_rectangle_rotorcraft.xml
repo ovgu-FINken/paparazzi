@@ -1,6 +1,6 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
-<module name="nav_survey_rectangle_for_rotorcraft" dir="nav">
+<module name="nav_survey_rectangle_rotorcraft" dir="nav">
   <doc>
     <description>
 Survey a rectangle with a rotorcraft.
@@ -28,8 +28,9 @@ or using flightplan primitive
 -->
     </description>
     <define name="RECTANGLE_SURVEY_DEFAULT_SWEEP" value="25" description="default sweep distance when using dinamic setup"/>
+    <define name="NAV_SURVEY_RECTANGLE_DYNAMIC" value="FALSE|TRUE" description="Set to true to allow changing sweep distance mid survey"/>
   </doc>
-  
+
     <settings>
     <dl_settings>
       <dl_settings NAME="Ret_Survey">
@@ -45,5 +46,6 @@ or using flightplan primitive
   <init fun="nav_survey_rectangle_rotorcraft_init()"/>
   <makefile target="ap|sim|nps">
     <file name="nav_survey_rectangle_rotorcraft.c"/>
+    <test firmware="rotorcraft"/>
   </makefile>
 </module>

@@ -25,22 +25,24 @@
 open Printf
 
 let (//) = Filename.concat
+let minimum = min
+let maximum = max
 
 (* Fixme: find something more basic than adjustment *)
 let set_float_value = fun (a:GData.adjustment) v ->
-  let lower = Pervasives.min a#lower v
-  and upper = Pervasives.max a#upper v +. a#step_increment in
+  let lower = minimum a#lower v
+  and upper = maximum a#upper v +. a#step_increment in
   a#set_bounds ~lower ~upper ();
   a#set_value v
 
 let pprz_float = function
-    Pprz.Int i -> float i
-  | Pprz.Float f -> f
-  | Pprz.Int32 i -> Int32.to_float i
-  | Pprz.Int64 i -> Int64.to_float i
-  | Pprz.String s -> float_of_string s
-  | Pprz.Char c -> float_of_string (String.make 1 c)
-  | Pprz.Array _ -> 0.
+    PprzLink.Int i -> float i
+  | PprzLink.Float f -> f
+  | PprzLink.Int32 i -> Int32.to_float i
+  | PprzLink.Int64 i -> Int64.to_float i
+  | PprzLink.String s -> float_of_string s
+  | PprzLink.Char c -> float_of_string (String.make 1 c)
+  | PprzLink.Array _ -> 0.
 
 
 let dnd_targets = [ { Gtk.target = "STRING"; flags = []; info = 0} ]
@@ -136,7 +138,7 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
       if new_size <> size && new_size > 0 then begin
         Hashtbl.iter (fun _ a ->
           let new_array = Array.make new_size None in
-          for i = 0 to Pervasives.min size new_size - 1 do
+          for i = 0 to minimum size new_size - 1 do
             new_array.(new_size - 1 - i) <- a.array.((a.index-i+size) mod size)
           done;
           a.array <- new_array;
@@ -166,8 +168,8 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
         let a = Hashtbl.find curves name in
         a.array.(a.index) <- Some v;
         if auto_scale then begin
-          min <- Pervasives.min min v;
-          max <- Pervasives.max max v
+          min <- minimum min v;
+          max <- maximum max v
         end
 
     method reset_scale = fun () ->
@@ -179,8 +181,8 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
             (function
         	None -> ()
               | Some v ->
-        	  min <- Pervasives.min min v;
-        	  max <- Pervasives.max max v)
+        	  min <- minimum min v;
+        	  max <- maximum max v)
             a.array)
         curves
 
@@ -203,7 +205,7 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
             let dr = pm#get_pixmap () in
             dr#set_foreground (`NAME "white");
             dr#rectangle ~x:0 ~y:0 ~width ~height ~filled:true ();
-            let margin = Pervasives.min (height / 10) 20 in
+            let margin = minimum (height / 10) 20 in
 
             (* Time Graduations *)
             let context = da#misc#create_pango_context in
@@ -242,7 +244,7 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
             let tick_min = min -. mod_float min u in
             for i = 0 to truncate (delta/.u) + 1 do
               let tick = tick_min +. float i *. u in
-              f 0 (y tick) (Printf.sprintf "%.*f" (Pervasives.max 0 (2-truncate scale)) tick)
+              f 0 (y tick) (Printf.sprintf "%.*f" (maximum 0 (2-truncate scale)) tick)
             done;
 
             (* Constants *)
@@ -282,11 +284,11 @@ class plot = fun ~size ~update_time ~width ~height ~packing () ->
                 dr#set_foreground (`NAME a.color);
                 dr#lines !curve;
               end;
-              let fn = float !n in
+              (*let fn = float !n in
               let avg = !sum /. fn in
               let stdev = sqrt ((!sum_squares -. fn *. avg *. avg) /. fn) in
               set_float_value a.average avg;
-              set_float_value a.stdev stdev;
+              set_float_value a.stdev stdev;*)
 
               (* Title *)
               Pango.Layout.set_text layout title;
@@ -467,6 +469,13 @@ let rec plot_window = fun window ->
     ignore (discrete_item#connect#toggled ~callback);
 
     (* Average *)
+    (* on Ubuntu 14.04 with Unity: updating the menu often results in high CPU and memory usage of `hud-service`,
+       even to the point where the PC becomes unusable, so we disable these updates:
+       https://github.com/paparazzi/paparazzi/issues/1446
+       Also the images/labels are currently not displayed anymore anyway:
+       https://github.com/paparazzi/paparazzi/issues/1445 *)
+    (*
+    (* Average *)
     let average_value = GMisc.label ~text:"N/A" () in
     let _avg_item = submenu_fact#add_image_item ~image:average_value#coerce ~label:"Average" () in
     let update_avg_item = fun () ->
@@ -479,6 +488,9 @@ let rec plot_window = fun window ->
     let update_stdev_value = fun () ->
       stdev_value#set_text (sprintf "%.6f" curve.stdev#value) in
     ignore (curve.stdev#connect#value_changed update_stdev_value)
+    *)
+
+    ()
   in
 
   let add_curve = fun ?(factor=(1.,0.)) name ->
@@ -490,14 +502,14 @@ let rec plot_window = fun window ->
     let cb = fun _sender values ->
       let (field_name, index) = base_and_index field_descr in
       let value =
-        match Pprz.assoc field_name values with
-          Pprz.Array array -> array.(index)
+        match PprzLink.assoc field_name values with
+          PprzLink.Array array -> array.(index)
         | scalar -> scalar in
       let float = pprz_float value in
       let v = float *. a +. b in
       plot#add_value name v in
 
-    let module P = Pprz.Messages (struct let name = class_name end) in
+    let module P = PprzLink.Messages (struct let name = class_name end) in
     let binding =
       if sender = "*" then
         P.message_bind msg_name cb
@@ -564,7 +576,7 @@ let _ =
     match !init with
       [] -> failwith "unreachable"
     | x::xs -> init := try ignore (float_of_string s); {x with consts = s::x.consts} :: xs with
-                       | Failure "float_of_string" -> {x with curves = s::x.curves} :: xs in
+                       | Failure _ -> {x with curves = s::x.curves} :: xs in
 
   let set_title = fun s ->
     match !init with

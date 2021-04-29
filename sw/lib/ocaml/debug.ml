@@ -22,6 +22,7 @@
  *
  *)
 
+
 let level = ref (try Sys.getenv "PPRZ_DEBUG" with Not_found -> "")
 let log = ref stderr
 let call lev f =
@@ -37,10 +38,10 @@ let trace lev s = call lev (fun f -> Printf.fprintf f "%s\n" s)
 
 let xprint = fun s ->
   let n = String.length s in
-  let a = String.make (3*n) ' ' in
+  let a = Bytes.make (3*n) ' ' in
   for i = 0 to n - 1 do
     let x = Printf.sprintf "%02x" (Char.code s.[i]) in
-    a.[3*i] <- x.[0];
-    a.[3*i+1] <- x.[1]
+    Bytes.set a (3*i) x.[0];
+    Bytes.set a (3*i+1) x.[1]
   done;
-  a
+  Bytes.to_string a

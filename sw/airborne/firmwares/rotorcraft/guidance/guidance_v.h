@@ -39,6 +39,8 @@
 #define GUIDANCE_V_MODE_HOVER     4
 #define GUIDANCE_V_MODE_NAV       5
 #define GUIDANCE_V_MODE_MODULE    6
+#define GUIDANCE_V_MODE_FLIP      7
+#define GUIDANCE_V_MODE_GUIDED    8
 
 extern uint8_t guidance_v_mode;
 
@@ -76,6 +78,11 @@ extern int32_t guidance_v_z_sum_err; ///< accumulator for I-gain
 extern int32_t guidance_v_ff_cmd;    ///< feed-forward command
 extern int32_t guidance_v_fb_cmd;    ///< feed-back command
 
+/** Direct throttle from radio control.
+ *  range 0:#MAX_PPRZ
+ */
+extern int32_t guidance_v_rc_delta_t;
+
 /** thrust command.
  *  summation of feed-forward and feed-back commands,
  *  valid range 0 : #MAX_PPRZ
@@ -90,8 +97,7 @@ extern float guidance_v_nominal_throttle;
 
 /** Use adaptive throttle command estimation.
  */
-extern bool_t guidance_v_adapt_throttle_enabled;
-
+extern bool guidance_v_adapt_throttle_enabled;
 
 extern int32_t guidance_v_thrust_coeff;
 
@@ -102,8 +108,44 @@ extern int32_t guidance_v_ki; ///< vertical control I-gain
 extern void guidance_v_init(void);
 extern void guidance_v_read_rc(void);
 extern void guidance_v_mode_changed(uint8_t new_mode);
-extern void guidance_v_notify_in_flight(bool_t in_flight);
-extern void guidance_v_run(bool_t in_flight);
+extern void guidance_v_thrust_adapt(bool in_flight);
+extern void guidance_v_notify_in_flight(bool in_flight);
+extern void guidance_v_run(bool in_flight);
+extern void guidance_v_z_enter(void);
+
+/** Set guidance ref parameters
+ */
+extern void guidance_v_set_ref(int32_t pos, int32_t speed, int32_t accel);
+// macro for backward compatibility
+#define GuidanceVSetRef guidance_v_set_ref
+
+extern void run_hover_loop(bool in_flight);
+
+/** Set guidance setpoint from NAV and run hover loop
+ */
+extern void guidance_v_from_nav(bool in_flight);
+
+/** Enter GUIDED mode control
+ */
+extern void guidance_v_guided_enter(void);
+
+/** Run GUIDED mode control
+ */
+extern void guidance_v_guided_run(bool in_flight);
+
+/** Set z setpoint in GUIDED mode.
+ * @param z Setpoint (down is positive) in meters.
+ * @return TRUE if setpoint was set (currently in GUIDANCE_V_MODE_GUIDED)
+ */
+extern bool guidance_v_set_guided_z(float z);
+
+/** Set z velocity setpoint in GUIDED mode.
+ * @param vz Setpoint (down is positive) in meters/second.
+ * @return TRUE if setpoint was set (currently in GUIDANCE_V_MODE_GUIDED)
+ */
+extern bool guidance_v_set_guided_vz(float vz);
+
+extern bool guidance_v_set_guided_th(float th);
 
 #define guidance_v_SetKi(_val) {      \
     guidance_v_ki = _val;       \

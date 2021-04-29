@@ -66,13 +66,20 @@ PRINT_CONFIG_VAR(SUPERBITRF_DRDY_PIN)
 #endif
 PRINT_CONFIG_VAR(SUPERBITRF_FORCE_DSM2)
 
+#ifndef SUPERBITRF_UPDATE_DL
+#define SUPERBITRF_UPDATE_DL TRUE
+#endif
+
 /* The superbitRF structure */
 struct SuperbitRF superbitrf;
 
+/* The pprz transport structure */
+struct pprz_transport pprz_srf_tp;
+
 /* The internal functions */
-static inline void superbitrf_radio_to_channels(uint8_t *data, uint8_t nb_channels, bool_t is_11bit, int16_t *channels);
-static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, uint8_t packet[]);
-static inline void superbitrf_send_packet_cb(bool_t error);
+static inline void superbitrf_radio_to_channels(uint8_t *data, uint8_t nb_channels, bool is_11bit, int16_t *channels);
+static inline void superbitrf_receive_packet_cb(bool error, uint8_t status, uint8_t packet[]);
+static inline void superbitrf_send_packet_cb(bool error);
 static inline void superbitrf_gen_dsmx_channels(void);
 
 /* The startup configuration for the cyrf6936 */
@@ -201,22 +208,30 @@ static void send_superbit(struct transport_tx *trans, struct link_device *dev)
 #endif
 
 // Functions for the generic device API
-static bool_t superbitrf_check_free_space(struct SuperbitRF *p, uint8_t len)
+static int superbitrf_check_free_space(struct SuperbitRF *p, long *fd __attribute__((unused)), uint16_t len)
 {
-  int16_t space = p->tx_extract_idx - p->tx_insert_idx;
-  if (space <= 0) {
+  int space = p->tx_extract_idx - p->tx_insert_idx - 1;
+  if (space < 0) {
     space += SUPERBITRF_TX_BUFFER_SIZE;
   }
-  return (uint16_t)(space - 1) >= len;
+  return space >= len ? space : 0;
 }
 
-static void superbitrf_transmit(struct SuperbitRF *p, uint8_t byte)
+static void superbitrf_transmit(struct SuperbitRF *p, long fd __attribute__((unused)), uint8_t byte)
 {
   p->tx_buffer[p->tx_insert_idx] = byte;
   p->tx_insert_idx = (p->tx_insert_idx + 1) % SUPERBITRF_TX_BUFFER_SIZE;
 }
 
-static void superbitrf_send(struct SuperbitRF *p __attribute__((unused))) { }
+static void superbitrf_transmit_buffer(struct SuperbitRF *p, long fd, uint8_t *data, uint16_t len)
+{
+  int i;
+  for (i = 0; i < len; i++) {
+    superbitrf_transmit(p, fd, data[i]);
+  }
+}
+
+static void superbitrf_send(struct SuperbitRF *p __attribute__((unused)), long fd __attribute__((unused))) { }
 
 static int null_function(struct SuperbitRF *p __attribute__((unused))) { return 0; }
 
@@ -244,6 +259,7 @@ void superbitrf_init(void)
   superbitrf.device.periph = (void *)(&superbitrf);
   superbitrf.device.check_free_space = (check_free_space_t) superbitrf_check_free_space;
   superbitrf.device.put_byte = (put_byte_t) superbitrf_transmit;
+  superbitrf.device.put_buffer = (put_buffer_t) superbitrf_transmit_buffer;
   superbitrf.device.send_message = (send_message_t) superbitrf_send;
   superbitrf.device.char_available = (char_available_t) null_function; // not needed
   superbitrf.device.get_byte = (get_byte_t) null_function; // not needed
@@ -258,8 +274,25 @@ void superbitrf_init(void)
   cyrf6936_init(&superbitrf.cyrf6936, &(SUPERBITRF_SPI_DEV), 2, SUPERBITRF_RST_PORT, SUPERBITRF_RST_PIN);
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "SUPERBITRF", send_superbit);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_SUPERBITRF, send_superbit);
 #endif
+}
+
+/**
+ * Initialize datalink part
+ */
+void superbitrf_dl_init(void)
+{
+  // Init pprz transport
+  pprz_transport_init(&pprz_srf_tp);
+}
+
+/**
+ * The superbitrf datalink event call
+ */
+void superbitrf_dl_event(void)
+{
+  DlCheckAndParse(&DOWNLINK_DEVICE.device, &pprz_srf_tp.trans_tx, dl_buffer, &dl_msg_available, SUPERBITRF_UPDATE_DL);
 }
 
 void superbitrf_set_mfg_id(uint32_t id)
@@ -289,7 +322,7 @@ void superbitrf_event(void)
 {
   uint8_t i, pn_row, data_code[16];
   static uint8_t packet_size, tx_packet[16];
-  static bool_t start_transfer = TRUE;
+  static bool start_transfer = true;
 
 #ifdef RADIO_CONTROL_LED
   static uint32_t slowLedCpt = 0;
@@ -317,7 +350,7 @@ void superbitrf_event(void)
       superbitrf.rx_packet_count++;
 
       // Reset the packet receiving
-      superbitrf.cyrf6936.has_irq = FALSE;
+      superbitrf.cyrf6936.has_irq = false;
     }
 
     /* Check if it has a valid send */
@@ -327,7 +360,7 @@ void superbitrf_event(void)
       superbitrf.tx_packet_count++;
 
       // Reset the packet receiving
-      superbitrf.cyrf6936.has_irq = FALSE;
+      superbitrf.cyrf6936.has_irq = false;
     }
   }
 
@@ -340,7 +373,7 @@ void superbitrf_event(void)
       if (cyrf6936_multi_write(&superbitrf.cyrf6936, cyrf_stratup_config, 11)) {
         // Check if need to go to bind or transfer
         if (gpio_get(SPEKTRUM_BIND_PIN_PORT, SPEKTRUM_BIND_PIN) == 0) {
-          start_transfer = FALSE;
+          start_transfer = false;
         }
 
         superbitrf.status = SUPERBITRF_INIT_BINDING;
@@ -379,7 +412,7 @@ void superbitrf_event(void)
       // Try to write the transfer config
       if (cyrf6936_multi_write(&superbitrf.cyrf6936, cyrf_transfer_config, 4)) {
         superbitrf.resync_count = 0;
-        superbitrf.packet_loss = FALSE;
+        superbitrf.packet_loss = false;
         superbitrf.packet_loss_bit = 0;
         superbitrf.status = SUPERBITRF_SYNCING_A;
         superbitrf.state = 1;
@@ -554,11 +587,6 @@ void superbitrf_event(void)
         case 5:
           superbitrf.state = 7;
           break;
-          // Start receiving
-          cyrf6936_multi_write(&superbitrf.cyrf6936, cyrf_start_receive, 2);
-          superbitrf.timer = (get_sys_time_usec() + SUPERBITRF_DATARECVB_TIME) % 0xFFFFFFFF;
-          superbitrf.state++;
-          break;
         case 6:
           // Wait for telemetry data
           if (superbitrf.timer < get_sys_time_usec()) {
@@ -611,7 +639,7 @@ void superbitrf_event(void)
         case 0:
           // Fixing timer overflow
           if (superbitrf.timer_overflow && get_sys_time_usec() <= superbitrf.timer) {
-            superbitrf.timer_overflow = FALSE;
+            superbitrf.timer_overflow = false;
           }
 
           // When there is a timeout
@@ -636,9 +664,9 @@ void superbitrf_event(void)
           // Set the timer
           superbitrf.timer = (get_sys_time_usec() + SUPERBITRF_DATARECV_TIME) % 0xFFFFFFFF;
           if (superbitrf.timer < get_sys_time_usec()) {
-            superbitrf.timer_overflow = TRUE;
+            superbitrf.timer_overflow = true;
           } else {
-            superbitrf.timer_overflow = FALSE;
+            superbitrf.timer_overflow = false;
           }
 
           // Only send on channel 2
@@ -694,7 +722,7 @@ void superbitrf_event(void)
         case 6:
           // Fixing timer overflow
           if (superbitrf.timer_overflow && get_sys_time_usec() <= superbitrf.timer) {
-            superbitrf.timer_overflow = FALSE;
+            superbitrf.timer_overflow = false;
           }
 
           // Waiting for data receive
@@ -736,9 +764,9 @@ void superbitrf_event(void)
             superbitrf.timer = (superbitrf.timer - SUPERBITRF_DATARECV_TIME + SUPERBITRF_RECV_SHORT_TIME) % 0xFFFFFFFF;
           }
           if (superbitrf.timer < get_sys_time_usec()) {
-            superbitrf.timer_overflow = TRUE;
+            superbitrf.timer_overflow = true;
           } else {
-            superbitrf.timer_overflow = FALSE;
+            superbitrf.timer_overflow = false;
           }
 
           superbitrf.state = 0;
@@ -755,7 +783,7 @@ void superbitrf_event(void)
 /**
  * When we receive a packet this callback is called
  */
-static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, uint8_t packet[])
+static inline void superbitrf_receive_packet_cb(bool error, uint8_t status, uint8_t packet[])
 {
   int i;
   uint16_t sum;
@@ -851,9 +879,9 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
         // Check if it is a data loss packet
         if (packet[1] != (~superbitrf.bind_mfg_id[3] + 1 + superbitrf.packet_loss_bit) % 0xFF
             && packet[1] != (superbitrf.bind_mfg_id[3] + 1 + superbitrf.packet_loss_bit) % 0xFF) {
-          superbitrf.packet_loss = TRUE;
+          superbitrf.packet_loss = true;
         } else {
-          superbitrf.packet_loss = FALSE;
+          superbitrf.packet_loss = false;
         }
 
         // When it is a data packet, parse the packet if not busy already
@@ -863,8 +891,8 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
 
             // When we have a full message
             if (superbitrf.rx_transport.trans_rx.msg_received) {
-              pprz_parse_payload(&superbitrf.rx_transport);
-              superbitrf.rx_transport.trans_rx.msg_received = FALSE;
+              DatalinkFillDlBuffer(superbitrf.rx_transport.trans_rx.payload, superbitrf.rx_transport.trans_rx.payload_len);
+              superbitrf.rx_transport.trans_rx.msg_received = false;
             }
           }
         }
@@ -923,8 +951,8 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
 
             // When we have a full message
             if (superbitrf.rx_transport.trans_rx.msg_received) {
-              pprz_parse_payload(&superbitrf.rx_transport);
-              superbitrf.rx_transport.trans_rx.msg_received = FALSE;
+              DatalinkFillDlBuffer(superbitrf.rx_transport.trans_rx.payload, superbitrf.rx_transport.trans_rx.payload_len);
+              superbitrf.rx_transport.trans_rx.msg_received = false;
             }
           }
         }
@@ -977,7 +1005,7 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
 
         // Parse the packet
         superbitrf_radio_to_channels(&packet[2], superbitrf.num_channels, superbitrf.resolution, superbitrf.rc_values);
-        superbitrf.rc_frame_available = TRUE;
+        superbitrf.rc_frame_available = true;
 
         // Calculate the timing (seperately for the channel switches)
         if (superbitrf.crc_seed != ((superbitrf.bind_mfg_id[0] << 8) + superbitrf.bind_mfg_id[1])) {
@@ -995,12 +1023,12 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
         // Check if it is a data loss packet
         if (packet[1] != (~superbitrf.bind_mfg_id[3] + 1 + superbitrf.packet_loss_bit)
             && packet[1] != (superbitrf.bind_mfg_id[3] + 1 + superbitrf.packet_loss_bit)) {
-          superbitrf.packet_loss = TRUE;
+          superbitrf.packet_loss = true;
         } else {
-          superbitrf.packet_loss = FALSE;
+          superbitrf.packet_loss = false;
         }
 
-        superbitrf.packet_loss = FALSE;
+        superbitrf.packet_loss = false;
 
         // When it is a data packet, parse the packet if not busy already
         if (!dl_msg_available && !superbitrf.packet_loss) {
@@ -1009,8 +1037,8 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
 
             // When we have a full message
             if (superbitrf.rx_transport.trans_rx.msg_received) {
-              pprz_parse_payload(&superbitrf.rx_transport);
-              superbitrf.rx_transport.trans_rx.msg_received = FALSE;
+              DatalinkFillDlBuffer(superbitrf.rx_transport.trans_rx.payload, superbitrf.rx_transport.trans_rx.payload_len);
+              superbitrf.rx_transport.trans_rx.msg_received = false;
             }
           }
         }
@@ -1026,7 +1054,7 @@ static inline void superbitrf_receive_packet_cb(bool_t error, uint8_t status, ui
   }
 }
 
-static inline void superbitrf_send_packet_cb(bool_t error __attribute__((unused)))
+static inline void superbitrf_send_packet_cb(bool error __attribute__((unused)))
 {
   /* Switch on the status of the superbitRF */
   switch (superbitrf.status) {
@@ -1057,7 +1085,7 @@ static inline void superbitrf_send_packet_cb(bool_t error __attribute__((unused)
 /**
  * Parse a radio channel packet
  */
-static inline void superbitrf_radio_to_channels(uint8_t *data, uint8_t nb_channels, bool_t is_11bit, int16_t *channels)
+static inline void superbitrf_radio_to_channels(uint8_t *data, uint8_t nb_channels, bool is_11bit, int16_t *channels)
 {
   int i;
   uint8_t bit_shift = (is_11bit) ? 11 : 10;

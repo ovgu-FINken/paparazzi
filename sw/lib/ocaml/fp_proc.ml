@@ -38,7 +38,7 @@ let parse_expression = fun s ->
   try
     Expr_parser.expression Expr_lexer.token lexbuf
   with
-      Failure("lexing: empty token") ->
+      Failure _ ->
         fprintf stderr "Lexing error in '%s': unexpected char: '%c' \n"
           s (Lexing.lexeme_char lexbuf 0);
         exit 1
@@ -72,7 +72,7 @@ let transform_values = fun attribs_not_modified env attribs ->
   List.map
     (fun (a, v) ->
       let v' =
-        if List.mem (String.lowercase a) attribs_not_modified
+        if List.mem (Compat.lowercase_ascii a) attribs_not_modified
         then v
         else transform_expression env (parse_expression v) in
       (a, v'))
@@ -83,7 +83,7 @@ let prefix_or_deroute = fun prefix reroutes name attribs ->
   List.map
     (fun (a, v) ->
       let v' =
-        if String.lowercase a = name then
+        if Compat.lowercase_ascii a = name then
           try List.assoc v reroutes with
               Not_found -> prefix v
         else v in
@@ -105,7 +105,7 @@ let transform_stage = fun prefix reroutes env xml ->
   let rec tr = fun xml ->
     match xml with
         Xml.Element (tag, attribs, children) -> begin
-          match String.lowercase tag with
+          match Compat.lowercase_ascii tag with
               "exception" ->
                 transform_exception prefix reroutes env xml
             | "while" ->
@@ -120,6 +120,12 @@ let transform_stage = fun prefix reroutes env xml ->
               Xml.Element (tag, attribs, children)
             | "attitude" ->
               let attribs = transform_values ["vmode"] env attribs in
+              Xml.Element (tag, attribs, children)
+            | "manual" ->
+              let attribs = transform_values [] env attribs in
+              Xml.Element (tag, attribs, children)
+            | "return" ->
+              let attribs = transform_values ["reset_stage"] env attribs in
               Xml.Element (tag, attribs, children)
             | "go" ->
               assert (children=[]);
@@ -144,7 +150,7 @@ let transform_stage = fun prefix reroutes env xml ->
               assert (children=[]);
               let attribs = transform_values ["wp"; "vmode"] env attribs in
               Xml.Element (tag, attribs, children)
-            | "call" | "set" ->
+            | "call" | "call_once" | "set" ->
               let attribs = transform_values ["var"] env attribs in
               Xml.Element (tag, attribs, children)
             | _ -> failwith (sprintf "Fp_proc: Unexpected tag: '%s'" tag)
@@ -226,6 +232,7 @@ let parse_include = fun dir flight_plan include_xml ->
 
     let waypoints = get_children "waypoints" proc
     and exceptions = get_children "exceptions" proc
+    and modules = get_children "modules" proc
     and blocks = get_children "blocks" proc
     and sectors = get_children "sectors" proc
     and header = get_pc_data "header" proc in
@@ -237,6 +244,7 @@ let parse_include = fun dir flight_plan include_xml ->
       append_children
       ["waypoints", waypoints;
        "blocks", blocks;
+       "modules", modules;
        "exceptions", exceptions;
        "sectors", sectors]
       (append_pc_data "header" header flight_plan)
@@ -268,7 +276,7 @@ let process_includes = fun dir xml ->
 
 
 let remove_attribs = fun xml names ->
-  List.filter (fun (x,_) -> not (List.mem (String.lowercase x) names)) (Xml.attribs xml)
+  List.filter (fun (x,_) -> not (List.mem (Compat.lowercase_ascii x) names)) (Xml.attribs xml)
 
 let xml_assoc_attrib = fun a v xmls ->
   List.find (fun x -> ExtXml.attrib x a = v) xmls
@@ -319,7 +327,7 @@ let replace_from = fun stage waypoints ->
 
 let process_stage = fun stage waypoints ->
   let rec do_it = fun stage ->
-    match String.lowercase (Xml.tag stage) with
+    match Compat.lowercase_ascii (Xml.tag stage) with
         "go" | "stay" | "circle" ->
           replace_from (replace_wp stage waypoints) waypoints
 
@@ -357,12 +365,12 @@ let process_relative_waypoints = fun xml ->
 let regexp_path = Str.regexp "[ \t,]+"
 
 
-let stage_process_path = fun stage rest ->
+let rec stage_process_path = fun stage rest ->
   if Xml.tag stage = "path" then
     let waypoints = Str.split regexp_path (ExtXml.attrib stage "wpts") in
     let attribs = Xml.attribs stage in
     let rec loop = function
-    [] -> failwith "Waypoint expected in path stage"
+      | [] -> failwith "Waypoint expected in path stage"
       | [wp] -> (* Just go to this single point *)
         Xml.Element("go", ("wp", wp)::attribs, [])::rest
       | wp1::wp2::ps ->
@@ -371,6 +379,9 @@ let stage_process_path = fun stage rest ->
                            "wp", wp2]@attribs, [])::
           if ps = [] then rest else loop (wp2::ps) in
     loop waypoints
+  else if Xml.tag stage = "for" || Xml.tag stage = "while" then
+    let attribs = Xml.attribs stage in
+    Xml.Element(Xml.tag stage, attribs, List.fold_right stage_process_path (Xml.children stage) [])::rest
   else
     stage::rest
 

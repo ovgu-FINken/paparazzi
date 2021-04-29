@@ -42,7 +42,7 @@ enum LisaBaroStatus {
 
 struct BaroBoard {
   enum LisaBaroStatus status;
-  bool_t running;
+  bool running;
 };
 
 
@@ -77,7 +77,7 @@ void baro_init(void)
   LED_OFF(BARO_LED);
 #endif
   baro_board.status = LBS_UNINITIALIZED;
-  baro_board.running = FALSE;
+  baro_board.running = false;
 }
 
 
@@ -109,7 +109,8 @@ void baro_periodic(void)
       //    baro_board.status = LBS_UNINITIALIZED;
       break;
     case LBS_INITIALIZING_DIFF_1:
-      baro_board.running = TRUE;
+      baro_board.running = true;
+      /* Falls through. */
     case LBS_READ_DIFF:
       baro_board_read_from_current_register(BARO_ABS_ADDR);
       baro_board.status = LBS_READING_ABS;
@@ -137,9 +138,10 @@ void lisa_l_baro_event(void)
       baro_trans.status != I2CTransPending) {
     baro_board.status = LBS_READ_ABS;
     if (baro_trans.status == I2CTransSuccess) {
+      uint32_t now_ts = get_sys_time_usec();
       int16_t tmp = baro_trans.buf[0] << 8 | baro_trans.buf[1];
       float pressure = LISA_L_BARO_SENS * (float)tmp;
-      AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
+      AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, now_ts, pressure);
     }
   } else if (baro_board.status == LBS_READING_DIFF &&
              baro_trans.status != I2CTransPending) {

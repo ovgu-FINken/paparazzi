@@ -29,22 +29,27 @@
 #include "std.h"
 
 #ifdef PERIPHERALS_AUTO_INIT
+#include "mcu_periph/gpio.h"
 #include "mcu_periph/sys_time.h"
 #ifdef USE_LED
 #include "led.h"
 #endif
 #if defined RADIO_CONTROL
-#if defined RADIO_CONTROL_LINK  || defined RADIO_CONTROL_SPEKTRUM_PRIMARY_PORT
+#if defined RADIO_CONTROL_BIND_IMPL_FUNC & defined SPEKTRUM_BIND_PIN_PORT
 #include "subsystems/radio_control.h"
 #endif
 #endif
-#if USE_UART0 || USE_UART1 || USE_UART2 || USE_UART3 || USE_UART4 || USE_UART5 || USE_UART6
+#if USE_UART0 || USE_UART1 || USE_UART2 || USE_UART3 || USE_UART4 || USE_UART5 || USE_UART6 || USE_UART7 || USE_UART8
 #define USING_UART 1
 #include "mcu_periph/uart.h"
 #endif
-#if USE_I2C0 || USE_I2C1 || USE_I2C2 || USE_I2C3
+#if USE_I2C0 || USE_I2C1 || USE_I2C2 || USE_I2C3 || USE_I2C4 || USE_SOFTI2C0 || USE_SOFTI2C1
 #define USING_I2C 1
 #include "mcu_periph/i2c.h"
+#endif
+#if USE_SOFTI2C0 || USE_SOFTI2C1
+#define USING_SOFTI2C 1
+#include "mcu_periph/softi2c.h"
 #endif
 #if USE_ADC
 #include "mcu_periph/adc.h"
@@ -61,29 +66,73 @@
 #ifdef USE_DAC
 #include "mcu_periph/dac.h"
 #endif
+#ifdef USE_RNG
+#include "mcu_periph/rng.h"
+#endif
+#ifdef USE_PIPE
+#include "mcu_periph/pipe.h"
+#endif
 #endif /* PERIPHERALS_AUTO_INIT */
 
 void WEAK board_init(void)
 {
-  // default board init function does nothing...
+  /* default board init function does nothing... */
+}
+
+void WEAK board_init2(void)
+{
+  /* default board init function does nothing... */
 }
 
 void mcu_init(void)
 {
-
-  mcu_arch_init();
   /* If we have a board specific init function, call it.
    * Otherwise it will simply call the empty weak function.
+   *
+   * For example the ARDrone2 has this implemented to prevent stray data of IMU
+   * from OEM program still running and also accessing AC sensors
    */
   board_init();
+
+  mcu_arch_init();
+
+  /* First enable the power of the MCU if needed */
+#if defined MCU_PWR
+  gpio_setup_output(MCU_PWR, MCU_PWR_PIN);
+  MCU_PWR_ON(MCU_PWR, MCU_PWR_PIN);
+
+#if defined BTN_ON
+  gpio_setup_input(BTN_ON, BTN_ON_PIN);
+  if(gpio_get(BTN_ON, BTN_ON_PIN))
+  {
+    MCU_PWR_ON(MCU_PWR, MCU_PWR_PIN);
+  }
+  else {
+    // Turn off and stop: wait until all power is off
+    while(true) {
+      MCU_PWR_OFF(MCU_PWR, MCU_PWR_PIN);
+    }
+  }
+#endif //BTN_ON
+
+#endif //MCU_PWR
 
 #ifdef PERIPHERALS_AUTO_INIT
   sys_time_init();
 #ifdef USE_LED
   led_init();
 #endif
+  /* First enable power of RC */
+#if defined RADIO_CONTROL_POWER_PORT
+  gpio_setup_output(RADIO_CONTROL_POWER_PORT, RADIO_CONTROL_POWER_PIN);
+  RADIO_CONTROL_POWER_ON(RADIO_CONTROL_POWER_PORT, RADIO_CONTROL_POWER_PIN);
+#endif
+#ifdef PERIPHERAL3V3_ENABLE_PORT
+  gpio_setup_output(PERIPHERAL3V3_ENABLE_PORT, PERIPHERAL3V3_ENABLE_PIN);
+  PERIPHERAL3V3_ENABLE_ON(PERIPHERAL3V3_ENABLE_PORT, PERIPHERAL3V3_ENABLE_PIN);
+#endif
   /* for now this means using spektrum */
-#if defined RADIO_CONTROL & defined RADIO_CONTROL_SPEKTRUM_PRIMARY_PORT & defined RADIO_CONTROL_BIND_IMPL_FUNC
+#if defined RADIO_CONTROL & defined RADIO_CONTROL_BIND_IMPL_FUNC & defined SPEKTRUM_BIND_PIN_PORT
   RADIO_CONTROL_BIND_IMPL_FUNC();
 #endif
 #if USE_UART0
@@ -107,6 +156,12 @@ void mcu_init(void)
 #if USE_UART6
   uart6_init();
 #endif
+#if USE_UART7
+  uart7_init();
+#endif
+#if USE_UART8
+  uart8_init();
+#endif
 #if USING_UART
   uart_arch_init();
 #endif
@@ -121,6 +176,15 @@ void mcu_init(void)
 #endif
 #ifdef USE_I2C3
   i2c3_init();
+#endif
+#ifdef USE_I2C4
+  i2c4_init();
+#endif
+#ifdef USE_SOFTI2C0
+  softi2c0_init();
+#endif
+#ifdef USE_SOFTI2C1
+  softi2c1_init();
 #endif
 #if USE_ADC
   adc_init();
@@ -143,6 +207,9 @@ void mcu_init(void)
 #endif
 #if USE_SPI3
   spi3_init();
+#endif
+#if USE_SPI4
+  spi4_init();
 #endif
   spi_init_slaves();
 #endif // SPI_MASTER
@@ -175,10 +242,15 @@ void mcu_init(void)
   udp_arch_init();
 #endif
 
+#ifdef USE_RNG
+  rng_init();
+#endif
+
 #else
   INFO("PERIPHERALS_AUTO_INIT not enabled! Peripherals (including sys_time) need explicit initialization.")
 #endif /* PERIPHERALS_AUTO_INIT */
 
+  board_init2();
 }
 
 
@@ -187,6 +259,9 @@ void mcu_event(void)
 {
 #if USING_I2C
   i2c_event();
+#endif
+#if USING_SOFTI2C
+  softi2c_event();
 #endif
 
 #if USE_USB_SERIAL

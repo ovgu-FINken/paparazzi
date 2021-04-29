@@ -1,0 +1,17 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="fdm_vrep" dir="fdm">
+  <doc>
+    <description>
+    </description>
+  </doc>
+  <header/>
+  <makefile target="nps|hitl">
+    <raw>
+	nps.CFLAGS  += -I/usr/include/eigen3
+        nps.LDFLAGS += -lboost_serialization
+    </raw>
+    <file name="nps_fdm_vrep.cpp" dir="nps"/>
+  </makefile>
+</module>
+

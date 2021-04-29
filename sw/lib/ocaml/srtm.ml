@@ -24,17 +24,20 @@
 
 open Latlong
 
+
 let (//) = Filename.concat
 
 type error = string
 exception Tile_not_found of string
 
-let srtm_url = "http://dds.cr.usgs.gov/srtm/version2_1/SRTM3"
+let srtm_url = "http://step.esa.int/auxdata/dem/SRTMGL1"
 
 let error = fun string ->
-  Printf.sprintf "download %s/???/%s.hgt.zip in data/srtm/" srtm_url string
+  Printf.sprintf "download %s/%s.SRTMGL1.hgt.zip in data/srtm/" srtm_url string
 
-let tile_size = 1201
+let tile_coef = 1200. (* size for GL3, multiply by 3 for GL1 *)
+let tile_size_gl3 = 1201
+let tile_size_gl1 = 3601
 
 (* Previously opened tiles *)
 let htiles = Hashtbl.create 13
@@ -53,48 +56,46 @@ let find = fun tile ->
         let (bottom, left) = tile in
         let tile_name =
           Printf.sprintf "%c%.0f%c%03.0f" (if bottom >= 0. then 'N' else 'S') (abs_float bottom) (if left >= 0. then 'E' else 'W') (abs_float left) in
-        try
-          let f = open_compressed (tile_name ^".hgt") in
-          let n = tile_size*tile_size*2 in
-          let buf = String.create n in
-          really_input f buf 0 n;
-          Hashtbl.add htiles tile buf;
-          buf
-        with Not_found ->
-          raise (Tile_not_found tile_name)
+        let f, n, factor =
+          try
+            let f = open_compressed (tile_name ^".SRTMGL1.hgt") in
+            let n = tile_size_gl1*tile_size_gl1*2 in
+            f, n, 3.
+          with Not_found -> begin
+            try
+              let f = open_compressed (tile_name ^".hgt") in
+              let n = tile_size_gl3*tile_size_gl3*2 in
+              f, n, 1.
+            with Not_found ->
+              raise (Tile_not_found tile_name)
+          end
+        in
+        let buf = Bytes.create n in
+        really_input f buf 0 n;
+        Hashtbl.add htiles tile (buf, factor);
+        buf, factor
 
 
 let get = fun tile y x ->
-  let tile = find tile in
+  let tile, factor = find tile in
+  let x = truncate (x*.factor*.tile_coef+.0.5)
+  and y = truncate (y*.factor*.tile_coef+.0.5)
+  and tile_size = truncate (factor*.tile_coef+.1.) in
   let pos = (2*((tile_size-y)*tile_size+x)) in
-  (((Char.code tile.[pos] land 127) lsl 8) lor Char.code tile.[pos+1]) - ((Char.code tile.[pos] lsr 7) * 256 * 128)
+  (((Char.code (Bytes.get tile pos) land 127) lsl 8) lor Char.code (Bytes.get tile (pos+1))) - ((Char.code (Bytes.get tile pos) lsr 7) * 256 * 128)
 
 let of_wgs84 = fun geo ->
   let lat = (Rad>>Deg)geo.posn_lat
   and long = (Rad>>Deg)geo.posn_long in
   let bottom = floor lat and left = floor long in
   let tile = (bottom, left) in
-  get tile (truncate ((lat-.bottom)*.1200.+.0.5)) (truncate ((long-.left)*.1200.+.0.5))
+  get tile (lat-.bottom) (long-.left)
 
 let of_utm = fun utm ->
   of_wgs84 (Latlong.of_utm WGS84 utm)
 
 let available = fun geo ->
   try ignore(of_wgs84 geo); true with _ -> false
-
-let area_of_tile = fun tile ->
-  let area = open_compressed "srtm.data.bz2" in
-  let rec _area_of_tile = fun () ->
-    try
-      Scanf.fscanf area "%s %s\n" (fun t a ->
-        if t = tile then a
-        else _area_of_tile ())
-    with
-      | End_of_file -> raise (Tile_not_found tile)
-      | _ -> _area_of_tile ()
-  in
-  _area_of_tile ()
-
 
 (* field size in bytes *)
 let field_size = 2
@@ -147,6 +148,3 @@ let horizon_slope = fun geo r psi alpha d ->
     (*  Printf.printf "debut calcul \n"; *)
     calc_horizon 0.0 0.0 0.0;
   end
-
-
-

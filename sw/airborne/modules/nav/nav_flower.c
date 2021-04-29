@@ -32,6 +32,31 @@
 #include "autopilot.h"
 #include "generated/flight_plan.h"
 
+#if USE_MISSION
+#include "modules/mission/mission_common.h"
+
+static bool nav_flower_mission(uint8_t nb, float *params, bool init)
+{
+  if (nb != 2) {
+    return false; // wrong number of parameters
+  }
+  if (init) {
+    uint8_t center = (uint8_t)(params[0]);
+    uint8_t edge = (uint8_t)(params[1]);
+    nav_flower_setup(center, edge);
+  }
+  return nav_flower_run();
+}
+#endif
+
+
+void nav_flower_init(void)
+{
+#if USE_MISSION
+  mission_register(nav_flower_mission, "FLWR");
+#endif
+}
+
 /************** Flower Navigation **********************************************/
 
 /** Makes a flower pattern.
@@ -57,7 +82,7 @@ static float Flowerradius;
 static uint8_t Center;
 static uint8_t Edge;
 
-bool_t nav_flower_setup(uint8_t CenterWP, uint8_t EdgeWP)
+void nav_flower_setup(uint8_t CenterWP, uint8_t EdgeWP)
 {
   Center = CenterWP;
   Edge = EdgeWP;
@@ -85,20 +110,19 @@ bool_t nav_flower_setup(uint8_t CenterWP, uint8_t EdgeWP)
 
   CircleX = 0;
   CircleY = 0;
-  return FALSE;
 }
 
-bool_t nav_flower_run(void)
+bool nav_flower_run(void)
 {
   TransCurrentX = stateGetPositionEnu_f()->x - WaypointX(Center);
   TransCurrentY = stateGetPositionEnu_f()->y - WaypointY(Center);
   DistanceFromCenter = sqrtf(TransCurrentX * TransCurrentX + TransCurrentY * TransCurrentY);
 
-  bool_t InCircle = TRUE;
+  bool InCircle = true;
   float CircleTheta;
 
   if (DistanceFromCenter > Flowerradius) {
-    InCircle = FALSE;
+    InCircle = false;
   }
 
   NavVerticalAutoThrottleMode(0); /* No pitch */
@@ -150,5 +174,5 @@ bool_t nav_flower_run(void)
     default:
       break;
   }
-  return TRUE;
+  return true;
 }

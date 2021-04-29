@@ -55,6 +55,8 @@
 #define LED_OFF(i) LED_GPIO_OFF(i)(LED_GPIO(i), LED_GPIO_PIN(i))
 #define LED_TOGGLE(i) gpio_toggle(LED_GPIO(i), LED_GPIO_PIN(i))
 
+#define LED_DISABLE(i) gpio_setup_input(LED_GPIO(i), LED_GPIO_PIN(i))
+
 #define LED_PERIODIC() {}
 
 
@@ -82,12 +84,13 @@ extern uint8_t led_status[NB_LED];
                   GPIO_CNF_OUTPUT_PUSHPULL,             \
                   GPIO15);                              \
     for(uint8_t _cnt=0; _cnt<NB_LED; _cnt++)            \
-      led_status[_cnt] = FALSE;                         \
+      led_status[_cnt] = false;                         \
   }
 
-#define LED_ON(i)  { led_status[i] = TRUE;  }
-#define LED_OFF(i) { led_status[i] = FALSE; }
+#define LED_ON(i)  { led_status[i] = true;  }
+#define LED_OFF(i) { led_status[i] = false; }
 #define LED_TOGGLE(i) {led_status[i] = !led_status[i];}
+#define LED_DISABLE(i) LED_OFF(i)
 
 #define LED_PERIODIC() {                                    \
     for (uint8_t _cnt = 0; _cnt < NB_LED; _cnt++) {         \

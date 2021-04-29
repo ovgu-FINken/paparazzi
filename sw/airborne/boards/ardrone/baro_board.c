@@ -44,7 +44,7 @@ struct MedianFilterInt baro_median;
 void baro_init(void)
 {
 #if USE_BARO_MEDIAN_FILTER
-  init_median_filter(&baro_median);
+  init_median_filter_i(&baro_median, MEDIAN_DEFAULT_SIZE);
 #endif
 }
 
@@ -94,15 +94,16 @@ void ardrone_baro_event(void)
   if (navdata.baro_available) {
     if (navdata.baro_calibrated) {
       // first read temperature because pressure calibration depends on temperature
+      uint32_t now_ts = get_sys_time_usec();
       float temp_deg = 0.1 * baro_apply_calibration_temp(navdata.measure.temperature_pressure);
       AbiSendMsgTEMPERATURE(BARO_BOARD_SENDER_ID, temp_deg);
       int32_t press_pascal = baro_apply_calibration(navdata.measure.pressure);
 #if USE_BARO_MEDIAN_FILTER
-      press_pascal = update_median_filter(&baro_median, press_pascal);
+      press_pascal = update_median_filter_i(&baro_median, press_pascal);
 #endif
       float pressure = (float)press_pascal;
-      AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, pressure);
+      AbiSendMsgBARO_ABS(BARO_BOARD_SENDER_ID, now_ts, pressure);
     }
-    navdata.baro_available = FALSE;
+    navdata.baro_available = false;
   }
 }

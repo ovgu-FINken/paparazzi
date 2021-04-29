@@ -2,7 +2,7 @@
 #
 # elle0_1.0.makefile
 #
-# http://wiki.paparazziuav.org/wiki/ELLE0
+# http://wiki.paparazziuav.org/wiki/Elle0
 #
 
 BOARD=elle0
@@ -26,7 +26,7 @@ ifeq (,$(findstring $(HAS_LUFTBOOT),0 FALSE))
 $(TARGET).CFLAGS+=-DLUFTBOOT
 $(TARGET).LDFLAGS+=-Wl,-Ttext=0x8004000
 DFU_ADDR = 0x8004000
-DFU_PRODUCT = ELLE0
+DFU_PRODUCT = Elle0
 endif
 
 
@@ -51,6 +51,20 @@ MODEM_BAUD ?= B57600
 
 GPS_PORT ?= UART3
 GPS_BAUD ?= B38400
+
+#
+# default PPM input is on PA01
+#
+RADIO_CONTROL_PPM_PIN ?= PA01
+ifeq ($(RADIO_CONTROL_PPM_PIN),$(filter $(RADIO_CONTROL_PPM_PIN),PA_10 PA10 UART1_RX))
+  PPM_CONFIG=1
+else ifeq ($(RADIO_CONTROL_PPM_PIN),$(filter $(RADIO_CONTROL_PPM_PIN),PA_01 PA01 PA1 SERVO6))
+  PPM_CONFIG=2
+else ifeq ($(RADIO_CONTROL_PPM_PIN),$(filter $(RADIO_CONTROL_PPM_PIN),PB_07 PB07 PB7 SERVO8))
+  PPM_CONFIG=3
+else
+$(error Unknown RADIO_CONTROL_PPM_PIN, configure it to either PA01, PA10, PB07)
+endif
 
 
 #

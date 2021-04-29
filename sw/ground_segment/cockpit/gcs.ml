@@ -26,6 +26,7 @@ module G = MapCanvas
 open Printf
 open Latlong
 
+
 let locale = GtkMain.Main.init ~setlocale:false ()
 
 let soi = string_of_int
@@ -42,6 +43,7 @@ let _ =
 let ign = ref false
 let get_bdortho = ref ""
 let auto_center_new_ac = ref false
+let auto_center_ac = ref ""
 let no_alarm = ref false
 
 
@@ -334,13 +336,14 @@ and projection = ref G.Mercator
 and auto_ortho = ref false
 and mplayer = ref ""
 and plugin_window = ref ""
-and layout_file = ref "horizontal.xml"
+and layout_file = ref "large_left_col.xml"
 and edit = ref false
 and display_particules = ref false
 and wid = ref None
 and srtm = ref false
 and hide_fp = ref false
 and timestamp = ref false
+and confirm_kill = ref true
 
 let options =
   [
@@ -348,6 +351,7 @@ let options =
     "-b", Arg.String (fun x -> ivy_bus := x),(sprintf "<ivy bus> Default is %s" !ivy_bus);
     "-center", Arg.Set_string center, "Initial map center (e.g. 'WGS84 43.605 1.443')";
     "-center_ac", Arg.Set auto_center_new_ac, "Centers the map on any new A/C";
+    "-center_ac_id", Arg.Set_string auto_center_ac, "continuously centers the map on the AC id";
     "-edit", Arg.Unit (fun () -> edit := true; layout_file := "editor.xml"), "Flight plan editor";
     "-fullscreen", Arg.Set fullscreen, "Fullscreen window";
     "-maps_fill", Arg.Set GM.auto, "Automatically start loading background maps";
@@ -376,6 +380,7 @@ let options =
     "-auto_hide_fp", Arg.Unit (fun () -> Live.auto_hide_fp true; hide_fp := true), "Automatically hide flight plans of unselected aircraft";
     "-timestamp", Arg.Set timestamp, "Bind on timestampped telemetry messages";
     "-ac_ids", Arg.String (fun s -> Live.filter_ac_ids s), "comma separated list of AC IDs to show in GCS";
+    "-no_confirm_kill", Arg.Unit (fun () -> confirm_kill := false), "Disable kill confirmation from strip button";
   ]
 
 
@@ -452,6 +457,7 @@ let create_geomap = fun switch_fullscreen editor_frame ->
   ignore (map_menu_fact#add_item "Map of Region" ~key:GdkKeysyms._R ~callback:(map_from_region geomap));
   ignore (map_menu_fact#add_item "Dump map of Tiles" ~key:GdkKeysyms._T ~callback:(GM.map_from_tiles geomap));
   ignore (map_menu_fact#add_item "Load sector" ~callback:(Sectors.load geomap));
+  ignore (map_menu_fact#add_item "Load KML" ~callback:(Sectors.load_kml geomap));
 
   (** Connect Maps display to view change *)
   geomap#connect_view (fun () -> GM.update geomap);
@@ -495,7 +501,7 @@ let resize = fun (widget:GObj.widget) orientation size ->
 
 let rec pack_widgets = fun orientation xml widgets packing ->
   let size = try Some (ExtXml.int_attrib xml "size") with _ -> None in
-  match String.lowercase (Xml.tag xml) with
+  match Compat.lowercase_ascii (Xml.tag xml) with
       "widget" ->
         let name = ExtXml.attrib xml "name" in
         let widget =
@@ -522,7 +528,7 @@ and pack_list = fun resize orientation xmls widgets packing ->
 
 let rec find_widget_children = fun name xml ->
   let xmls = Xml.children xml in
-  match String.lowercase (Xml.tag xml) with
+  match Compat.lowercase_ascii (Xml.tag xml) with
       "widget" when ExtXml.attrib xml "name" = name -> xmls
     | "rows" | "columns" ->
       let rec loop = function
@@ -536,7 +542,7 @@ let rec find_widget_children = fun name xml ->
 
 let rec replace_widget_children = fun name children xml ->
   let xmls = Xml.children xml
-  and tag = String.lowercase (Xml.tag xml) in
+  and tag = Compat.lowercase_ascii (Xml.tag xml) in
   match tag with
       "widget" ->
         Xml.Element("widget",
@@ -558,7 +564,7 @@ let rec update_widget_size = fun orientation widgets xml ->
     if orientation = `HORIZONTAL then rect.Gtk.width else rect.Gtk.height
   in
   let xmls = Xml.children xml
-  and tag = String.lowercase (Xml.tag xml) in
+  and tag = Compat.lowercase_ascii (Xml.tag xml) in
   match tag with
       "widget" ->
         let name = ExtXml.attrib xml "name" in
@@ -606,7 +612,7 @@ let save_layout = fun filename contents ->
 let listen_dropped_papgets = fun (geomap:G.widget) ->
   let dnd_targets = [ { Gtk.target = "STRING"; flags = []; info = 0 } ] in
   geomap#canvas#drag#dest_set dnd_targets ~actions:[`COPY];
-  ignore (geomap#canvas#drag#connect#data_received ~callback:(Papgets.dnd_data_received geomap#still))
+  ignore (geomap#canvas#drag#connect#data_received ~callback:(Papgets.dnd_data_received geomap#still geomap#zoom_adj))
 
 
 
@@ -713,7 +719,7 @@ let () =
 
   (** packing papgets *)
   let papgets = try find_widget_children "map2d" the_layout with Not_found -> [] in
-  List.iter (Papgets.create geomap#still) papgets;
+  List.iter (Papgets.create geomap#still geomap#zoom_adj) papgets;
   listen_dropped_papgets geomap;
 
   let save_layout = fun () ->
@@ -787,7 +793,7 @@ let () =
     begin
       my_alert#add "Waiting for telemetry...";
       Speech.say "Waiting for telemetry...";
-      Live.listen_acs_and_msgs geomap ac_notebook strips_table my_alert !auto_center_new_ac alt_graph !timestamp
+      Live.listen_acs_and_msgs geomap ac_notebook strips_table !confirm_kill my_alert !auto_center_new_ac !auto_center_ac alt_graph !timestamp
     end;
 
   (** Display the window *)

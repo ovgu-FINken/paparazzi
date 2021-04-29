@@ -24,19 +24,49 @@
  *
  * MPU-60X0 driver common functions (I2C and SPI).
  *
- * Still needs the either the I2C or SPI specific implementation.
+ * Still needs the either I2C or SPI specific implementation.
  */
 
 #include "peripherals/mpu60x0.h"
 
+const float MPU60X0_GYRO_SENS[4] = {
+  MPU60X0_GYRO_SENS_250,
+  MPU60X0_GYRO_SENS_500,
+  MPU60X0_GYRO_SENS_1000,
+  MPU60X0_GYRO_SENS_2000
+};
+
+const int32_t MPU60X0_GYRO_SENS_FRAC[4][2] = {
+  { MPU60X0_GYRO_SENS_250_NUM, MPU60X0_GYRO_SENS_250_DEN },
+  { MPU60X0_GYRO_SENS_500_NUM, MPU60X0_GYRO_SENS_500_DEN },
+  { MPU60X0_GYRO_SENS_1000_NUM, MPU60X0_GYRO_SENS_1000_DEN },
+  { MPU60X0_GYRO_SENS_2000_NUM, MPU60X0_GYRO_SENS_2000_DEN }
+};
+
+const float MPU60X0_ACCEL_SENS[4] = {
+  MPU60X0_ACCEL_SENS_2G,
+  MPU60X0_ACCEL_SENS_4G,
+  MPU60X0_ACCEL_SENS_8G,
+  MPU60X0_ACCEL_SENS_16G
+};
+
+const int32_t MPU60X0_ACCEL_SENS_FRAC[4][2] = {
+  { MPU60X0_ACCEL_SENS_2G_NUM, MPU60X0_ACCEL_SENS_2G_DEN },
+  { MPU60X0_ACCEL_SENS_4G_NUM, MPU60X0_ACCEL_SENS_4G_DEN },
+  { MPU60X0_ACCEL_SENS_8G_NUM, MPU60X0_ACCEL_SENS_8G_DEN },
+  { MPU60X0_ACCEL_SENS_16G_NUM, MPU60X0_ACCEL_SENS_16G_DEN }
+};
+
 void mpu60x0_set_default_config(struct Mpu60x0Config *c)
 {
+  c->type = MPU60X0;
   c->clk_sel = MPU60X0_DEFAULT_CLK_SEL;
   c->smplrt_div = MPU60X0_DEFAULT_SMPLRT_DIV;
   c->dlpf_cfg = MPU60X0_DEFAULT_DLPF_CFG;
+  c->dlpf_cfg_acc = MPU60X0_DEFAULT_DLPF_CFG_ACC;
   c->gyro_range = MPU60X0_DEFAULT_FS_SEL;
   c->accel_range = MPU60X0_DEFAULT_AFS_SEL;
-  c->drdy_int_enable = FALSE;
+  c->drdy_int_enable = false;
 
   /* Number of bytes to read starting with MPU60X0_REG_INT_STATUS
    * By default read only gyro and accel data -> 15 bytes.
@@ -44,8 +74,9 @@ void mpu60x0_set_default_config(struct Mpu60x0Config *c)
    */
   c->nb_bytes = 15;
   c->nb_slaves = 0;
+  c->nb_slave_init = 0;
 
-  c->i2c_bypass = FALSE;
+  c->i2c_bypass = false;
 }
 
 void mpu60x0_send_config(Mpu60x0ConfigSet mpu_set, void *mpu, struct Mpu60x0Config *config)
@@ -88,6 +119,13 @@ void mpu60x0_send_config(Mpu60x0ConfigSet mpu_set, void *mpu, struct Mpu60x0Conf
       mpu_set(mpu, MPU60X0_REG_ACCEL_CONFIG, (config->accel_range << 3));
       config->init_status++;
       break;
+    case MPU60X0_CONF_ACCEL2:
+      /* configure accelerometer DLPF (for ICM devices) */
+      if (config->type != MPU60X0) {
+        mpu_set(mpu, MPU60X0_REG_ACCEL_CONFIG2, config->dlpf_cfg_acc);
+      }
+      config->init_status++;
+      break;
     case MPU60X0_CONF_I2C_SLAVES:
       /* if any, set MPU for I2C slaves and configure them*/
       if (config->nb_slaves > 0) {
@@ -104,8 +142,15 @@ void mpu60x0_send_config(Mpu60x0ConfigSet mpu_set, void *mpu, struct Mpu60x0Conf
       mpu_set(mpu, MPU60X0_REG_INT_ENABLE, (config->drdy_int_enable << 0));
       config->init_status++;
       break;
+    case MPU60X0_CONF_UNDOC1:
+      /* configure undocumented register (for ICM devices) to remove 2.7m/s^2 y-acc bias */
+      if (config->type != MPU60X0) {
+        mpu_set(mpu, MPU60X0_REG_UNDOC1, 0xC9);
+      }
+      config->init_status++;
+      break;
     case MPU60X0_CONF_DONE:
-      config->initialized = TRUE;
+      config->initialized = true;
       break;
     default:
       break;

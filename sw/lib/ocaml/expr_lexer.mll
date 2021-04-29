@@ -1,6 +1,6 @@
-(* 
- * Lexical tokens à la C
- *  
+(*
+ * Lexical tokens ï¿½ la C
+ *
  * Copyright (C) 2003-2010 Antoine Drouin, Pascal Brisset, ENAC
  *
  * This file is part of paparazzi.
@@ -22,6 +22,7 @@
  *)
 {
 open Expr_parser
+
 }
 rule token = parse
     [' ' '\t' '\n'] { token lexbuf}
@@ -38,15 +39,22 @@ rule token = parse
   | ')' { RP }
   | '{' { LC }
   | '}' { RC }
-  | '[' { LB } 
+  | '[' { LB }
   | ']' { RB }
   | "->" { DEREF }
+  | "@DEREF" {DEREF}
   | "==" { EQ }
   | "&&" { AND }
+  | "@AND" { AND }
   | "||" { OR }
+  | "@OR" { OR }
   | ">" { GT }
+  | "@GT" { GT }
+  | "@LT" { LT }
   | "%" { MOD }
   | ">=" { GEQ }
+  | "@GEQ" { GEQ }
+  | "@LEQ" { LEQ }
   | "+" { PLUS }
   | "=" { ASSIGN }
   | "-" { MINUS }
@@ -62,7 +70,7 @@ rule token = parse
     try
       Expr_parser.expression token lexbuf
     with
-      Failure("lexing: empty token") ->
+      Failure _ ->
 	Printf.fprintf stderr "Lexing error in '%s': unexpected char: '%c' \n"
 	  s (Lexing.lexeme_char lexbuf 0);
 	exit 1

@@ -22,7 +22,8 @@
  *
  *)
 
-module Protocol = struct
+
+module UbxProtocol = struct
   (** SYNC1 SYNC2 CLASS ID LENGTH(2) UBX_PAYLOAD CK_A CK_B
       LENGTH is the lentgh of UBX_PAYLOAD
       For us, the 'payload' includes also CLASS, ID and the LENGTH *)
@@ -47,10 +48,10 @@ module Protocol = struct
     if len >= offset_length+2 then
       payload_length buf start + 4
     else
-      raise Serial.Not_enough
+      raise Protocol.Not_enough
 
   let payload = fun buf ->
-    Serial.payload_of_string (String.sub buf offset_payload (payload_length buf 0))
+    Protocol.payload_of_string (String.sub buf offset_payload (payload_length buf 0))
 
   let uint8_t = fun x -> x land 0xff
   let (+=) = fun r x -> r := uint8_t (!r + x)
@@ -69,17 +70,17 @@ module Protocol = struct
     ck_a = Char.code buf.[offset_payload+l+1] && ck_b = Char.code buf.[offset_payload+l+2]
 
   let packet = fun payload ->
-    let payload = Serial.string_of_payload payload in
-    let n = String.length payload in
+    let payload = Protocol.bytes_of_payload payload in
+    let n = Bytes.length payload in
     let msg_length = n + 4 in
-    let m = String.create msg_length in
-    m.[0] <- sync1;
-    m.[1] <- sync2;
-    String.blit payload 0 m 2 n;
-    let (ck_a, ck_b) = compute_checksum m in
-    m.[msg_length-2] <- Char.chr ck_a;
-    m.[msg_length-1] <- Char.chr ck_b;
-    m
+    let m = Bytes.create msg_length in
+    Bytes.set m 0 sync1;
+    Bytes.set m 1 sync2;
+    Bytes.blit payload 0 m 2 n;
+    let (ck_a, ck_b) = compute_checksum (Bytes.to_string m) in
+    Bytes.set m (msg_length-2) (Char.chr ck_a);
+    Bytes.set m (msg_length-1) (Char.chr ck_b);
+    Bytes.to_string m
 end
 
 type class_id = int
@@ -88,7 +89,7 @@ type msg_id = int
 let (//) = Filename.concat
 
 let ubx_xml =
-  lazy (Xml.parse_file (Env.paparazzi_src // "conf" // "ubx.xml"))
+  lazy (ExtXml.parse_file (Env.paparazzi_src // "conf" // "ubx.xml"))
 
 let ubx_get_class = fun name ->
   let ubx_xml = Lazy.force ubx_xml in
@@ -134,7 +135,7 @@ type message_spec = Xml.xml
 
 let ubx_payload = fun msg_xml values ->
   let n = int_of_string (ExtXml.attrib msg_xml "length") in
-  let p = String.make n '#' in
+  let p = Bytes.make n '#' in
   let fields = Xml.children msg_xml in
   List.iter
     (fun (label, value) ->
@@ -147,23 +148,23 @@ let ubx_payload = fun msg_xml values ->
       match fmt with
         | "U1" ->
           assert(value >= 0 && value < 0x100);
-          p.[pos] <- byte value
+          Bytes.set p (pos) (byte value)
         | "I1" ->
           assert(value >= -0x80 && value <= 0x80);
-          p.[pos] <- byte value
+          Bytes.set p pos (byte value)
         | "I4" | "U4" ->
           assert(fmt <> "U4" || value >= 0);
-          p.[pos+3] <- byte (value asr 24);
-          p.[pos+2] <- byte (value lsr 16);
-          p.[pos+1] <- byte (value lsr 8);
-          p.[pos+0] <- byte value
+          Bytes.set p (pos+3) (byte (value asr 24));
+          Bytes.set p (pos+2) (byte (value lsr 16));
+          Bytes.set p (pos+1) (byte (value lsr 8));
+          Bytes.set p (pos+0) (byte value)
         | "U2" | "I2" ->
-          p.[pos+1] <- byte (value lsr 8);
-          p.[pos+0] <- byte value
+          Bytes.set p (pos+1) (byte (value lsr 8));
+          Bytes.set p (pos+0) (byte value)
         | _ -> failwith (Printf.sprintf "Ubx.make_payload: unknown format '%s'" fmt)
     )
     values;
-  p
+  Bytes.to_string p
 
 let message = fun class_name msg_name ->
   let _class = ubx_get_class class_name in
@@ -179,10 +180,11 @@ let payload = fun class_name msg_name values ->
   let n = String.length u_payload in
 
   (** Just add CLASS_ID, MSG_ID and LENGTH(2) to the ubx payload *)
-  let m = String.create (n+4) in
-  m.[0] <- Char.chr class_id;
-  m.[1] <- Char.chr msg_id;
-  m.[2] <- Char.chr (n land 0xff);
-  m.[3] <- Char.chr ((n land 0xff00) lsr 8);
-  String.blit u_payload 0 m 4 n;
-  Serial.payload_of_string m
+  let m = Bytes.create (n+4) in
+  Bytes.set m 0 (Char.chr class_id);
+  Bytes.set m 1 (Char.chr msg_id);
+  Bytes.set m 2 (Char.chr (n land 0xff));
+  Bytes.set m 3 (Char.chr ((n land 0xff00) lsr 8));
+  Bytes.blit_string u_payload 0 m 4 n;
+  Protocol.payload_of_bytes m
+

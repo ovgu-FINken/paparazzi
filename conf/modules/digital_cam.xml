@@ -23,6 +23,7 @@
     <define name="DC_AUTOSHOOT_DISTANCE_INTERVAL" value="50" description="distance interval for DC_AUTOSHOOT_DISTANCE in meters"/>
     <define name="DC_AUTOSHOOT_SURVEY_INTERVAL" value="50" description="distance interval for DC_AUTOSHOOT_SURVEY in meters"/>
     <define name="DC_SHOT_SYNC_SEND" value="TRUE|FALSE" description="send DC_SHOT message when photo was taken (default: TRUE)"/>
+    <define name="DC_SHOT_EXTRA_DL" value="TRUE|FALSE" description="send DC_SHOT message other extra datalink like companion CPU (default: FALSE, requires DC_SHOT_SYNC_SEND)"/>
   </doc>
   <settings>
     <dl_settings name="control">
@@ -36,8 +37,8 @@
         </dl_setting>
 
         <dl_setting max="3" min="0" step="1" var="dc_autoshoot" values="STOP|PERIODIC|DISTANCE|EXT_TRIG">
-          <strip_button name="Start Autoshoot" icon="on.png" value="1" group="dcauto"/>
-          <strip_button name="Stop Autoshoot" icon="off.png" value="0" group="dcauto"/>
+          <strip_button name="Start Autoshoot" icon="dcstart.png" value="1" group="dcauto"/>
+          <strip_button name="Stop Autoshoot" icon="dcstart.png" value="0" group="dcauto"/>
         </dl_setting>
 
         <dl_setting max="60" min="0.1" step="0.5" var="dc_autoshoot_period" shortname="Periodic" param="DC_AUTOSHOOT_PERIOD" unit="sec"/>
@@ -50,7 +51,9 @@
     </dl_settings>
   </settings>
 
-  <conflicts>digital_cam_i2c,digital_cam_servo,digital_cam_uart,digital_cam_video</conflicts>
+  <dep>
+    <conflicts>digital_cam_i2c,digital_cam_servo,digital_cam_uart,digital_cam_video</conflicts>
+  </dep>
 
   <header>
     <file name="gpio_cam_ctrl.h"/>

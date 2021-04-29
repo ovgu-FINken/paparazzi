@@ -2,13 +2,15 @@
 #define GPS_SIM_H
 
 #include "std.h"
+#include "subsystems/gps.h"
 
-#define GPS_NB_CHANNELS 16
-
-extern void gps_impl_init(void);
+#ifndef PRIMARY_GPS
+#define PRIMARY_GPS GPS_SIM
+#endif
 
 extern void gps_sim_publish(void);
+extern void gps_sim_init(void);
 
-#define GpsEvent() {}
+#define gps_sim_periodic_check() gps_periodic_check(&gps)
 
 #endif /* GPS_SIM_H */

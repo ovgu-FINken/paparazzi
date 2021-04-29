@@ -23,7 +23,6 @@
 #
 # This is the common Makefile for the nps target.
 #
-
 SRC_ARCH = arch/sim
 
 OPT ?= 2
@@ -33,25 +32,41 @@ DEBUG_FLAGS ?= -ggdb3
 # Launch with "make Q=''" to get full command display
 Q=@
 
-CFLAGS  = -W -Wall
+# flags for warnings (C and C++)
+WARN_FLAGS += -W -Wall -Wextra
+WARN_FLAGS += -Wunused -Wcast-align -Wpointer-arith -Wswitch-default -Wmissing-declarations
+#WARN_FLAGS += -Wcast-qual
+#WARN_FLAGS += -Wredundant-decls
+#WARN_FLAGS += -Wshadow
+
+CFLAGS  = $(WARN_FLAGS)
 CFLAGS += $(INCLUDES)
 CFLAGS += $($(TARGET).CFLAGS)
-CFLAGS += $(USER_CFLAGS)
-CFLAGS += -O$(OPT)
+CFLAGS += $(USER_CFLAGS) $(BOARD_CFLAGS)
+CFLAGS += -O$(OPT) -fPIC
 CFLAGS += $(DEBUG_FLAGS)
 CFLAGS += -std=gnu99
 CFLAGS += $(shell pkg-config --cflags-only-I ivy-glib)
+CFLAGS += -D_GNU_SOURCE
 
-CXXFLAGS  = -W -Wall
+CXXFLAGS  = $(WARN_FLAGS)
 CXXFLAGS += $(INCLUDES)
 CXXFLAGS += $($(TARGET).CFLAGS)
 CXXFLAGS += $($(TARGET).CXXFLAGS)
-CXXFLAGS += $(USER_CFLAGS)
+CXXFLAGS += $(USER_CFLAGS) $(BOARD_CFLAGS)
 CXXFLAGS += -O$(OPT)
 CXXFLAGS += $(DEBUG_FLAGS)
+CXXFLAGS += -std=c++0x
 CXXFLAGS += $(shell pkg-config --cflags-only-I ivy-glib)
+CXXFLAGS += -D_GNU_SOURCE
 
 LDFLAGS	+= $($(TARGET).LDFLAGS)
+LDFLAGS += $(BOARD_LDFLAGS)
+LDFLAGS += $(patsubst %,-L%,$(DLIBDIR) $(RUST_DIRS))
+LDFLAGS += $(RUST_LIBS)
+
+# x86/64 and armv7 allow unaligned access
+CFLAGS += -DPPRZLINK_UNALIGNED_ACCESS=1
 
 #
 # General rules
@@ -66,7 +81,7 @@ all compile: check_jsbsim $(OBJDIR)/simsitl
 
 
 check_jsbsim:
-	@echo Paparazzi jsbsim package found: $(JSBSIM_PKG)
+	@echo Paparazzi jsbsim package found: $(FIND_JSBSIM_VIA_PKG_CONFIG)
 
 
 $(OBJDIR)/simsitl : $($(TARGET).objs)

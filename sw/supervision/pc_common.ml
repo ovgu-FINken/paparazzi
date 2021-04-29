@@ -22,6 +22,7 @@
  *
  *)
 
+
 open Printf
 
 let (//) = Filename.concat
@@ -43,12 +44,12 @@ let run_and_log = fun log exit_cb com ->
   let channel_out_fd = Unix.descr_of_in_channel com_stdout in
   let channel_out = GMain.Io.channel_of_descr channel_out_fd in
   let cb = fun _ ->
-      let buf = String.create buf_size in
+      let buf = Bytes.create buf_size in
       (* loop until input returns zero *)
       let rec log_input = fun out ->
         let n = input out buf 0 buf_size in
         (* split on beginning of new line *)
-        let s = Str.split (Str.regexp "^") (String.sub buf 0 n) in
+        let s = Str.split (Str.regexp "^") (Bytes.to_string (Bytes.sub buf 0 n)) in
         List.iter (fun l -> log l) s;
         if n = buf_size then (log_input out) + n else n
       in

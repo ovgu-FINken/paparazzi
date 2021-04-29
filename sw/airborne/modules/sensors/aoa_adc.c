@@ -30,11 +30,12 @@
 
 #include "modules/sensors/aoa_adc.h"
 #include "generated/airframe.h"
+#include "subsystems/abi.h"
 #include "state.h"
 
 // Messages
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 /// Default offset value (assuming 0 AOA is in the middle of the range)
@@ -84,9 +85,12 @@ void aoa_adc_update(void)
   prev_aoa = aoa_adc.angle;
 
 #ifdef USE_AOA
-  stateSetAngleOfAttack_f(&aoa_adc.angle);
+  uint8_t flag = 1;
+  float foo = 0.f;
+  AbiSendMsgINCIDENCE(AOA_ADC_ID, flag, aoa_adc.angle, foo);
+  stateSetAngleOfAttack_f(aoa_adc.angle);
 #endif
 
-  RunOnceEvery(30, DOWNLINK_SEND_AOA_ADC(DefaultChannel, DefaultDevice, &aoa_adc.raw, &aoa_adc.angle));
+  RunOnceEvery(30, DOWNLINK_SEND_AOA(DefaultChannel, DefaultDevice, &aoa_adc.raw, &aoa_adc.angle));
 }
 

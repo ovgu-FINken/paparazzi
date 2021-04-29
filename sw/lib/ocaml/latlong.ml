@@ -270,7 +270,7 @@ let coeff_proj_mercator_inverse =
     [|0.;0.;0.; 17./.30720.;283./.430080.|];
     [|0.;0.;0.;0.;4397./.41287680.|]|];;
 
-let utm_of' = fun geo ->
+let utm_of' = fun ?zone geo ->
   let ellipsoid =  ellipsoid_of geo in
   let k0 = 0.9996
   and xs = 500000. in
@@ -282,8 +282,13 @@ let utm_of' = fun geo ->
     if not (valid_geo pos) then
       invalid_arg "Latlong.utm_of";
     let lambda_deg = truncate (floor ((Rad>>Deg)lambda)) in
-    let zone = (lambda_deg + 180) / 6 + 1 in
-    let lambda_c = (Deg>>Rad) (float (lambda_deg - ((lambda_deg mod 6)+6)mod 6 + 3)) in
+    let zone, lambda_c =
+      match zone with
+      | None ->
+          (lambda_deg + 180) / 6 + 1,
+          (Deg>>Rad) (float (lambda_deg - ((lambda_deg mod 6)+6)mod 6 + 3))
+      | Some z -> z, (Deg>>Rad) (float ((z - 1)*6 - 180 + 3))
+    in
     let ll = latitude_isometrique phi e
     and dl = lambda -. lambda_c in
     let phi' = asin (sin dl /. cosh ll) in
@@ -309,11 +314,11 @@ let utm_of' = fun geo ->
 
 
 (** Static evaluation for better performance (~50% for cputime) *)
-let utm_of =
-  let u_WGS84 = utm_of' WGS84
-  and u_NTF = utm_of' NTF
-  and u_ED50 = utm_of' ED50
-  and u_NAD27 = utm_of' NAD27 in
+let utm_of = fun ?zone ->
+  let u_WGS84 = utm_of' ?zone WGS84
+  and u_NTF = utm_of' ?zone NTF
+  and u_ED50 = utm_of' ?zone ED50
+  and u_NAD27 = utm_of' ?zone NAD27 in
   fun geo -> match geo with
       WGS84 -> u_WGS84
     | NTF -> u_NTF
@@ -478,12 +483,12 @@ let bearing = fun geo1 geo2 ->
 let leap_seconds = 16
 
 (** leap seconds in GPS time.
- * There have been 16 leap seconds so far, with the last one at
- * June 30, 2012 at 23:59:60 UTC which equals 1025136015 in GPS seconds
+ * There have been 18 leap seconds so far, with the last one at
+ * Dec 31, 2016 at 23:59:60 UTC which equals 1167264017 in GPS seconds
  * http://www.leapsecond.com/java/gpsclock.htm
  * http://www.andrews.edu/~tzs/timeconv/timealgorithm.html
  *)
-let leap_seconds_list = [46828800.; 78364801.; 109900802.; 173059203.; 252028804.; 315187205.; 346723206.; 393984007.; 425520008.; 457056009.; 504489610.; 551750411.; 599184012.; 820108813.; 914803214.; 1025136015.]
+let leap_seconds_list = [46828800.; 78364801.; 109900802.; 173059203.; 252028804.; 315187205.; 346723206.; 393984007.; 425520008.; 457056009.; 504489610.; 551750411.; 599184012.; 820108813.; 914803214.; 1025136015.; 1119744016.; 1167264017.]
 
 (** Count number of leap seconds when converting gps to unix time *)
 let gps_count_leaps = fun gps_time ->

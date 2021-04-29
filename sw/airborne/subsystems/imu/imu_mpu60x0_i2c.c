@@ -47,20 +47,13 @@ PRINT_CONFIG_MSG("Gyro/Accel output rate is 100Hz at 1kHz internal sampling")
 #define IMU_MPU60X0_SMPLRT_DIV 3
 PRINT_CONFIG_MSG("Gyro/Accel output rate is 2kHz at 8kHz internal sampling")
 #else
-#error Non-default PERIODIC_FREQUENCY: please define MPU60X0_HMC_LOWPASS_FILTER and MPU60X0_HMC_SMPLRT_DIV.
+#error Non-default PERIODIC_FREQUENCY: please define IMU_MPU60X0_LOWPASS_FILTER and IMU_MPU60X0_SMPLRT_DIV.
 #endif
 #endif
 PRINT_CONFIG_VAR(IMU_MPU60X0_LOWPASS_FILTER)
 PRINT_CONFIG_VAR(IMU_MPU60X0_SMPLRT_DIV)
 
-#ifndef IMU_MPU60X0_GYRO_RANGE
-#define IMU_MPU60X0_GYRO_RANGE MPU60X0_GYRO_RANGE_2000
-#endif
 PRINT_CONFIG_VAR(IMU_MPU60X0_GYRO_RANGE)
-
-#ifndef IMU_MPU60X0_ACCEL_RANGE
-#define IMU_MPU60X0_ACCEL_RANGE MPU60X0_ACCEL_RANGE_16G
-#endif
 PRINT_CONFIG_VAR(IMU_MPU60X0_ACCEL_RANGE)
 
 #ifndef IMU_MPU60X0_I2C_ADDR
@@ -69,7 +62,7 @@ PRINT_CONFIG_VAR(IMU_MPU60X0_ACCEL_RANGE)
 
 struct ImuMpu60x0 imu_mpu_i2c;
 
-void imu_impl_init(void)
+void imu_mpu_i2c_init(void)
 {
   mpu60x0_i2c_init(&imu_mpu_i2c.mpu, &(IMU_MPU60X0_I2C_DEV), IMU_MPU60X0_I2C_ADDR);
   // change the default configuration
@@ -79,7 +72,7 @@ void imu_impl_init(void)
   imu_mpu_i2c.mpu.config.accel_range = IMU_MPU60X0_ACCEL_RANGE;
 }
 
-void imu_periodic(void)
+void imu_mpu_i2c_periodic(void)
 {
   mpu60x0_i2c_periodic(&imu_mpu_i2c.mpu);
 }
@@ -93,7 +86,7 @@ void imu_mpu_i2c_event(void)
   if (imu_mpu_i2c.mpu.data_available) {
     RATES_COPY(imu.gyro_unscaled, imu_mpu_i2c.mpu.data_rates.rates);
     VECT3_COPY(imu.accel_unscaled, imu_mpu_i2c.mpu.data_accel.vect);
-    imu_mpu_i2c.mpu.data_available = FALSE;
+    imu_mpu_i2c.mpu.data_available = false;
     imu_scale_gyro(&imu);
     imu_scale_accel(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_MPU60X0_ID, now_ts, &imu.gyro);

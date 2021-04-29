@@ -59,6 +59,20 @@ static abi_event pressure_diff_ev;
 #endif
 static abi_event temperature_ev;
 
+/** ABI binding for airspeed
+ */
+#ifndef AIR_DATA_AIRSPEED_ID
+#define AIR_DATA_AIRSPEED_ID ABI_BROADCAST
+#endif
+static abi_event airspeed_ev;
+
+/** ABI binding for incidence angles
+ */
+#ifndef AIR_DATA_INCIDENCE_ID
+#define AIR_DATA_INCIDENCE_ID ABI_BROADCAST
+#endif
+static abi_event incidence_ev;
+
 /** Default factor to convert estimated airspeed (EAS) to true airspeed (TAS) */
 #ifndef AIR_DATA_TAS_FACTOR
 #define AIR_DATA_TAS_FACTOR 1.0
@@ -95,7 +109,7 @@ PRINT_CONFIG_MSG("USE_AIRSPEED_AIR_DATA automatically set to TRUE")
 static uint8_t baro_health_counter;
 
 
-static void pressure_abs_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
+static void pressure_abs_cb(uint8_t __attribute__((unused)) sender_id, uint32_t __attribute__((unused)) stamp, float pressure)
 {
   air_data.pressure = pressure;
 
@@ -109,13 +123,13 @@ static void pressure_abs_cb(uint8_t __attribute__((unused)) sender_id, float pre
     }
     float h = stateGetPositionLla_f()->alt - geoid_separation;
     air_data.qnh = pprz_isa_ref_pressure_of_height_full(air_data.pressure, h) / 100.f;
-    air_data.calc_qnh_once = FALSE;
+    air_data.calc_qnh_once = false;
   }
 
   if (air_data.calc_amsl_baro && air_data.qnh > 0) {
     air_data.amsl_baro = pprz_isa_height_of_pressure_full(air_data.pressure,
                          air_data.qnh * 100.f);
-    air_data.amsl_baro_valid = TRUE;
+    air_data.amsl_baro_valid = true;
   }
 
   /* reset baro health counter */
@@ -129,7 +143,7 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pr
     air_data.airspeed = eas_from_dynamic_pressure(air_data.differential);
     air_data.tas = tas_from_eas(air_data.airspeed);
 #if USE_AIRSPEED_AIR_DATA
-    stateSetAirspeed_f(&air_data.airspeed);
+    stateSetAirspeed_f(air_data.airspeed);
 #endif
   }
 }
@@ -141,6 +155,31 @@ static void temperature_cb(uint8_t __attribute__((unused)) sender_id, float temp
   if (air_data.calc_tas_factor && air_data.airspeed > 0 && baro_health_counter > 0 &&
       air_data.pressure > 0) {
     air_data.tas_factor = get_tas_factor(air_data.pressure, air_data.temperature);
+  }
+}
+
+static void airspeed_cb(uint8_t __attribute__((unused)) sender_id, float eas)
+{
+  air_data.airspeed = eas;
+  if (air_data.calc_airspeed) {
+    air_data.tas = tas_from_eas(air_data.airspeed);
+#if USE_AIRSPEED_AIR_DATA
+    stateSetAirspeed_f(air_data.airspeed);
+#endif
+  }
+}
+
+static void incidence_cb(uint8_t __attribute__((unused)) sender_id, uint8_t flag, float aoa, float sideslip)
+{
+  if (bit_is_set(flag, 0)) {
+    // update angle of attack
+    air_data.aoa = aoa;
+    stateSetAngleOfAttack_f(aoa);
+  }
+  if (bit_is_set(flag, 1)) {
+    // update sideslip angle
+    air_data.sideslip = sideslip;
+    stateSetSideslip_f(sideslip);
   }
 }
 
@@ -180,8 +219,8 @@ void air_data_init(void)
   air_data.calc_tas_factor = AIR_DATA_CALC_TAS_FACTOR;
   air_data.calc_amsl_baro = AIR_DATA_CALC_AMSL_BARO;
   air_data.tas_factor = AIR_DATA_TAS_FACTOR;
-  air_data.calc_qnh_once = TRUE;
-  air_data.amsl_baro_valid = FALSE;
+  air_data.calc_qnh_once = true;
+  air_data.amsl_baro_valid = false;
 
   /* initialize the output variables
    * pressure, qnh, temperature and airspeed to invalid values,
@@ -205,11 +244,13 @@ void air_data_init(void)
   AbiBindMsgBARO_ABS(AIR_DATA_BARO_ABS_ID, &pressure_abs_ev, pressure_abs_cb);
   AbiBindMsgBARO_DIFF(AIR_DATA_BARO_DIFF_ID, &pressure_diff_ev, pressure_diff_cb);
   AbiBindMsgTEMPERATURE(AIR_DATA_TEMPERATURE_ID, &temperature_ev, temperature_cb);
+  AbiBindMsgAIRSPEED(AIR_DATA_AIRSPEED_ID, &airspeed_ev, airspeed_cb);
+  AbiBindMsgINCIDENCE(AIR_DATA_INCIDENCE_ID, &incidence_ev, incidence_cb);
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "BARO_RAW", send_baro_raw);
-  register_periodic_telemetry(DefaultPeriodic, "AIR_DATA", send_air_data);
-  register_periodic_telemetry(DefaultPeriodic, "AMSL", send_amsl);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_BARO_RAW, send_baro_raw);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AIR_DATA, send_air_data);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AMSL, send_amsl);
 #endif
 }
 
@@ -229,7 +270,7 @@ void air_data_periodic(void)
   if (baro_health_counter > 0) {
     baro_health_counter--;
   } else {
-    air_data.amsl_baro_valid = FALSE;
+    air_data.amsl_baro_valid = false;
   }
 }
 
@@ -281,7 +322,7 @@ float get_tas_factor(float p, float t)
    * sqrt(rho0 / rho) = sqrt((p0 * T) / (p * T0))
    * convert input temp to Kelvin
    */
-  return sqrtf((PPRZ_ISA_SEA_LEVEL_PRESSURE * (t + 274.15)) /
+  return sqrtf((PPRZ_ISA_SEA_LEVEL_PRESSURE * KelvinOfCelsius(t)) /
                (p * PPRZ_ISA_SEA_LEVEL_TEMP));
 }
 
@@ -296,6 +337,20 @@ float get_tas_factor(float p, float t)
  */
 float tas_from_eas(float eas)
 {
+  // update tas factor if requested
+  if (air_data.calc_tas_factor) {
+    if (air_data.pressure > 0.f && air_data.temperature > -900.f) {
+      // compute air density from pressure and temperature
+      air_data.tas_factor = get_tas_factor(air_data.pressure, air_data.temperature);
+    }
+    else {
+      // compute air density from altitude in ISA condition
+      const float z = air_data_get_amsl();
+      const float p = pprz_isa_pressure_of_altitude(z);
+      const float t = pprz_isa_temperature_of_altitude(z);
+      air_data.tas_factor = get_tas_factor(p, CelsiusOfKelvin(t));
+    }
+  }
   return air_data.tas_factor * eas;
 }
 

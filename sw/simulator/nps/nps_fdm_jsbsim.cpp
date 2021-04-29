@@ -33,23 +33,27 @@
 // ignore stupid warnings in JSBSim
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-#include <FGFDMExec.h>
-#pragma GCC diagnostic pop
 
+#include <FGFDMExec.h>
 #include <FGJSBBase.h>
 #include <initialization/FGInitialCondition.h>
 #include <models/FGPropulsion.h>
 #include <models/FGGroundReactions.h>
 #include <models/FGAccelerations.h>
+#include <models/FGAuxiliary.h>
+#include <models/FGAtmosphere.h>
+#include <models/FGAircraft.h>
 #include <models/FGFCS.h>
 #include <models/atmosphere/FGWinds.h>
-
 
 // Thrusters
 #include <models/propulsion/FGThruster.h>
 #include <models/propulsion/FGPropeller.h>
 
+// end ignore unused param warnings in JSBSim
+#pragma GCC diagnostic pop
 
+#include "nps_autopilot.h"
 #include "nps_fdm.h"
 #include "math/pprz_geodetic.h"
 #include "math/pprz_geodetic_double.h"
@@ -57,7 +61,7 @@
 #include "math/pprz_algebra.h"
 #include "math/pprz_algebra_float.h"
 
-#include "math/pprz_geodetic_wmm2015.h"
+#include "math/pprz_geodetic_wmm2020.h"
 
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
@@ -65,6 +69,16 @@
 /// Macro to convert from feet to metres
 #define MetersOfFeet(_f) ((_f)/3.2808399)
 #define FeetOfMeters(_m) ((_m)*3.2808399)
+
+#define PascalOfPsf(_p) ((_p) * 47.8802588889)
+#define CelsiusOfRankine(_r) (((_r) - 491.67) / 1.8)
+
+/// Macro to build file path according to the lib version
+#if NPS_JSBSIM_USE_SGPATH
+#define JSBSIM_PATH(_x) SGPath(_x)
+#else
+#define JSBSIM_PATH(_x) _x
+#endif
 
 /** Name of the JSBSim model.
  *  Defaults to the AIRFRAME_NAME
@@ -118,12 +132,13 @@
  * Around 1/10000 seems to be good for ground impacts
  */
 #define MIN_DT (1.0/10240.0)
+// TODO: maybe lower for slower CPUs & HITL?
+//#define MIN_DT (1.0/1000.0)
 
 using namespace JSBSim;
 using namespace std;
 
 static void feed_jsbsim(double *commands, int commands_nb);
-static void feed_jsbsim(double throttle, double aileron, double elevator, double rudder);
 static void fetch_state(void);
 static int check_for_nan(void);
 
@@ -172,6 +187,10 @@ void nps_fdm_init(double dt)
 
   FDMExec->RunIC();
 
+  // Fix getting initial incorrect accel measurements
+  for(uint16_t i = 0; i < 1500; i++)
+    FDMExec->Run();
+
   init_ltp();
 
 #if DEBUG_NPS_JSBSIM
@@ -182,11 +201,11 @@ void nps_fdm_init(double dt)
 
 }
 
-void nps_fdm_run_step(bool_t launch __attribute__((unused)), double *commands, int commands_nb)
+void nps_fdm_run_step(bool launch __attribute__((unused)), double *commands, int commands_nb)
 {
 
 #ifdef NPS_JSBSIM_LAUNCHSPEED
-  static bool_t already_launched = FALSE;
+  static bool already_launched = FALSE;
 
   if (launch && !already_launched) {
     printf("Launching with speed of %.1f m/s!\n", (float)NPS_JSBSIM_LAUNCHSPEED);
@@ -272,13 +291,18 @@ void nps_fdm_set_turbulence(double wind_speed, int turbulence_severity)
   Winds->SetProbabilityOfExceedence(turbulence_severity);
 }
 
+void nps_fdm_set_temperature(double temp, double h)
+{
+  FDMExec->GetAtmosphere()->SetTemperature(temp, h, FGAtmosphere::eCelsius);
+}
+
 /**
  * Feed JSBSim with the latest actuator commands.
  *
  * @param commands    Pointer to array of doubles holding actuator commands
  * @param commands_nb Number of commands (length of array)
  */
-static void feed_jsbsim(double *commands, int commands_nb)
+static void feed_jsbsim(double *commands, int commands_nb __attribute__((unused)))
 {
 #ifdef NPS_ACTUATOR_NAMES
   char buf[64];
@@ -291,42 +315,48 @@ static void feed_jsbsim(double *commands, int commands_nb)
     property = string(buf);
     FDMExec->GetPropertyManager()->GetNode(property)->SetDouble("", commands[i]);
   }
-#else
-  if (commands_nb != 4) {
-    cerr << "commands_nb must be 4!" << endl;
-    exit(-1);
-  }
-  /* call version that directly feeds throttle, aileron, elevator, rudder */
-  feed_jsbsim(commands[COMMAND_THROTTLE], commands[COMMAND_ROLL], commands[COMMAND_PITCH], commands[3]);
-#endif
-}
+#else /* use COMMAND names */
 
-static void feed_jsbsim(double throttle, double aileron, double elevator, double rudder)
-{
+  // get FGFCS instance
   FGFCS *FCS = FDMExec->GetFCS();
-  FGPropulsion *FProp = FDMExec->GetPropulsion();
 
   // Set trims
   FCS->SetPitchTrimCmd(NPS_JSBSIM_PITCH_TRIM);
   FCS->SetRollTrimCmd(NPS_JSBSIM_ROLL_TRIM);
   FCS->SetYawTrimCmd(NPS_JSBSIM_YAW_TRIM);
 
-  // Set commands
-  FCS->SetDaCmd(aileron);
-  FCS->SetDeCmd(elevator);
-  FCS->SetDrCmd(rudder);
-
+#ifdef COMMAND_THROTTLE
+  FGPropulsion *FProp = FDMExec->GetPropulsion();
   for (unsigned int i = 0; i < FDMExec->GetPropulsion()->GetNumEngines(); i++) {
-    FCS->SetThrottleCmd(i, throttle);
+    FCS->SetThrottleCmd(i, commands[COMMAND_THROTTLE]);
 
-    if (throttle > 0.01) {
+    // Hack to show spinning propellers in flight gear models
+    if (commands[COMMAND_THROTTLE] > 0.01) {
       FProp->SetStarter(1);
     } else {
       FProp->SetStarter(0);
     }
   }
-}
+#endif /* COMMAND_THROTTLE */
 
+#ifdef COMMAND_ROLL
+  FCS->SetDaCmd(commands[COMMAND_ROLL]);
+#endif /* COMMAND_ROLL */
+
+#ifdef COMMAND_PITCH
+  FCS->SetDeCmd(commands[COMMAND_PITCH]);
+#endif /* COMMAND_PITCH */
+
+#ifdef COMMAND_YAW
+  FCS->SetDrCmd(commands[COMMAND_YAW]);
+#endif /* COMMAND_YAW */
+
+#ifdef COMMAND_FLAP
+  FCS->SetDfCmd(commands[COMMAND_FLAP]);
+#endif /* COMMAND_FLAP */
+
+#endif /* NPS_ACTUATOR_NAMES */
+}
 
 /**
  * Populates the NPS fdm struct after a simulation step.
@@ -413,7 +443,7 @@ static void fetch_state(void)
   const FGQuaternion jsb_quat = propagate->GetQuaternion();
   jsbsimquat_to_quat(&fdm.ltp_to_body_quat, &jsb_quat);
   /* convert to eulers */
-  DOUBLE_EULERS_OF_QUAT(fdm.ltp_to_body_eulers, fdm.ltp_to_body_quat);
+  double_eulers_of_quat(&fdm.ltp_to_body_eulers, &fdm.ltp_to_body_quat);
   /* the "false" pprz lpt */
   /* FIXME: use jsbsim ltp for now */
   EULERS_COPY(fdm.ltpprz_to_body_eulers, fdm.ltp_to_body_eulers);
@@ -434,6 +464,22 @@ static void fetch_state(void)
    */
   const FGColumnVector3 &fg_wind_ned = FDMExec->GetWinds()->GetTotalWindNED();
   jsbsimvec_to_vec(&fdm.wind, &fg_wind_ned);
+
+  /*
+   * Equivalent Airspeed, atmospheric pressure and temperature.
+   */
+  fdm.airspeed = MetersOfFeet(FDMExec->GetAuxiliary()->GetVequivalentFPS());
+  fdm.pressure = PascalOfPsf(FDMExec->GetAtmosphere()->GetPressure());
+  fdm.pressure_sl = PascalOfPsf(FDMExec->GetAtmosphere()->GetPressureSL());
+  fdm.total_pressure = PascalOfPsf(FDMExec->GetAuxiliary()->GetTotalPressure());
+  fdm.dynamic_pressure = PascalOfPsf(FDMExec->GetAuxiliary()->Getqbar());
+  fdm.temperature = CelsiusOfRankine(FDMExec->GetAtmosphere()->GetTemperature());
+
+  /*
+   *  angle of attack and SlideSlip.
+   */
+  fdm.aoa= FDMExec->GetPropertyManager()->GetNode("aero/alpha-rad")->getDoubleValue();
+  fdm.sideslip = FDMExec->GetPropertyManager()->GetNode("aero/beta-rad")->getDoubleValue();
 
   /*
    * Control surface positions
@@ -485,10 +531,24 @@ static void init_jsbsim(double dt)
 
   char buf[1024];
   string rootdir;
+  string jsbsim_home = "/conf/simulator/jsbsim/";
   string jsbsim_ic_name;
 
-  sprintf(buf, "%s/conf/simulator/jsbsim/", getenv("PAPARAZZI_HOME"));
-  rootdir = string(buf);
+  char* pprz_home = getenv("PAPARAZZI_HOME");
+
+  int cnt = -1;
+  if (strlen(pprz_home) < sizeof(buf)) {
+    cnt = snprintf(buf, strlen(pprz_home) + 1, "%s", pprz_home);
+    rootdir = string(buf) + jsbsim_home;
+  }
+
+  // check the results
+  if (cnt < 0){
+    // Either pprz_home path too long for the buffer
+    // or writing the string was not successful.
+    cout << "PPRZ_HOME not set correctly, exiting..." << endl;
+    exit(-1);
+  }
 
   /* if jsbsim initial conditions are defined, use them
    * otherwise use flightplan location
@@ -505,9 +565,9 @@ static void init_jsbsim(double dt)
   FDMExec->DisableOutput();
   FDMExec->SetDebugLevel(0); // No DEBUG messages
 
-  if (! FDMExec->LoadModel(rootdir + "aircraft",
-                           rootdir + "engine",
-                           rootdir + "systems",
+  if (! FDMExec->LoadModel(JSBSIM_PATH(rootdir + "aircraft"),
+                           JSBSIM_PATH(rootdir + "engine"),
+                           JSBSIM_PATH(rootdir + "systems"),
                            NPS_JSBSIM_MODEL,
                            false)) {
 #ifdef DEBUG
@@ -527,7 +587,7 @@ static void init_jsbsim(double dt)
 
   FGInitialCondition *IC = FDMExec->GetIC();
   if (!jsbsim_ic_name.empty()) {
-    if (! IC->Load(jsbsim_ic_name)) {
+    if (! IC->Load(JSBSIM_PATH(jsbsim_ic_name))) {
 #ifdef DEBUG
       cerr << "Initialization unsuccessful" << endl;
 #endif
@@ -562,7 +622,8 @@ static void init_jsbsim(double dt)
   }
 
   // initial commands to zero
-  feed_jsbsim(0.0, 0.0, 0.0, 0.0);
+  double init_commands[NPS_COMMANDS_NB] = {0.0};
+  feed_jsbsim(init_commands, NPS_COMMANDS_NB);
 
   //loop JSBSim once w/o integrating
   if (!FDMExec->RunIC()) {
@@ -629,7 +690,7 @@ static void init_ltp(void)
 
   /* Current date in decimal year, for example 2012.68 */
   /** @FIXME properly get current time */
-  double sdate = 2014.5;
+  double sdate = 2019.0;
 
   llh_from_jsbsim(&fdm.lla_pos, propagate);
   /* LLA Position in decimal degrees and altitude in km */

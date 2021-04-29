@@ -1,19 +1,12 @@
-#From inside this folder
-# docker build -t flixr/pprz-dev .
-# docker run -t -i flixr/pprz-dev /bin/bash
-# run with X11 forwarding:
-# sudo docker run -t -i -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix flixr/pprz-dev /bin/bash
-
-FROM flixr/pprz-dep
-MAINTAINER Felix Ruess <felix.ruess@gmail.com>
-
-# Set the env variable DEBIAN_FRONTEND to noninteractive
-ENV DEBIAN_FRONTEND noninteractive
+FROM paparazziuav/pprz-dep
+LABEL maintainer="felix.ruess@gmail.com"
 
 # install some extra convenience packages
-RUN apt-get update && apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
     light-themes \
-    terminator
+    terminator \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -21,22 +14,23 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ENV PULSE_SERVER /run/pulse/native
 
 # add basic user
-ENV USERNAME pprz
-ENV USERGROUPS sudo,dialout
-RUN useradd -m $USERNAME && \
-	echo "$USERNAME:$USERNAME" | chpasswd && \
-	usermod --shell /bin/bash $USERNAME && \
-	usermod -aG $USERGROUPS $USERNAME && \
-	echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
-	chmod 0440 /etc/sudoers.d/$USERNAME && \
-	usermod --uid 1000 $USERNAME && \
-	groupmod --gid 1000 $USERNAME
-
-# change user
-USER pprz
-
-ENV HOME /home/$USERNAME
-WORKDIR $HOME
+ENV USERNAME=pprz USER_ID=1000 USERGROUPS=sudo,dialout,plugdev
+RUN useradd --shell /bin/bash -u $USER_ID -o -c "Paparazzi Docker user" -m $USERNAME \
+    && usermod -aG $USERGROUPS $USERNAME
 
 # set gtk theme
-RUN echo include \"/usr/share/themes/Ambiance/gtk-2.0/gtkrc\" > $HOME/.gtkrc-2.0
+RUN echo include \"/usr/share/themes/Ambiance/gtk-2.0/gtkrc\" > /home/$USERNAME/.gtkrc-2.0
+
+# handle permissions for docker volumes by dynamically changing the id of user pprz to LOCAL_USER_ID (default 1000)
+# this uses https://github.com/tianon/gosu/
+RUN set -eux \
+    && apt-get update \
+    && apt-get install -y gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && gosu nobody true
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+CMD ["bash"]

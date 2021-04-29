@@ -1,35 +1,46 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
 
 <airframe name="ardrone2_opticflow">
+  <description>ARDrone2, Opticflow hover
+  </description>
 
   <firmware name="rotorcraft">
     <target name="ap" board="ardrone2"/>
 
     <!--target name="nps" board="pc">
-      <subsystem name="fdm" type="jsbsim"/>
+      <module name="fdm" type="jsbsim"/>
     </target-->
 
     <define name="USE_SONAR" value="TRUE"/>
 
-	<!-- Subsystem section -->
-    <subsystem name="telemetry" type="transparent_udp"/>
-    <subsystem name="radio_control" type="datalink"/>
-    <subsystem name="motor_mixing"/>
-    <subsystem name="actuators" type="ardrone2"/>
-    <subsystem name="imu" type="ardrone2"/>
-    <subsystem name="gps" type="ublox"/>
-    <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs" type="int_cmpl_quat"/>
-    <subsystem name="ins" type="extended"/>
-  </firmware>
+    <!-- Subsystem section -->
+    <module name="telemetry" type="transparent_udp"/>
+    <module name="radio_control" type="datalink"/>
+    <module name="motor_mixing"/>
+    <module name="actuators" type="ardrone2"/>
+    <module name="imu" type="ardrone2"/>
+    <module name="gps" type="ublox"/>
+    <module name="stabilization" type="int_quat"/>
+    <module name="ahrs" type="int_cmpl_quat"/>
+    <module name="ins" type="extended"/>
 
-  <modules main_freq="512">
-    <load name="bat_voltage_ardrone2.xml"/>
-    <load name="gps_ubx_ucenter.xml"/>
-    <load name="send_imu_mag_current.xml"/>
-    <load name="logger_file.xml"/>
-    <load name="cv_opticflow.xml"/>
-  </modules>
+    <module name="bat_voltage_ardrone2"/>
+    <module name="gps" type="ubx_ucenter"/>
+    <module name="send_imu_mag_current"/>
+    <module name="logger_file"/>
+
+    <module name="video_thread"/>
+
+    <module name="pose_history"/>
+    <module name="cv_opticflow">
+      <define name="OPTICFLOW_CAMERA" value="bottom_camera"/>
+      <!-- ARDrone2 FPS improvements -->
+      <define name="OPTICFLOW_PYRAMID_LEVEL" value="0"/>
+      <define name="OPTICFLOW_FEATURE_MANAGEMENT" value="1"/>
+    </module>
+
+    <module name="opticflow_hover"/>
+  </firmware>
 
   <commands>
     <axis name="PITCH" failsafe_value="0"/>
@@ -55,7 +66,7 @@
   </section>
 
   <command_laws>
-    <call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
+    <call fun="motor_mixing_run(autopilot_get_motors_on(),FALSE,values)"/>
     <set servo="TOP_LEFT" value="motor_mixing.commands[MOTOR_FRONT_LEFT]"/>
     <set servo="TOP_RIGHT" value="motor_mixing.commands[MOTOR_FRONT_RIGHT]"/>
     <set servo="BOTTOM_RIGHT" value="motor_mixing.commands[MOTOR_BACK_RIGHT]"/>
@@ -111,33 +122,8 @@
 
   <section name="INS" prefix="INS_">
     <define name="SONAR_MAX_RANGE" value="2.2"/>
-    <define name="SONAR_UPDATE_ON_AGL" value="TRUE"/>
   </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <!-- setpoints -->
-    <define name="SP_MAX_P" value="10000"/>
-    <define name="SP_MAX_Q" value="10000"/>
-    <define name="SP_MAX_R" value="10000"/>
-    <define name="DEADBAND_P" value="20"/>
-    <define name="DEADBAND_Q" value="20"/>
-    <define name="DEADBAND_R" value="200"/>
-    <define name="REF_TAU" value="4"/>
-
-    <!-- feedback -->
-    <define name="GAIN_P" value="400"/>
-    <define name="GAIN_Q" value="400"/>
-    <define name="GAIN_R" value="350"/>
-
-    <define name="IGAIN_P" value="75"/>
-    <define name="IGAIN_Q" value="75"/>
-    <define name="IGAIN_R" value="50"/>
-
-    <!-- feedforward -->
-    <define name="DDGAIN_P" value="300"/>
-    <define name="DDGAIN_Q" value="300"/>
-    <define name="DDGAIN_R" value="300"/>
-  </section>
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
     <!-- setpoints -->
@@ -202,9 +188,9 @@
   </section>
 
   <section name="SIMULATOR" prefix="NPS_">
-    <define name="ACTUATOR_NAMES" value="{&quot;nw_motor&quot;, &quot;ne_motor&quot;, &quot;se_motor&quot;, &quot;sw_motor&quot;}"/>
-    <define name="JSBSIM_MODEL" value="&quot;simple_ardrone2&quot;"/>
-    <define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_ardrone2.h&quot;"/>
+    <define name="ACTUATOR_NAMES" value="nw_motor, ne_motor, se_motor, sw_motor" type="string[]"/>
+    <define name="JSBSIM_MODEL" value="simple_ardrone2" type="string"/>
+    <define name="SENSORS_PARAMS" value="nps_sensors_params_ardrone2.h" type="string"/>
   </section>
 
   <section name="AUTOPILOT">

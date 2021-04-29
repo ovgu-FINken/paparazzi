@@ -45,7 +45,7 @@ void spi_init_slaves(void)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
+bool spi_submit(struct spi_periph *p, struct spi_transaction *t)
 {
   int fd = (int)p->reg_addr;
 
@@ -55,10 +55,13 @@ bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
   /* length in bytes of transaction */
   uint16_t buf_len = Max(t->input_length, t->output_length);
 
+  // temp buffers, used if necessary
+  uint8_t tx_buf[buf_len], rx_buf[buf_len];
+  memset(tx_buf, 0, buf_len);
+  memset(rx_buf, 0, buf_len);
+
   /* handle transactions with different input/output length */
   if (buf_len > t->output_length) {
-    uint8_t tx_buf[buf_len];
-    memset(tx_buf, 0, sizeof tx_buf);
     /* copy bytes to transmit to larger buffer, rest filled with zero */
     memcpy(tx_buf, (void *)t->output_buf, t->output_length);
     xfer.tx_buf = (unsigned long)tx_buf;
@@ -67,8 +70,6 @@ bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
   }
 
   if (buf_len > t->input_length) {
-    uint8_t rx_buf[buf_len];
-    memset(rx_buf, 0, sizeof rx_buf);
     xfer.rx_buf = (unsigned long)rx_buf;
   } else {
     xfer.rx_buf = (unsigned long)t->input_buf;
@@ -89,29 +90,29 @@ bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
 
   if (ioctl(fd, SPI_IOC_MESSAGE(1), &xfer) < 0) {
     t->status = SPITransFailed;
-    return FALSE;
+    return false;
   }
 
-  /* copy recieved data if we had to use an extra rx_buffer */
+  /* copy received data if we had to use an extra rx_buffer */
   if (buf_len > t->input_length) {
-    memcpy((void *)t->input_buf, (void *)((uint32_t)xfer.rx_buf), t->input_length);
+    memcpy((void *)t->input_buf, rx_buf, t->input_length);
   }
 
   t->status = SPITransSuccess;
-  return TRUE;
+  return true;
 }
 #pragma GCC diagnostic pop
 
-bool_t spi_lock(struct spi_periph *p, uint8_t slave)
+bool spi_lock(struct spi_periph *p, uint8_t slave)
 {
   // not implemented
-  return FALSE;
+  return false;
 }
 
-bool_t spi_resume(struct spi_periph *p, uint8_t slave)
+bool spi_resume(struct spi_periph *p, uint8_t slave)
 {
   // not implemented
-  return FALSE;
+  return false;
 }
 
 

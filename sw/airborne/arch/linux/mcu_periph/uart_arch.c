@@ -22,7 +22,7 @@
 /** @file arch/linux/mcu_periph/uart_arch.c
  * linux uart handling
  */
-
+ 
 #include BOARD_CONFIG
 
 #include "mcu_periph/uart.h"
@@ -60,6 +60,9 @@ void uart_arch_init(void)
     fprintf(stderr, "uart_arch_init: Could not create UART reading thread.\n");
     return;
   }
+#ifndef __APPLE__
+  pthread_setname_np(tid, "uart");
+#endif
 }
 
 static void *uart_thread(void *data __attribute__((unused)))
@@ -74,13 +77,13 @@ static void *uart_thread(void *data __attribute__((unused)))
   /* clear the fd list */
   FD_ZERO(&fds_master);
   /* add used fds */
-  int fd;
+  int __attribute__((unused)) fd;
 #if USE_UART0
   if (uart0.reg_addr != NULL) {
     fd = ((struct SerialPort *)uart0.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -89,7 +92,7 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart1.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -98,7 +101,7 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart2.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -107,7 +110,7 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart3.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -116,7 +119,7 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart4.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -125,7 +128,7 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart5.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
 #endif
@@ -134,60 +137,59 @@ static void *uart_thread(void *data __attribute__((unused)))
     fd = ((struct SerialPort *)uart6.reg_addr)->fd;
     FD_SET(fd, &fds_master);
     if (fd > fdmax) {
-      fdmax =fd;
+      fdmax = fd;
     }
   }
-}
 #endif
 
-/* fds to be read, modified after each select */
-fd_set fds;
+  /* fds to be read, modified after each select */
+  fd_set fds;
 
-while (1) {
-  /* reset list of fds to check */
-  fds = fds_master;
+  while (1) {
+    /* reset list of fds to check */
+    fds = fds_master;
 
-  if (select(fdmax + 1, &fds, NULL, NULL, NULL) < 0) {
-    fprintf(stderr, "uart_thread: select failed!");
-  }
-  else {
+    if (select(fdmax + 1, &fds, NULL, NULL, NULL) < 0) {
+      fprintf(stderr, "uart_thread: select failed!");
+    } else {
 #if USE_UART0
-    if (uart0.reg_addr != NULL) {
-      fd = ((struct SerialPort *)uart0.reg_addr)->fd;
-      if (FD_ISSET(fd, &fds)) {
-        uart_receive_handler(&uart0);
+      if (uart0.reg_addr != NULL) {
+        fd = ((struct SerialPort *)uart0.reg_addr)->fd;
+        if (FD_ISSET(fd, &fds)) {
+          uart_receive_handler(&uart0);
+        }
       }
-    }
 #endif
 #if USE_UART1
-    if (uart1.reg_addr != NULL) {
-      fd = ((struct SerialPort *)uart1.reg_addr)->fd;
-      if (FD_ISSET(fd, &fds)) {
-        uart_receive_handler(&uart1);
+      if (uart1.reg_addr != NULL) {
+        fd = ((struct SerialPort *)uart1.reg_addr)->fd;
+        if (FD_ISSET(fd, &fds)) {
+          uart_receive_handler(&uart1);
+        }
       }
-    }
 #endif
 #if USE_UART2
-    if (uart2.reg_addr != NULL) {
-      fd = ((struct SerialPort *)uart2.reg_addr)->fd;
-      if (FD_ISSET(fd, &fds)) {
-        uart_receive_handler(&uart2);
+      if (uart2.reg_addr != NULL) {
+        fd = ((struct SerialPort *)uart2.reg_addr)->fd;
+        if (FD_ISSET(fd, &fds)) {
+          uart_receive_handler(&uart2);
+        }
       }
-    }
 #endif
 #if USE_UART3
-    if (uart3.reg_addr != NULL) {
-      fd = ((struct SerialPort *)uart3.reg_addr)->fd;
-      if (FD_ISSET(fd, &fds)) {
-        uart_receive_handler(&uart3);
+      if (uart3.reg_addr != NULL) {
+        fd = ((struct SerialPort *)uart3.reg_addr)->fd;
+        if (FD_ISSET(fd, &fds)) {
+          uart_receive_handler(&uart3);
+        }
       }
-    }
 #endif
 #if USE_UART4
-    if (uart4.reg_addr != NULL) {
-      fd = ((struct SerialPort *)uart4.reg_addr)->fd;
-      if (FD_ISSET(fd, &fds)) {
-        uart_receive_handler(&uart4);
+      if (uart4.reg_addr != NULL) {
+        fd = ((struct SerialPort *)uart4.reg_addr)->fd;
+        if (FD_ISSET(fd, &fds)) {
+          uart_receive_handler(&uart4);
+        }
       }
 #endif
 #if USE_UART5
@@ -208,11 +210,13 @@ while (1) {
 #endif
     }
   }
+
   return 0;
- }
+}
 
-
-void uart_periph_set_baudrate(struct uart_periph *periph, uint32_t baud)
+// open serial link
+// close first if already openned
+static void uart_periph_open(struct uart_periph *periph, uint32_t baud)
 {
   periph->baudrate = baud;
 
@@ -239,13 +243,43 @@ void uart_periph_set_baudrate(struct uart_periph *periph, uint32_t baud)
   }
 }
 
-void uart_put_byte(struct uart_periph *periph, uint8_t data)
+void uart_periph_set_baudrate(struct uart_periph *periph, uint32_t baud)
+{
+  periph->baudrate = baud;
+
+  // open serial port if not done
+  if (periph->reg_addr == NULL) {
+    uart_periph_open(periph, baud);
+  }
+  if (periph->reg_addr == NULL) {
+    // periph not started, do nothiing
+    return;
+  }
+  struct SerialPort *port = (struct SerialPort *)(periph->reg_addr);
+  serial_port_set_baudrate(port, baud);
+}
+
+void uart_periph_set_bits_stop_parity(struct uart_periph *periph, uint8_t bits, uint8_t stop, uint8_t parity)
+{
+  if (periph->reg_addr == NULL) {
+    // periph not started, do nothiing
+    return;
+  }
+  struct SerialPort *port = (struct SerialPort *)(periph->reg_addr);
+  serial_port_set_bits_stop_parity(port, bits, stop, parity);
+}
+
+void uart_put_byte(struct uart_periph *periph, long fd __attribute__((unused)), uint8_t data)
 {
   if (periph->reg_addr == NULL) { return; } // device not initialized ?
 
   /* write single byte to serial port */
   struct SerialPort *port = (struct SerialPort *)(periph->reg_addr);
-  int ret = write((int)(port->fd), &data, 1);
+
+  int ret = 0;
+  do {
+    ret = write((int)(port->fd), &data, 1);
+  } while (ret < 1 && errno == EAGAIN); //FIXME: max retry
 
   if (ret < 1) {
     TRACE("uart_put_byte: write %d failed [%d: %s]\n", data, ret, strerror(errno));
@@ -253,7 +287,7 @@ void uart_put_byte(struct uart_periph *periph, uint8_t data)
 }
 
 
-static void uart_receive_handler(struct uart_periph *periph)
+static void __attribute__((unused)) uart_receive_handler(struct uart_periph *periph)
 {
   unsigned char c = 'D';
 
@@ -264,16 +298,14 @@ static void uart_receive_handler(struct uart_periph *periph)
 
   pthread_mutex_lock(&uart_mutex);
 
-  if (read(fd, &c, 1) > 0) {
-    //printf("r %x %c\n",c,c);
+  while (read(fd, &c, 1) > 0) {
     uint16_t temp = (periph->rx_insert_idx + 1) % UART_RX_BUFFER_SIZE;
     // check for more room in queue
     if (temp != periph->rx_extract_idx) {
       periph->rx_buf[periph->rx_insert_idx] = c;
       periph->rx_insert_idx = temp;  // update insert index
-    }
-    else {
-      TRACE("uart_receive_handler: rx_buf full! discarding received byte: %x %c", c, c);
+    } else {
+      TRACE("uart_receive_handler: rx_buf full! discarding received byte: %x %c\n", c, c);
     }
   }
   pthread_mutex_unlock(&uart_mutex);
@@ -288,22 +320,22 @@ uint8_t uart_getch(struct uart_periph *p)
   return ret;
 }
 
-uint16_t uart_char_available(struct uart_periph *p)
+int uart_char_available(struct uart_periph *p)
 {
   pthread_mutex_lock(&uart_mutex);
-  int16_t available = p->rx_insert_idx - p->rx_extract_idx;
+  int available = p->rx_insert_idx - p->rx_extract_idx;
   if (available < 0) {
     available += UART_RX_BUFFER_SIZE;
   }
   pthread_mutex_unlock(&uart_mutex);
-  return (uint16_t)available;
+  return available;
 }
 
 #if USE_UART0
 void uart0_init(void)
 {
   uart_periph_init(&uart0);
-  strncpy(uart0.dev, UART0_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart0.dev, STRINGIFY(UART0_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart0, UART0_BAUD);
 }
 #endif /* USE_UART0 */
@@ -312,7 +344,7 @@ void uart0_init(void)
 void uart1_init(void)
 {
   uart_periph_init(&uart1);
-  strncpy(uart1.dev, UART1_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart1.dev, STRINGIFY(UART1_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart1, UART1_BAUD);
 }
 #endif /* USE_UART1 */
@@ -321,7 +353,7 @@ void uart1_init(void)
 void uart2_init(void)
 {
   uart_periph_init(&uart2);
-  strncpy(uart2.dev, UART2_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart2.dev, STRINGIFY(UART2_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart2, UART2_BAUD);
 }
 #endif /* USE_UART2 */
@@ -330,7 +362,7 @@ void uart2_init(void)
 void uart3_init(void)
 {
   uart_periph_init(&uart3);
-  strncpy(uart3.dev, UART3_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart3.dev, STRINGIFY(UART3_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart3, UART3_BAUD);
 }
 #endif /* USE_UART3 */
@@ -339,7 +371,7 @@ void uart3_init(void)
 void uart4_init(void)
 {
   uart_periph_init(&uart4);
-  strncpy(uart4.dev, UART4_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart4.dev, STRINGIFY(UART4_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart4, UART4_BAUD);
 }
 #endif /* USE_UART4 */
@@ -348,7 +380,7 @@ void uart4_init(void)
 void uart5_init(void)
 {
   uart_periph_init(&uart5);
-  strncpy(uart5.dev, UART5_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart5.dev, STRINGIFY(UART5_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart5, UART5_BAUD);
 }
 #endif /* USE_UART5 */
@@ -357,7 +389,7 @@ void uart5_init(void)
 void uart6_init(void)
 {
   uart_periph_init(&uart6);
-  strncpy(uart6.dev, UART6_DEV, UART_DEV_NAME_SIZE);
+  strncpy(uart6.dev, STRINGIFY(UART6_DEV), UART_DEV_NAME_SIZE);
   uart_periph_set_baudrate(&uart6, UART6_BAUD);
 }
 #endif /* USE_UART6 */

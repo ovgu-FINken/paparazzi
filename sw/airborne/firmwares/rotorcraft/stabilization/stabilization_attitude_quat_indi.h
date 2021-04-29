@@ -33,40 +33,11 @@
 #ifndef STABILIZATION_ATTITUDE_QUAT_INDI_H
 #define STABILIZATION_ATTITUDE_QUAT_INDI_H
 
-#include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
-
-struct ReferenceSystem {
-  float err_p;
-  float err_q;
-  float err_r;
-  float rate_p;
-  float rate_q;
-  float rate_r;
-};
-
-struct IndiVariables {
-  struct FloatRates filtered_rate;
-  struct FloatRates filtered_rate_deriv;
-  struct FloatRates filtered_rate_2deriv;
-  struct FloatRates angular_accel_ref;
-  struct FloatRates du;
-  struct FloatRates u_act_dyn;
-  struct FloatRates u_in;
-  struct FloatRates u;
-  struct FloatRates udot;
-  struct FloatRates udotdot;
-};
-
-extern struct FloatRates g1;
-extern float g2;
-extern struct ReferenceSystem reference_acceleration;
-
-extern struct FloatRates g_est;
-extern bool_t use_adaptive_indi;
-
-void stabilization_indi_second_order_filter(struct FloatRates *input, struct FloatRates *filter_ddx,
-    struct FloatRates *filter_dx, struct FloatRates *filter_x, float omega, float zeta, float omega_r);
-void lms_estimation(void);
+#ifdef STABILIZATION_ATTITUDE_INDI_SIMPLE
+#include "firmwares/rotorcraft/stabilization/stabilization_indi_simple.h"
+#else
+#include "firmwares/rotorcraft/stabilization/stabilization_indi.h"
+#endif
 
 #endif /* STABILIZATION_ATTITUDE_QUAT_INT_H */
 

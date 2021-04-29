@@ -10,6 +10,7 @@ import glob
 import re
 import copy
 import string
+import inspect
 
 
 def dox_new_page(name, title):
@@ -29,12 +30,19 @@ def dox_list_file(f):
 def get_module_dir(module):
     return module.get("dir", module.get("name")).strip()
 
+def get_module_dox_name(module_name):
+    return module_name.lower().replace('.', '_')
+
+def get_module_page_name(module_name):
+    return "module__" + get_module_dox_name(module_name)
 
 def modules_category_list(category, modules):
     s = "@subsection modules_category_" + category.lower() + " " + category.title() + " modules\n\n"
     for (fname, m) in sorted(modules.items()):
-        page_name = "module__" + fname[:-4].lower()
-        s += "- " + fname + " @subpage " + page_name + "\n"
+        mname = fname[:-4].lower()
+        page_name = get_module_page_name(mname)
+        (brief, _) = get_module_description(m)
+        s += "- @subpage {} : {}\n".format(page_name, brief)
     return s + "\n\n"
 
 
@@ -74,40 +82,46 @@ def modules_overview_page(modules_dict):
 
 def module_page(filename, module):
     (brief, details) = get_module_description(module)
-    keyword = filename[:-4].lower()
-    page_name = "module__" + keyword
-    s = dox_new_page(page_name, brief)
-    s += "Module XML file: @c " + filename + "\n\n"
+    mname = filename[:-4].lower()
+    page_name = get_module_page_name(mname)
+    title = mname + " module"
+    s = dox_new_page(page_name, title)
+    s += "<b>" + brief + "</b>\n\n"
     s += details + "\n"
     s += get_xml_example(filename, module)
-    s += module_configuration(module)
-    s += module_functions(module)
+    s += module_configuration(module, mname)
+    s += module_autoloads(module, mname)
+    s += module_depends_conflicts(module, mname)
+    s += module_functions(module, mname)
+    s += module_datalink(module, mname)
     s += "@section files Files\n\n"
     s += headers_list(module)
     s += sources_list(module)
-    s += "\n@subsection module_xml__{0} Raw {1} file:\n@include {1}\n".format(keyword, filename)
+    s += "\n@subsection module_xml__{0} Raw {1} file:\n@include {1}\n".format(mname, filename)
     s += "\n */\n\n"
     return s
 
 
 def get_xml_example(filename, module):
+    module_name = filename[:-4]
     opts = module.findall(".doc/define") + module.findall(".doc/configure")
-    s = "\n@section module_load_example__{0} Example for airframe file\n".format(filename[:-4].lower())
+    s = "\n@section module_load_example__{0} Example for airframe file\n".format(get_module_dox_name(module_name))
+    s += "Add to your firmware section:\n"
     if opts:
         s += "This example contains all possible configuration options, not all of them are mandatory!\n"
     s += "@code{.xml}\n"
-    s += "<modules>\n"
+    for d in get_module_dependencies(module):
+        s += '<module name="{0}"/>\n'.format(d)
     if opts:
-        s += '  <load name="{0}">\n'.format(filename)
+        s += '<module name="{0}">\n'.format(module_name)
         for o in opts:
             e = copy.deepcopy(o)
             if 'description' in e.attrib:
                 del e.attrib['description']
-            s += "    " + string.strip(ET.tostring(e)) + "\n"
-        s += "  </load>\n"
+            s += "  " + string.strip(ET.tostring(e)) + "\n"
+        s += "</module>\n"
     else:
-        s += '  <load name="{0}"/>\n'.format(filename)
-    s += "</modules>\n"
+        s += '<module name="{0}"/>\n'.format(module_name)
     s += "@endcode\n"
     return s
 
@@ -158,14 +172,63 @@ def get_doc_sections(module):
     return s
 
 
-def module_configuration(module):
+def module_configuration(module, mname):
     doc = get_doc_config_option(module, 'configure')
     doc += get_doc_config_option(module, 'define')
     doc += get_doc_sections(module)
     if doc:
-        return "@section configuration Module configuration options\n\n" + doc
+        return "@section configuration__{0} Module configuration options\n\n".format(get_module_dox_name(mname)) + doc
     else:
         return ""
+
+
+def module_depends_conflicts(module, mname):
+    s = ""
+    deps = get_module_dependencies(module)
+    if deps:
+        s += "@section dependencies__{} Dependencies\n".format(get_module_dox_name(mname))
+        for d in deps:
+            s += "- @ref {}\n".format(get_module_page_name(d))
+    conflicts = get_module_conflicts(module)
+    if conflicts:
+        s += "@section conflicts__{} Conflicts\n".format(get_module_dox_name(mname))
+        for c in conflicts:
+            s += "- @ref {}\n".format(get_module_page_name(c))
+    return s
+
+
+def get_module_dependencies(module):
+    deps = module.find(".depends")
+    deps = deps.text.split(',') if deps is not None else []
+    return [d.strip() for d in deps]
+
+
+def get_module_conflicts(module):
+    conflicts = module.find(".conflicts")
+    conflicts = conflicts.text.split(',') if conflicts is not None else []
+    return [c.strip() for c in conflicts]
+
+
+def module_autoloads(module, mname):
+    s = ""
+    autos = get_module_autoloads(module)
+    if autos:
+        s += "@section autoloads__{} Auto-loaded modules\n".format(get_module_dox_name(mname))
+        s += "The following modules are automatically loaded (just as if you had added them in the airframe file)\n"
+        for a in autos:
+            s += "- @ref {}\n".format(get_module_page_name(a))
+    return s
+
+
+def get_module_autoloads(module):
+    autoloads = module.findall(".autoload")
+    def module_name(m):
+        return (m.get('name') + m.get('type', '')).strip()
+    return [module_name(a) for a in autoloads]
+
+
+def get_module_name(module):
+    return module.get('name')
 
 
 def get_module_description(module):
@@ -175,10 +238,10 @@ def get_module_description(module):
         brief = module.get('name').replace('_', ' ').title()
     else:
         # treat first line until dot as brief
-        d = re.split(r'\.|\n', desc.text.strip(), 1)
+        d = re.split(r'\. |\n', desc.text.strip(), 1)
         brief = d[0].strip()
         if len(d) > 1:
-            details = d[1].strip()+"\n"
+            details = inspect.cleandoc(d[1]) + "\n"
     return brief, details
 
 
@@ -276,14 +339,24 @@ def get_periodic_functions(module):
     return s
 
 
-def module_functions(module):
+def module_functions(module, mname):
     fdoc = get_init_functions(module)
     fdoc += get_event_functions(module)
     fdoc += get_periodic_functions(module)
     if fdoc:
-        return "@section functions Module functions\n\n" + fdoc + "\n"
+        return "@section functions__{0} Module functions\n\n".format(get_module_dox_name(mname)) + fdoc + "\n"
     else:
         return ""
+
+def module_datalink(module, mname):
+    s = ""
+    datalinks = module.findall("./datalink")
+    if datalinks:
+        s += "@section datalink_functions__{0} Datalink Functions\n\n".format(get_module_dox_name(mname))
+        s += "Whenever the specified datalink message is received, the corresponing handler function is called.\n\n"
+        for d in datalinks:
+            s += "- on message @b {0} call {1}\n".format(d.get('message'), d.get('fun'))
+    return s
 
 
 def read_module_file(file):

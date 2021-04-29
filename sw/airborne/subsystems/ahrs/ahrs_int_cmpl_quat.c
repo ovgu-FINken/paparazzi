@@ -43,10 +43,6 @@
 PRINT_CONFIG_MSG("LOW PASS FILTER ON GYRO RATES")
 #endif
 
-#ifdef AHRS_MAG_UPDATE_YAW_ONLY
-#error "The define AHRS_MAG_UPDATE_YAW_ONLY doesn't exist anymore, please remove it. This is the default behaviour. Define AHRS_MAG_UPDATE_ALL_AXES to use mag for all axes and not only yaw."
-#endif
-
 #if USE_MAGNETOMETER && AHRS_USE_GPS_HEADING
 #warning "Using both magnetometer and GPS course to update heading. Probably better to configure USE_MAGNETOMETER=0 if you want to use GPS course."
 #endif
@@ -100,6 +96,17 @@ PRINT_CONFIG_VAR(AHRS_MAG_ZETA)
 #define AHRS_HEADING_UPDATE_GPS_MIN_SPEED 5.0
 #endif
 
+/** Default Rate filter Low pass */
+#ifdef AHRS_PROPAGATE_LOW_PASS_RATES
+#ifndef AHRS_PROPAGATE_LOW_PASS_RATES_MUL
+#define AHRS_PROPAGATE_LOW_PASS_RATES_MUL 2
+#endif
+
+#ifndef AHRS_PROPAGATE_LOW_PASS_RATES_DIV
+#define AHRS_PROPAGATE_LOW_PASS_RATES_DIV 3
+#endif
+#endif
+
 struct AhrsIntCmplQuat ahrs_icq;
 
 static inline void UNUSED ahrs_icq_update_mag_full(struct Int32Vect3 *mag, float dt);
@@ -109,10 +116,10 @@ void ahrs_icq_init(void)
 {
 
   ahrs_icq.status = AHRS_ICQ_UNINIT;
-  ahrs_icq.is_aligned = FALSE;
+  ahrs_icq.is_aligned = false;
 
-  ahrs_icq.ltp_vel_norm_valid = FALSE;
-  ahrs_icq.heading_aligned = FALSE;
+  ahrs_icq.ltp_vel_norm_valid = false;
+  ahrs_icq.heading_aligned = false;
 
   /* init ltp_to_imu quaternion as zero/identity rotation */
   int32_quat_identity(&ahrs_icq.ltp_to_imu_quat);
@@ -135,9 +142,9 @@ void ahrs_icq_init(void)
   ahrs_icq.gravity_heuristic_factor = AHRS_GRAVITY_HEURISTIC_FACTOR;
 
 #if AHRS_GRAVITY_UPDATE_COORDINATED_TURN
-  ahrs_icq.correct_gravity = TRUE;
+  ahrs_icq.correct_gravity = true;
 #else
-  ahrs_icq.correct_gravity = FALSE;
+  ahrs_icq.correct_gravity = false;
 #endif
 
   VECT3_ASSIGN(ahrs_icq.mag_h, MAG_BFP_OF_REAL(AHRS_H_X),
@@ -148,7 +155,7 @@ void ahrs_icq_init(void)
 }
 
 
-bool_t ahrs_icq_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
+bool ahrs_icq_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
                       struct Int32Vect3 *lp_mag)
 {
 
@@ -156,11 +163,11 @@ bool_t ahrs_icq_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
   /* Compute an initial orientation from accel and mag directly as quaternion */
   ahrs_int_get_quat_from_accel_mag(&ahrs_icq.ltp_to_imu_quat,
                                    lp_accel, lp_mag);
-  ahrs_icq.heading_aligned = TRUE;
+  ahrs_icq.heading_aligned = true;
 #else
   /* Compute an initial orientation from accel and just set heading to zero */
   ahrs_int_get_quat_from_accel(&ahrs_icq.ltp_to_imu_quat, lp_accel);
-  ahrs_icq.heading_aligned = FALSE;
+  ahrs_icq.heading_aligned = false;
   // supress unused arg warning
   lp_mag = lp_mag;
 #endif
@@ -171,9 +178,9 @@ bool_t ahrs_icq_align(struct Int32Rates *lp_gyro, struct Int32Vect3 *lp_accel,
   INT_RATES_LSHIFT(ahrs_icq.high_rez_bias, ahrs_icq.high_rez_bias, 28);
 
   ahrs_icq.status = AHRS_ICQ_RUNNING;
-  ahrs_icq.is_aligned = TRUE;
+  ahrs_icq.is_aligned = true;
 
-  return TRUE;
+  return true;
 }
 
 
@@ -187,9 +194,9 @@ void ahrs_icq_propagate(struct Int32Rates *gyro, float dt)
 
   /* low pass rate */
 #ifdef AHRS_PROPAGATE_LOW_PASS_RATES
-  RATES_SMUL(ahrs_icq.imu_rate, ahrs_icq.imu_rate, 2);
+  RATES_SMUL(ahrs_icq.imu_rate, ahrs_icq.imu_rate, AHRS_PROPAGATE_LOW_PASS_RATES_MUL);
   RATES_ADD(ahrs_icq.imu_rate, omega);
-  RATES_SDIV(ahrs_icq.imu_rate, ahrs_icq.imu_rate, 3);
+  RATES_SDIV(ahrs_icq.imu_rate, ahrs_icq.imu_rate, AHRS_PROPAGATE_LOW_PASS_RATES_DIV);
 #else
   RATES_COPY(ahrs_icq.imu_rate, omega);
 #endif
@@ -255,7 +262,7 @@ void ahrs_icq_update_accel(struct Int32Vect3 *accel, float dt)
      * a_c_body = omega x (omega x r)
      * (omega x r) = tangential velocity in body frame
      * a_c_body = omega x vel_tangential_body
-     * assumption: tangential velocity only along body x-axis
+     * assumption: tangential velocity only along body x-axis (or negative z-axis)
      */
 
     // FIXME: check overflows !
@@ -263,7 +270,15 @@ void ahrs_icq_update_accel(struct Int32Vect3 *accel, float dt)
 #define ACC_FROM_CROSS_FRAC INT32_RATE_FRAC + INT32_SPEED_FRAC - INT32_ACCEL_FRAC - COMPUTATION_FRAC
 
     const struct Int32Vect3 vel_tangential_body =
+#if AHRS_GPS_SPEED_IN_NEGATIVE_Z_DIRECTION
+    /* AHRS_GRAVITY_UPDATE_COORDINATED_TURN assumes the GPS speed is in the X axis direction.
+     * Quadshot, DelftaCopter and other hybrids can have the GPS speed in the negative Z direction
+     */
+      {0, 0, -(ahrs_icq.ltp_vel_norm >> COMPUTATION_FRAC)};
+#else
+    /* assume tangential velocity along body x-axis */
       {ahrs_icq.ltp_vel_norm >> COMPUTATION_FRAC, 0, 0};
+#endif
     struct Int32RMat *body_to_imu_rmat = orientationGetRMat_i(&ahrs_icq.body_to_imu);
     struct Int32Rates body_rate;
     int32_rmat_transp_ratemult(&body_rate, body_to_imu_rmat, &ahrs_icq.imu_rate);
@@ -366,7 +381,7 @@ void ahrs_icq_update_accel(struct Int32Vect3 *accel, float dt)
 }
 
 
-void ahrs_icq_update_mag(struct Int32Vect3 *mag, float dt)
+void ahrs_icq_update_mag(struct Int32Vect3 *mag __attribute__((unused)), float dt __attribute__((unused)))
 {
 #if USE_MAGNETOMETER
   // check if we had at least one propagation since last update
@@ -514,20 +529,22 @@ static inline void ahrs_icq_update_mag_2d(struct Int32Vect3 *mag, float dt)
 void ahrs_icq_update_gps(struct GpsState *gps_s __attribute__((unused)))
 {
 #if AHRS_GRAVITY_UPDATE_COORDINATED_TURN && USE_GPS
-  if (gps_s->fix == GPS_FIX_3D) {
+  if (gps_s->fix >= GPS_FIX_3D) {
     ahrs_icq.ltp_vel_norm = SPEED_BFP_OF_REAL(gps_s->speed_3d / 100.);
-    ahrs_icq.ltp_vel_norm_valid = TRUE;
+    ahrs_icq.ltp_vel_norm_valid = true;
   } else {
-    ahrs_icq.ltp_vel_norm_valid = FALSE;
+    ahrs_icq.ltp_vel_norm_valid = false;
   }
 #endif
 
 #if AHRS_USE_GPS_HEADING && USE_GPS
   // got a 3d fix, ground speed > AHRS_HEADING_UPDATE_GPS_MIN_SPEED (default 5.0 m/s)
   // and course accuracy is better than 10deg
-  if (gps_s->fix == GPS_FIX_3D &&
-      gps_s->gspeed >= (AHRS_HEADING_UPDATE_GPS_MIN_SPEED * 100) &&
-      gps_s->cacc <= RadOfDeg(10 * 1e7)) {
+  static const uint16_t gps_min_speed = AHRS_HEADING_UPDATE_GPS_MIN_SPEED * 100;
+  static const uint32_t max_cacc = RadOfDeg(10 * 1e7);
+  if (gps_s->fix >= GPS_FIX_3D &&
+      gps_s->gspeed >= gps_min_speed &&
+      gps_s->cacc <= max_cacc) {
 
     // gps_s->course is in rad * 1e7, we need it in rad * 2^INT32_ANGLE_FRAC
     int32_t course = gps_s->course * ((1 << INT32_ANGLE_FRAC) / 1e7);
@@ -639,7 +656,7 @@ void ahrs_icq_realign_heading(int32_t heading)
   /* compute ltp to imu rotations */
   int32_quat_comp(&ahrs_icq.ltp_to_imu_quat, &ltp_to_body_quat, body_to_imu_quat);
 
-  ahrs_icq.heading_aligned = TRUE;
+  ahrs_icq.heading_aligned = true;
 }
 
 void ahrs_icq_set_body_to_imu(struct OrientationReps *body_to_imu)

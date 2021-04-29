@@ -47,6 +47,57 @@
 /// Default clock: PLL with X gyro reference
 #define MPU9250_DEFAULT_CLK_SEL 1
 
+// Default number of I2C slaves
+#ifndef MPU9250_I2C_NB_SLAVES
+#define MPU9250_I2C_NB_SLAVES 5
+#endif
+
+/** default gyro sensitivy from the datasheet
+ * sens = 1/ [LSB/(deg/s)] * pi/180 * 2^INT32_RATE_FRAC
+ * ex: MPU with 1000 deg/s has 32.8 LSB/(deg/s)
+ *     sens = 1/32.8 * pi/180 * 4096 = 2.17953
+ */
+#define MPU9250_GYRO_SENS_250 0.544883
+#define MPU9250_GYRO_SENS_250_NUM 19327
+#define MPU9250_GYRO_SENS_250_DEN 35470
+#define MPU9250_GYRO_SENS_500 1.08977
+#define MPU9250_GYRO_SENS_500_NUM 57663
+#define MPU9250_GYRO_SENS_500_DEN 52913
+#define MPU9250_GYRO_SENS_1000 2.17953
+#define MPU9250_GYRO_SENS_1000_NUM 18271
+#define MPU9250_GYRO_SENS_1000_DEN 8383
+#define MPU9250_GYRO_SENS_2000 4.35906
+#define MPU9250_GYRO_SENS_2000_NUM 36542
+#define MPU9250_GYRO_SENS_2000_DEN 8383
+
+// Get default sensitivity from a table
+extern const float MPU9250_GYRO_SENS[4];
+// Get default sensitivity numerator and denominator from a table
+extern const int32_t MPU9250_GYRO_SENS_FRAC[4][2];
+
+/** default accel sensitivy from the datasheet
+ * sens = 9.81 [m/s^2] / [LSB/g] * 2^INT32_ACCEL_FRAC
+ * ex: MPU with 8g has 4096 LSB/g
+ *     sens = 9.81 [m/s^2] / 4096 [LSB/g] * 2^INT32_ACCEL_FRAC = 2.4525
+ */
+#define MPU9250_ACCEL_SENS_2G 0.613125
+#define MPU9250_ACCEL_SENS_2G_NUM 981
+#define MPU9250_ACCEL_SENS_2G_DEN 1600
+#define MPU9250_ACCEL_SENS_4G 1.22625
+#define MPU9250_ACCEL_SENS_4G_NUM 981
+#define MPU9250_ACCEL_SENS_4G_DEN 800
+#define MPU9250_ACCEL_SENS_8G 2.4525
+#define MPU9250_ACCEL_SENS_8G_NUM 981
+#define MPU9250_ACCEL_SENS_8G_DEN 400
+#define MPU9250_ACCEL_SENS_16G 4.905
+#define MPU9250_ACCEL_SENS_16G_NUM 981
+#define MPU9250_ACCEL_SENS_16G_DEN 200
+
+// Get default sensitivity from a table
+extern const float MPU9250_ACCEL_SENS[4];
+// Get default sensitivity numerator and denominator from a table
+extern const int32_t MPU9250_ACCEL_SENS_FRAC[4][2];
+
 enum Mpu9250ConfStatus {
   MPU9250_CONF_UNINIT,
   MPU9250_CONF_RESET,
@@ -66,7 +117,7 @@ enum Mpu9250ConfStatus {
 typedef void (*Mpu9250ConfigSet)(void *mpu, uint8_t _reg, uint8_t _val);
 
 /// function prototype for configuration of a single I2C slave
-typedef bool_t (*Mpu9250I2cSlaveConfigure)(Mpu9250ConfigSet mpu_set, void *mpu);
+typedef bool (*Mpu9250I2cSlaveConfigure)(Mpu9250ConfigSet mpu_set, void *mpu);
 
 struct Mpu9250I2cSlave {
   Mpu9250I2cSlaveConfigure configure;
@@ -78,19 +129,20 @@ struct Mpu9250Config {
   enum Mpu9250DLPFGyro dlpf_gyro_cfg;   ///< Digital Low Pass Filter for gyroscope
   enum Mpu9250GyroRanges gyro_range;    ///< deg/s Range
   enum Mpu9250AccelRanges accel_range;  ///< g Range
-  bool_t drdy_int_enable;               ///< Enable Data Ready Interrupt
+  bool drdy_int_enable;               ///< Enable Data Ready Interrupt
   uint8_t clk_sel;                      ///< Clock select
   uint8_t nb_bytes;                     ///< number of bytes to read starting with MPU9250_REG_INT_STATUS
   enum Mpu9250ConfStatus init_status;   ///< init status
-  bool_t initialized;                   ///< config done flag
+  bool initialized;                   ///< config done flag
 
   /** Bypass MPU I2C.
    * Only effective if using the I2C implementation.
    */
-  bool_t i2c_bypass;
+  bool i2c_bypass;
 
   uint8_t nb_slaves;                    ///< number of used I2C slaves
-  struct Mpu9250I2cSlave slaves[5];     ///< I2C slaves
+  uint8_t nb_slave_init;                ///< number of already configured/initialized slaves
+  struct Mpu9250I2cSlave slaves[MPU9250_I2C_NB_SLAVES];     ///< I2C slaves
   enum Mpu9250MstClk i2c_mst_clk;       ///< MPU I2C master clock speed
   uint8_t i2c_mst_delay;                ///< MPU I2C slaves delayed sample rate
 };
@@ -107,6 +159,6 @@ extern void mpu9250_send_config(Mpu9250ConfigSet mpu_set, void *mpu, struct Mpu9
  * @param mpu Mpu9250Spi or Mpu9250I2c peripheral
  * @return TRUE when all slaves are configured
  */
-extern bool_t mpu9250_configure_i2c_slaves(Mpu9250ConfigSet mpu_set, void *mpu);
+extern bool mpu9250_configure_i2c_slaves(Mpu9250ConfigSet mpu_set, void *mpu);
 
 #endif // MPU9250_H

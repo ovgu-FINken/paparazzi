@@ -51,6 +51,7 @@ ifdef DFU_PRODUCT
 DFU_PRODUCT_CMD = --product=$(DFU_PRODUCT)
 endif
 upload: $(OBJDIR)/$(TARGET).bin
+	$(DFU_PRE_UPLOAD_CMD)
 	@echo "Using stm32 mem dfu loader"
 	$(PYTHON) $(PAPARAZZI_SRC)/sw/tools/dfu/stm32_mem.py $(DFU_PRODUCT_CMD) $(DFU_ADDR_CMD) $^
 
@@ -63,13 +64,22 @@ DFU_ADDR ?= 0x08000000
 DFU_UTIL_VERSION = $(shell (dfu-util --version 2>/dev/null || echo NotFound 0) | head -n 1 | awk '{print $$2}')
 VERIFY = $(shell echo '$(DFU_UTIL_VERSION)>=0.7' | bc)
 DFU_SIZE ?= $(shell ls -nl $^ | awk '{print $$5}')
+
+DFU_LEAVE ?= 1
+ifeq ($(DFU_LEAVE),1)
+DFUSE_VERIFY_ADDRESS = $(DFU_ADDR):$(DFU_SIZE):leave
+else
+DFUSE_VERIFY_ADDRESS = $(DFU_ADDR):$(DFU_SIZE)
+endif
+
 upload: $(OBJDIR)/$(TARGET).bin
+	$(DFU_UTIL_PRE_UPLOAD_CMD)
 	@echo "Using dfu-util at $(DFU_ADDR)"
 	$(Q)dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s $(DFU_ADDR) -D $^
 ifeq ($(VERIFY),1)
 	@echo "Reading flashed bin file of size $(DFU_SIZE) for verification"
 	$(Q)rm -f $(OBJDIR)/verify.bla
-	$(Q)dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s $(DFU_ADDR):$(DFU_SIZE) -U $(OBJDIR)/verify.bla
+	$(Q)dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s $(DFUSE_VERIFY_ADDRESS) -U $(OBJDIR)/verify.bla
 	$(Q)diff $^ $(OBJDIR)/verify.bla
 	$(Q)rm -f $(OBJDIR)/verify.bla
 endif
@@ -91,7 +101,7 @@ OOCD_OPTIONS = -c "ft2232_serial $(BOARD_SERIAL)"
 endif
 
 ifndef $(TARGET).OOCD_INTERFACE
-OOCD_INTERFACE = lisa-l
+OOCD_INTERFACE = ftdi/lisa-l
 else
 OOCD_INTERFACE =  $($(TARGET).OOCD_INTERFACE)
 endif
@@ -147,6 +157,22 @@ upload: $(OBJDIR)/$(TARGET).elf
 		   $<
 
 #
+# SWD flash mode (with Black Magic Probe)
+else ifeq ($(FLASH_MODE),SWD_NOPWR)
+# only works if BMP_PORT is defined
+BMP_PORT ?= $(shell ls /dev/bmp-gdb 2>/dev/null || echo /dev/ttyACM0)
+BMP_UPLOAD_SCRIPT ?= $(PAPARAZZI_SRC)/sw/tools/flash_scripts/bmp_swd_nopwr_flash.scr
+upload: $(OBJDIR)/$(TARGET).elf
+	@echo "Assuming luftboot bootloader: $(ASSUMING_LUFTBOOT)"
+	@echo "Using Black Magic Probe with SWD on BMP_PORT $(BMP_PORT)"
+	@echo "Using GDB = $(GDB)"
+	@echo "  BMP\t$<"
+	$(Q)$(GDB) --batch \
+		   -ex 'target extended-remote $(BMP_PORT)' \
+		   -x $(BMP_UPLOAD_SCRIPT) \
+		   $<
+
+#
 # SWD flash mode (with STLINK)
 else ifeq ($(FLASH_MODE),STLINK)
 STLINK_ADDR ?= 0x08000000
@@ -154,12 +180,18 @@ upload: $(OBJDIR)/$(TARGET).bin
 	@echo "Using ST-LINK with SWD at $(STLINK_ADDR)"
 	$(Q)st-flash write $^ $(STLINK_ADDR)
 
+else ifeq ($(FLASH_MODE),PX4_BOOTLOADER)
+	# Program the device and start it.
+upload: $(OBJDIR)/$(TARGET).bin
+	$(PAPARAZZI_SRC)/sw/tools/px4/px_mkfw.py --prototype $(PX4_PROTOTYPE) --image $(OBJDIR)/$(TARGET).bin > $(OBJDIR)/$(TARGET).px4
+	$(PAPARAZZI_SRC)/sw/tools/px4/set_target.py $(PX4_TARGET) $(OBJDIR)/$(TARGET).px4
+	$(PAPARAZZI_SRC)/sw/tools/px4/px_uploader.py --port $(PX4_BL_PORT) $(OBJDIR)/$(TARGET).px4
 #
 # no known flash mode
 else
 upload:
 	@echo unknown FLASH_MODE $(FLASH_MODE)
-	@echo Available FLASH_MODEs: DFU, DFU-UTIL, SWD, JTAG, JTAG_BMP, STLINK, SERIAL
+	@echo Available FLASH_MODEs: DFU, DFU-UTIL, SWD, JTAG, JTAG_BMP, STLINK, SERIAL, SWD_NOPWR
 endif
 
 .PHONY : upload

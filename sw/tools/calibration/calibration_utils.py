@@ -134,10 +134,12 @@ def scale_measurements(meas, p):
 def estimate_mag_current_relation(meas):
     """Calculate linear coefficient of magnetometer-current relation."""
     coefficient = []
+    offset = []
     for i in range(0, 3):
         gradient, intercept, r_value, p_value, std_err = stats.linregress(meas[:, 3], meas[:, i])
         coefficient.append(gradient)
-    return coefficient
+        offset.append(intercept)
+    return coefficient, offset
 
 
 def print_xml(p, sensor, res):
@@ -163,6 +165,13 @@ def print_imu_scaled(sensor, measurements, attrs):
     print("StDev " + str(measurements[:,1:].std(axis=0)*attrs[0])  + " " + attrs[1])
 
 
+def plot_measurements(sensor, measurements):
+    plt.plot(measurements[:, 0])
+    plt.plot(measurements[:, 1])
+    plt.plot(measurements[:, 2])
+    plt.ylabel('ADC')
+    plt.title("Raw %s measurements" % sensor)
+    plt.show()
 
 def plot_results(sensor, measurements, flt_idx, flt_meas, cp0, np0, cp1, np1, sensor_ref, blocking=True):
     """Plot calibration results."""
@@ -311,7 +320,6 @@ def plot_mag_3d(measured, calibrated, p):
         ax = fig.add_subplot(1, 2, 1, position=rect_l, projection='3d')
     # plot measurements
     ax.scatter(mx, my, mz)
-    plt.hold(True)
     # plot line from center to ellipsoid center
     ax.plot([0.0, p[0]], [0.0, p[1]], [0.0, p[2]], color='black', marker='+', markersize=10)
     # plot ellipsoid
@@ -336,7 +344,6 @@ def plot_mag_3d(measured, calibrated, p):
     else:
         ax = fig.add_subplot(1, 2, 2, position=rect_r, projection='3d')
     ax.plot_wireframe(wx, wy, wz, color='grey', alpha=0.5)
-    plt.hold(True)
     ax.scatter(cx, cy, cz)
 
     ax.set_title('MAG calibrated on unit sphere')
@@ -369,3 +376,18 @@ def read_turntable_log(ac_id, tt_id, filename, _min, _max):
         if m and last_tt and _min < last_tt < _max:
             list_tt.append([last_tt, float(m.group(2)), float(m.group(3)), float(m.group(4))])
     return np.array(list_tt)
+
+
+def plot_mag_current_fit(measurements, coefficient, offset):
+    plt.subplot(2, 1, 1)
+    plt.plot(measurements[:, 0])
+    plt.plot(measurements[:, 1])
+    plt.plot(measurements[:, 2])
+    plt.plot(measurements[:, 3]*coefficient[0]+offset[0])
+    plt.plot(measurements[:, 3]*coefficient[1]+offset[1])
+    plt.plot(measurements[:, 3]*coefficient[2]+offset[2])
+    plt.ylabel('ADC')
+    plt.title("Raw measurements")
+    plt.subplot(2, 1, 2)
+    plt.plot(measurements[:, 3])
+    plt.show()

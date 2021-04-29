@@ -38,6 +38,19 @@ else ifeq ($(BOARD), bebop)
   BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
   BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
 
+# Disco baro
+else ifeq ($(BOARD), disco)
+  BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+  BARO_BOARD_CFLAGS += -DUSE_I2C1
+  BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c1
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+
+# Swing baro
+else ifeq ($(BOARD), swing)
+  BARO_BOARD_SRCS += $(SRC_BOARD)/baro_board.c
+
 # Lisa/M baro
 else ifeq ($(BOARD), lisa_m)
   ifeq ($(BOARD_VERSION), 1.0)
@@ -93,6 +106,32 @@ LISA_MX_BARO ?= BARO_MS5611_SPI
     BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
     BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
   else ifeq ($(LISA_MX_BARO), BARO_BOARD_BMP085)
+    BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_BOARD_BMP085
+    BARO_BOARD_CFLAGS += -DUSE_I2C2
+    BARO_BOARD_SRCS += peripherals/bmp085.c
+    BARO_BOARD_SRCS += $(SRC_BOARD)/baro_board.c
+  endif
+
+ else ifeq ($(BOARD), lisa_mxs)
+# defaults to MS5611 via SPI on Aspirin
+LISA_MXS_BARO ?= BARO_MS5611_SPI
+  ifeq ($(LISA_MXS_BARO), BARO_MS5611_SPI)
+    BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_SPI
+    include $(CFG_SHARED)/spi_master.makefile
+    BARO_BOARD_CFLAGS += -DUSE_SPI2 -DUSE_SPI_SLAVE3
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi2
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE3
+    BARO_BOARD_SRCS += peripherals/ms5611.c
+    BARO_BOARD_SRCS += peripherals/ms5611_spi.c
+    BARO_BOARD_SRCS += boards/baro_board_ms5611_spi.c
+  else ifeq ($(LISA_MXS_BARO), BARO_MS5611_I2C)
+    BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+    BARO_BOARD_CFLAGS += -DUSE_I2C2
+    BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c2
+    BARO_BOARD_SRCS += peripherals/ms5611.c
+    BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+    BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+  else ifeq ($(LISA_MXS_BARO), BARO_BOARD_BMP085)
     BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_BOARD_BMP085
     BARO_BOARD_CFLAGS += -DUSE_I2C2
     BARO_BOARD_SRCS += peripherals/bmp085.c
@@ -167,13 +206,32 @@ else ifeq ($(BOARD), krooz)
   BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
 
 # PX4FMU
-else ifeq ($(BOARD), px4fmu)
-  BARO_BOARD_CFLAGS += -DUSE_I2C2
-  BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c2
+else ifeq ($(BOARD),$(filter $(BOARD),px4fmu))
+  include $(CFG_SHARED)/spi_master.makefile
   BARO_BOARD_SRCS += peripherals/ms5611.c
-  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
-  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
-
+  BARO_BOARD_SRCS += peripherals/ms5611_spi.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_spi.c
+  ifeq ($(BOARD_VERSION), 1.7)
+    # PX4FMU 1.7
+    BARO_BOARD_CFLAGS += -DUSE_SPI1 -DUSE_SPI_SLAVE3
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi1
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE3
+  else ifeq ($(BOARD_VERSION), 2.4)
+    # PX4FMU 2.4 a.k.a. PIXHAWK
+    BARO_BOARD_CFLAGS += -DUSE_SPI1 -DUSE_SPI_SLAVE3
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi1
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE3
+  else ifeq ($(BOARD_VERSION), 4.0)
+    # PX4FMU 4.0 a.k.a. PX4_PIXRACER
+    BARO_BOARD_CFLAGS += -DUSE_SPI2 -DUSE_SPI_SLAVE3
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi2
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE3
+  else ifeq ($(BOARD_VERSION), 5.0)
+    # PX4FMU 5.0
+    BARO_BOARD_CFLAGS += -DUSE_SPI4 -DUSE_SPI_SLAVE4
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi4
+    BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE4
+  endif
 # apogee baro
 else ifeq ($(BOARD), apogee)
   BARO_BOARD_CFLAGS += -DUSE_I2C1
@@ -189,22 +247,69 @@ else ifeq ($(BOARD), umarim)
     BARO_BOARD_SRCS += boards/umarim/baro_board.c
   endif
 
+# Naze32
+else ifeq ($(BOARD), naze32)
+  BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+  BARO_BOARD_CFLAGS += -DUSE_I2C2
+  BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c2
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+
+# OPA (AP)
+else ifeq ($(BOARD), opa_ap)
+  include $(CFG_SHARED)/spi_master.makefile
+  BARO_BOARD_CFLAGS += -DUSE_SPI2 -DUSE_SPI_SLAVE2
+  BARO_BOARD_CFLAGS += -DBB_MS5611_SPI_DEV=spi2
+  BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_IDX=SPI_SLAVE2
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_spi.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_spi.c
+
+# OpenPilot Revo
+else ifeq ($(BOARD), openpilot_revo)
+  ifeq ($(BOARD_VERSION), nano)
+    BARO_BOARD_CFLAGS += -DUSE_I2C3
+    BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c3
+    #BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_ADDR=0xEC
+  else
+    BARO_BOARD_CFLAGS += -DUSE_I2C1
+    BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c1
+  endif
+  BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+
+else ifeq ($(BOARD), chimera)
+  BARO_BOARD_CFLAGS += -DBARO_BOARD=BARO_MS5611_I2C
+  BARO_BOARD_CFLAGS += -DUSE_I2C1
+  BARO_BOARD_CFLAGS += -DBB_MS5611_I2C_DEV=i2c1
+  BARO_BOARD_CFLAGS += -DBB_MS5611_SLAVE_ADDR=MS5611_I2C_SLAVE_ADDR_ALT
+  BARO_BOARD_SRCS += peripherals/ms5611.c
+  BARO_BOARD_SRCS += peripherals/ms5611_i2c.c
+  BARO_BOARD_SRCS += boards/baro_board_ms5611_i2c.c
+
 endif # check board
 
+BARO_LED ?= none
 ifneq ($(BARO_LED),none)
 BARO_BOARD_CFLAGS += -DBARO_LED=$(BARO_LED)
 endif
 
 # make sure you can also use <configure name="BARO_PERIODIC_FREQUENCY" value="x"/> instead of define
-ifdef BARO_PERIODIC_FREQUENCY
+BARO_PERIODIC_FREQUENCY ?= 50
 BARO_BOARD_CFLAGS += -DBARO_PERIODIC_FREQUENCY=$(BARO_PERIODIC_FREQUENCY)
-endif
 
 ap.CFLAGS += $(BARO_BOARD_CFLAGS)
 ap.srcs += $(BARO_BOARD_SRCS)
 
-# don't use for NPS
+# don't use for NPS or HITL
 ifeq ($(TARGET),nps)
+$(TARGET).CFLAGS += -DUSE_BARO_BOARD=FALSE
+endif
+
+ifeq ($(TARGET),hitl)
 $(TARGET).CFLAGS += -DUSE_BARO_BOARD=FALSE
 endif
 

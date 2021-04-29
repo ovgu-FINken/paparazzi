@@ -27,6 +27,7 @@ let (//) = Filename.concat
 open Latlong
 open Printf
 
+
 let tile_size = 256, 256
 let zoom_max = 22
 let zoom_min = 18
@@ -204,17 +205,18 @@ let xyz_of_qsrt = fun s ->
 let ms_key = fun key ->
   let n = String.length key in
   if n = 1 then invalid_arg "Gm.ms_key";
-  let ms_key = String.create (n-1) in
+  let ms_key = Bytes.create (n-1) in
   for i = 1 to n - 1 do
-    ms_key.[i-1] <-
-      match key.[i] with
+    Bytes.set ms_key (i-1)
+      (match key.[i] with
           'q' -> '0'
         | 'r' -> '1'
         | 's' -> '3'
         | 't' -> '2'
-        | _ -> invalid_arg "Gm.ms_key"
+        | _ -> invalid_arg "Gm.ms_key")
   done;
-  (ms_key, ms_key.[n-2])
+  let s = Bytes.to_string ms_key in
+  (s, s.[n-2])
 
 let google_version = Maps_support.google_version
 

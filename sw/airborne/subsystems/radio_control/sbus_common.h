@@ -29,6 +29,7 @@
 
 #include "std.h"
 #include "mcu_periph/uart.h"
+#include "mcu_periph/gpio.h"
 
 /* in case you want to override RADIO_CONTROL_NB_CHANNEL */
 #include "generated/airframe.h"
@@ -76,18 +77,22 @@
  * SBUS structure
  */
 struct Sbus {
-  uint16_t pulses[SBUS_NB_CHANNEL]; ///< decoded values
-  uint16_t ppm[SBUS_NB_CHANNEL];    ///< decoded and converted values
-  bool_t frame_available;           ///< new frame available
-  uint8_t buffer[SBUS_BUF_LENGTH];  ///< input buffer
-  uint8_t idx;                      ///< input index
-  uint8_t status;                   ///< decoder state machine status
+  uint16_t pulses[SBUS_NB_CHANNEL]; ///< Decoded values
+  uint16_t ppm[SBUS_NB_CHANNEL];    ///< Decoded and converted to ppm values
+  bool frame_available;             ///< A data frame is available
+  bool rc_failsafe;                 ///< Receiver set to in failsafe mode
+  bool rc_lost;                     ///< RC reception is lost
+  uint8_t buffer[SBUS_BUF_LENGTH];  ///< Input buffer
+  uint8_t idx;                      ///< Input index
+  uint8_t status;                   ///< Decoder state-machine status
+  uint32_t start_time;              ///< Decoder start time
 };
 
 /**
  * Init function
  */
-void sbus_common_init(struct Sbus *sbus, struct uart_periph *dev);
+void sbus_common_init(struct Sbus *sbus, struct uart_periph *dev,
+                      gpio_port_t gpio_polarity_port, uint16_t gpio_polarity_pin);
 
 /**
  * Decoding event function

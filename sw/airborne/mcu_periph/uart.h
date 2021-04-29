@@ -29,15 +29,25 @@
 #define MCU_PERIPH_UART_H
 
 #include "mcu_periph/uart_arch.h"
-#include "mcu_periph/link_device.h"
+#include "pprzlink/pprzlink_device.h"
 #include "std.h"
 
 #ifndef UART_RX_BUFFER_SIZE
+#if defined STM32F4 || defined STM32F7 //the F4 and F7 have enough memory
+#define UART_RX_BUFFER_SIZE 256
+#else
 #define UART_RX_BUFFER_SIZE 128
 #endif
+#endif
+
 #ifndef UART_TX_BUFFER_SIZE
+#if defined STM32F4 || defined STM32F7 //the F4 and F7 have enough memory, and the PX4 bootloader needs more then 128
+#define UART_TX_BUFFER_SIZE 256
+#else
 #define UART_TX_BUFFER_SIZE 128
 #endif
+#endif
+
 #define UART_DEV_NAME_SIZE 16
 
 /*
@@ -66,11 +76,13 @@ struct uart_periph {
   uint8_t tx_buf[UART_TX_BUFFER_SIZE];
   uint16_t tx_insert_idx;
   uint16_t tx_extract_idx;
-  uint8_t tx_running;
+  volatile uint8_t tx_running;
   /** UART Register */
   void *reg_addr;
   /** UART Baudrate */
   int baudrate;
+  /** User init struct */
+  void *init_struct;
   /** UART Dev (linux) */
   char dev[UART_DEV_NAME_SIZE];
   volatile uint16_t ore;    ///< overrun error counter
@@ -84,16 +96,19 @@ struct uart_periph {
 extern void uart_periph_init(struct uart_periph *p);
 extern void uart_periph_set_baudrate(struct uart_periph *p, uint32_t baud);
 extern void uart_periph_set_bits_stop_parity(struct uart_periph *p, uint8_t bits, uint8_t stop, uint8_t parity);
-extern void uart_periph_set_mode(struct uart_periph *p, bool_t tx_enabled, bool_t rx_enabled, bool_t hw_flow_control);
-extern void uart_put_byte(struct uart_periph *p, uint8_t data);
-extern bool_t uart_check_free_space(struct uart_periph *p, uint8_t len);
+extern void uart_periph_set_mode(struct uart_periph *p, bool tx_enabled, bool rx_enabled, bool hw_flow_control);
+extern void uart_periph_invert_data_logic(struct uart_periph *p, bool invert_rx, bool invert_tx);
+extern void uart_put_byte(struct uart_periph *p, long fd, uint8_t data);
+extern void uart_put_buffer(struct uart_periph *p, long fd, const uint8_t *data, uint16_t len);
+extern int uart_check_free_space(struct uart_periph *p, long *fd, uint16_t len);
+extern void uart_send_message(struct uart_periph *p, long fd);
 extern uint8_t uart_getch(struct uart_periph *p);
 
 /**
  * Check UART for available chars in receive buffer.
  * @return number of chars in the buffer
  */
-extern uint16_t uart_char_available(struct uart_periph *p);
+extern int uart_char_available(struct uart_periph *p);
 
 
 extern void uart_arch_init(void);
@@ -132,5 +147,15 @@ extern void uart5_init(void);
 extern struct uart_periph uart6;
 extern void uart6_init(void);
 #endif // USE_UART6
+
+#if USE_UART7
+extern struct uart_periph uart7;
+extern void uart7_init(void);
+#endif // USE_UART7
+
+#if USE_UART8
+extern struct uart_periph uart8;
+extern void uart8_init(void);
+#endif // USE_UART8
 
 #endif /* MCU_PERIPH_UART_H */

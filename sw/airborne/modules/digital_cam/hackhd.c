@@ -83,7 +83,7 @@ static inline uint16_t pin_of_gpio(uint32_t __attribute__((unused)) port, uint16
 #if HACKHD_SYNC_SEND
 
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #include "state.h"
 #include "subsystems/gps.h"
@@ -95,9 +95,9 @@ static inline void hackhd_send_shot_position(void)
   int16_t theta = DegOfRad(stateGetNedToBodyEulers_f()->theta * 10.0f);
   int16_t psi = DegOfRad(stateGetNedToBodyEulers_f()->psi * 10.0f);
   // course in decideg
-  int16_t course = DegOfRad(*stateGetHorizontalSpeedDir_f()) * 10;
+  int16_t course = DegOfRad(stateGetHorizontalSpeedDir_f()) * 10;
   // ground speed in cm/s
-  uint16_t speed = (*stateGetHorizontalSpeedNorm_f()) * 10;
+  uint16_t speed = stateGetHorizontalSpeedNorm_f() * 10;
 
   DOWNLINK_SEND_DC_SHOT(DefaultChannel, DefaultDevice,
                         &hackhd.photo_nr,
@@ -115,8 +115,7 @@ static inline void hackhd_send_shot_position(void)
 #endif
 
 #if HACKHD_LOG
-#include "sdLog.h"
-#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
+#include "modules/loggers/sdlog_chibios.h"
 #include "state.h"
 #include "subsystems/gps.h"
 

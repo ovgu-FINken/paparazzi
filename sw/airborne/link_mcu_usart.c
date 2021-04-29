@@ -31,7 +31,7 @@
 
 // Use uart interface directly
 #define InterMcuBuffer() uart_char_available(&(INTERMCU_LINK))
-#define InterMcuUartSend1(c) uart_put_byte(&(INTERMCU_LINK), c)
+#define InterMcuUartSend1(c) uart_put_byte(&(INTERMCU_LINK), 0, c)
 #define InterMcuUartSetBaudrate(_a) uart_periph_set_baudrate(&(INTERMCU_LINK), _a)
 #define InterMcuUartSendMessage() {}
 #define InterMcuUartGetch() uart_getch(&(INTERMCU_LINK))
@@ -140,7 +140,7 @@
 
 #define INTERMCU_MAX_PAYLOAD 255
 struct InterMcuData {
-  bool_t msg_available;
+  bool msg_available;
   uint8_t msg_buf[INTERMCU_MAX_PAYLOAD] __attribute__((aligned));
   uint8_t msg_id;
   uint8_t msg_class;
@@ -218,7 +218,7 @@ void intermcu_parse(uint8_t c)
       if (c != intermcu_data.ck_b) {
         goto error;
       }
-      intermcu_data.msg_available = TRUE;
+      intermcu_data.msg_available = true;
       goto restart;
       break;
     default:
@@ -276,20 +276,20 @@ static void send_fbw_status(struct transport_tx *trans, struct link_device *dev)
     rc_status = RC_LOST;
   }
   pprz_msg_send_FBW_STATUS(trans, dev, AC_ID,
-                           &(rc_status), &(fbw_state->ppm_cpt), &(fbw_status), &(fbw_state->vsupply), &(fbw_state->current));
+                           &(rc_status), &(fbw_state->ppm_cpt), &(fbw_status), &(fbw_state->electrical.vsupply), &(fbw_state->electrical.current));
 }
 #endif
 
 void link_mcu_init(void)
 {
   intermcu_data.status = LINK_MCU_UNINIT;
-  intermcu_data.msg_available = FALSE;
+  intermcu_data.msg_available = false;
   intermcu_data.error_cnt = 0;
 #ifdef AP
 #if PERIODIC_TELEMETRY
   // If FBW has not telemetry, then AP can send some of the info
-  register_periodic_telemetry(DefaultPeriodic, "COMMANDS", send_commands);
-  register_periodic_telemetry(DefaultPeriodic, "FBW_STATUS", send_fbw_status);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_COMMANDS, send_commands);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_FBW_STATUS, send_fbw_status);
 #endif
 #endif
 }
@@ -309,7 +309,7 @@ void parse_mavpilot_msg(void)
 #ifdef LINK_MCU_LED
       LED_TOGGLE(LINK_MCU_LED);
 #endif
-      inter_mcu_received_ap = TRUE;
+      inter_mcu_received_ap = true;
     } else if (intermcu_data.msg_id == MSG_INTERMCU_RADIO_ID) {
 #if RADIO_CONTROL_NB_CHANNEL > 10
 #error "INTERMCU UART CAN ONLY SEND 10 RADIO CHANNELS OR THE UART WILL BE OVERFILLED"
@@ -325,13 +325,13 @@ void parse_mavpilot_msg(void)
       fbw_state->ppm_cpt = MSG_INTERMCU_FBW_MOD(intermcu_data.msg_buf);
       fbw_state->status = MSG_INTERMCU_FBW_STAT(intermcu_data.msg_buf);
       fbw_state->nb_err = MSG_INTERMCU_FBW_ERR(intermcu_data.msg_buf);
-      fbw_state->vsupply = MSG_INTERMCU_FBW_VOLT(intermcu_data.msg_buf);
-      fbw_state->current = MSG_INTERMCU_FBW_CURRENT(intermcu_data.msg_buf);
+      fbw_state->electrical.vsupply = (float)(MSG_INTERMCU_FBW_VOLT(intermcu_data.msg_buf)) / 10.f;
+      fbw_state->electrical.current = (float)(MSG_INTERMCU_FBW_CURRENT(intermcu_data.msg_buf)) / 10.f;
 
 #ifdef LINK_MCU_LED
       LED_TOGGLE(LINK_MCU_LED);
 #endif
-      inter_mcu_received_fbw = TRUE;
+      inter_mcu_received_fbw = true;
     }
   }
 }
@@ -361,8 +361,8 @@ void link_mcu_periodic_task(void)
       fbw_state->ppm_cpt,
       fbw_state->status,
       fbw_state->nb_err,
-      fbw_state->vsupply,
-      fbw_state->current);
+      fbw_state->electrical.vsupply * 10.f,
+      fbw_state->electrical.current * 10.f);
 #if defined RADIO_CONTROL || RADIO_CONTROL_AUTO1
     InterMcuSend_INTERMCU_RADIO(fbw_state->channels);
 #endif
@@ -379,7 +379,7 @@ void link_mcu_event_task(void)
       intermcu_parse(InterMcuUartGetch());
       if (intermcu_data.msg_available) {
         parse_mavpilot_msg();
-        intermcu_data.msg_available = FALSE;
+        intermcu_data.msg_available = false;
       }
     }
   }

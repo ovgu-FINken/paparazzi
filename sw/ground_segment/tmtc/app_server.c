@@ -229,11 +229,13 @@ int get_wp_data(char* InStr, char* RetBuf) {
   //Get & create return string
   if ( AcID > 0 ) {
     //create wp data string
-    char WpStr[BUFLEN] = "";
+    char WpStr[MAXWPNUMB*(MAXWPNAMELEN+8)] = "";
     int i = 1;
     while ( strlen(DevNames[AcID].AcWp[i].Wp_Name)  > 0 ) {
       //Read & add wp data to return string
-      sprintf(WpStr, "%s%d,%s ", WpStr, i, DevNames[AcID].AcWp[i].Wp_Name);
+      char wp_str[MAXWPNAMELEN+8] = "";
+      snprintf(wp_str, MAXWPNAMELEN+8, "%d,%s ", i, DevNames[AcID].AcWp[i].Wp_Name);
+      strcat(WpStr, wp_str);
       i++;
     }
     sprintf(RetBuf, "AppServer WPs %d %s\n", AcID, WpStr);
@@ -257,10 +259,12 @@ int get_bl_data(char* InStr, char* RetBuf) {
   //Get & create return string
   if ( AcID > 0 ) {
     //create wp data string
-    char BlStr[BUFLEN] ="";
+    char BlStr[MAXWPNUMB*(MAXWPNAMELEN+5)] ="";
     int i=1;
     while ( strlen(DevNames[AcID].AcBl[i].Bl_Name)  > 0 ) {
-      sprintf(BlStr, "%s</n>%s", BlStr, DevNames[AcID].AcBl[i].Bl_Name);
+      char bl_str[MAXWPNAMELEN+5] ="";
+      snprintf(bl_str, MAXWPNAMELEN+5, "</n>%s", DevNames[AcID].AcBl[i].Bl_Name);
+      strcat(BlStr, bl_str);
       i++;
     }
     sprintf(RetBuf, "AppServer BLs %d %s\n", AcID, BlStr);
@@ -645,10 +649,10 @@ void parse_ac_settings(int DevNameIndex, char *filename) {
         xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"var");
 
         value = xmlTextReaderValue(reader);
-        if (xmlStrEqual(value, (const xmlChar *)"launch")) {
+        if (xmlStrEqual(value, (const xmlChar *)"autopilot.launch")) {
           DevNames[DevNameIndex].dl_launch_ind=valind;
         }
-        if (xmlStrEqual(value, (const xmlChar *)"kill_throttle")) {
+        if (xmlStrEqual(value, (const xmlChar *)"autopilot.kill_throttle")) {
           DevNames[DevNameIndex].kill_thr_ind=valind;
         }
         if (xmlStrEqual(value, (const xmlChar *)"flight_altitude")) {

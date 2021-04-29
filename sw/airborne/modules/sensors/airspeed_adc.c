@@ -28,6 +28,7 @@
 #include BOARD_CONFIG
 #include "generated/airframe.h"
 #include "state.h"
+#include "subsystems/abi.h"
 
 #ifndef USE_AIRSPEED_ADC
 #define USE_AIRSPEED_ADC TRUE
@@ -85,7 +86,9 @@ void airspeed_adc_update(void)
   airspeed_adc.airspeed = sim_air_speed;
 #endif //SITL
 
+  AbiSendMsgAIRSPEED(AIRSPEED_ADC_ID, airspeed_adc.airspeed);
+
 #if USE_AIRSPEED_ADC
-  stateSetAirspeed_f(&airspeed_adc.airspeed);
+  stateSetAirspeed_f(airspeed_adc.airspeed);
 #endif
 }

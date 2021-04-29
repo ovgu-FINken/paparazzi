@@ -33,6 +33,12 @@
 #include BOARD_CONFIG
 #include "armVIC.h"
 
+
+static bool i2c_lpc21_idle(struct i2c_periph *p) __attribute__((unused));
+static bool i2c_lpc21_submit(struct i2c_periph *p, struct i2c_transaction *t) __attribute__((unused));
+static void i2c_lpc21_setbitrate(struct i2c_periph *p, int bitrate) __attribute__((unused));
+
+
 ///////////////////
 // I2C Automaton //
 ///////////////////
@@ -85,7 +91,7 @@ __attribute__((always_inline)) static inline void I2cSendByte(void *reg, uint8_t
   ((i2cRegs_t *)reg)->dat = b;
 }
 
-__attribute__((always_inline)) static inline void I2cReceive(void *reg, bool_t ack)
+__attribute__((always_inline)) static inline void I2cReceive(void *reg, bool ack)
 {
   if (ack) { ((i2cRegs_t *)reg)->conset = _BV(AA); }
   else { ((i2cRegs_t *)reg)->conclr = _BV(AAC); }
@@ -231,6 +237,9 @@ uint8_t i2c0_vic_channel;
 /* SCL0 on P0.2 */
 void i2c0_hw_init(void)
 {
+  i2c0.idle = i2c_lpc21_idle;
+  i2c0.submit = i2c_lpc21_submit;
+  i2c0.setbitrate = i2c_lpc21_setbitrate;
 
   i2c0.reg_addr = I2C0;
   i2c0_vic_channel = VIC_I2C0;
@@ -316,6 +325,9 @@ uint8_t i2c1_vic_channel;
 /* SCL1 on P0.11 */
 void i2c1_hw_init(void)
 {
+  i2c1.idle = i2c_lpc21_idle;
+  i2c1.submit = i2c_lpc21_submit;
+  i2c1.setbitrate = i2c_lpc21_setbitrate;
 
   i2c1.reg_addr = I2C1;
   i2c1_vic_channel = VIC_I2C1;
@@ -341,12 +353,12 @@ void i2c1_hw_init(void)
 #endif /* USE_I2C1 */
 
 
-bool_t i2c_idle(struct i2c_periph *p)
+static bool i2c_lpc21_idle(struct i2c_periph *p)
 {
   return p->status == I2CIdle;
 }
 
-bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
+static bool i2c_lpc21_submit(struct i2c_periph *p, struct i2c_transaction *t)
 {
 
   uint8_t idx;
@@ -356,7 +368,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
     /* queue full */
     p->errors->queue_full_cnt++;
     t->status = I2CTransFailed;
-    return FALSE;
+    return false;
   }
   t->status = I2CTransPending;
 
@@ -378,12 +390,12 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
   //VICIntEnable = VIC_BIT(*vic);
   enableIRQ();
 
-  return TRUE;
+  return true;
 }
 
 void i2c_event(void) { }
 
-void i2c_setbitrate(struct i2c_periph *p, int bitrate)
+static void i2c_lpc21_setbitrate(struct i2c_periph *p, int bitrate)
 {
   int period = 15000000 / 2 / bitrate;
   // Max 400kpbs

@@ -53,7 +53,7 @@ static float heading;
 static abi_event gyro_ev;
 
 #ifndef AHRS_INFRARED_GPS_ID
-#define AHRS_INFRARED_GPS_ID ABI_BROADCAST
+#define AHRS_INFRARED_GPS_ID GPS_MULTI_ID
 #endif
 static abi_event gps_ev;
 void ahrs_infrared_update_gps(struct GpsState *gps_s);
@@ -101,8 +101,8 @@ void ahrs_infrared_init(void)
   AbiBindMsgGPS(AHRS_INFRARED_GPS_ID, &gps_ev, &gps_cb);
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "IR_SENSORS", send_infrared);
-  register_periodic_telemetry(DefaultPeriodic, "STATE_FILTER_STATUS", send_status);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_IR_SENSORS, send_infrared);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STATE_FILTER_STATUS, send_status);
 #endif
 }
 

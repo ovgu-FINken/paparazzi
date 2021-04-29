@@ -24,8 +24,8 @@
 
 open Printf
 
-module Ground_Pprz = Pprz.Messages(struct let name = "ground" end)
-module Dl_Pprz = Pprz.Messages(struct let name = "datalink" end)
+module Ground_Pprz = PprzLink.Messages(struct let name = "ground" end)
+module Dl_Pprz = PprzLink.Messages(struct let name = "datalink" end)
 
 let ground_id = 0 (* cf tmtc/link.ml *)
 
@@ -55,7 +55,7 @@ module Make (A:Data.MISSION) (FM: FlightModel.SIG) = struct
   let rcommands = ref [||]
   let adj_bat = GData.adjustment ~value:FM.max_bat_level ~lower:0. ~upper:(FM.max_bat_level+.2.) ~step_incr:0.1 ~page_size:0. ()
 
-  external get_commands : Stdlib.pprz_t array -> int = "get_commands"
+  external get_commands : Simlib.pprz_t array -> int = "get_commands"
 (** Returns gaz servo value (us) *)
 
   let energy = ref 0.
@@ -119,7 +119,7 @@ module Make (A:Data.MISSION) (FM: FlightModel.SIG) = struct
     let send_ppm = fun () ->
       if on_off#active then send_ppm () in
 
-    Stdlib.timer rc_period send_ppm; (** FIXME: should use time_scale *)
+    Simlib.timer rc_period send_ppm; (** FIXME: should use time_scale *)
     window#show ()
 
   external sys_time_task : unit -> unit = "sim_sys_time_task"
@@ -178,28 +178,28 @@ module Make (A:Data.MISSION) (FM: FlightModel.SIG) = struct
     let set = fun () ->
       let msg_id, _ = Dl_Pprz.message_of_name name in
       let s = Dl_Pprz.payload_of_values msg_id ground_id vs in
-      set_message (Serial.string_of_payload s) in
-    let ac_id = Pprz.int_assoc "ac_id" vs in
-    match link_mode with
-      Pprz.Forwarded when ac_id = !my_id -> if dl_button#active then set ()
-    | Pprz.Broadcasted -> if dl_button#active then set ()
+      set_message (Protocol.string_of_payload s) in
+    let ac_id = try Some (PprzLink.int_assoc "ac_id" vs) with _ -> None in
+    match link_mode, ac_id with
+      PprzLink.Forwarded, Some x when x = !my_id -> if dl_button#active then set ()
+    | PprzLink.Broadcasted, _ -> if dl_button#active then set ()
     | _ -> ()
 
   let message_bind = fun name link_mode ->
     ignore (Dl_Pprz.message_bind name (get_message name link_mode))
 
   let boot = fun time_scale ->
-    Stdlib.timer ~scale:time_scale servos_period (update_servos bat_button);
-    Stdlib.timer ~scale:time_scale periodic_period periodic_task;
-    Stdlib.timer ~scale:time_scale nav_period nav_task;
-    Stdlib.timer ~scale:time_scale monitor_period monitor_task;
-    Stdlib.timer ~scale:time_scale sys_time_period sys_time_task;
+    Simlib.timer ~scale:time_scale servos_period (update_servos bat_button);
+    Simlib.timer ~scale:time_scale periodic_period periodic_task;
+    Simlib.timer ~scale:time_scale nav_period nav_task;
+    Simlib.timer ~scale:time_scale monitor_period monitor_task;
+    Simlib.timer ~scale:time_scale sys_time_period sys_time_task;
 
     (* Forward or broacast messages according to "link" mode *)
     Hashtbl.iter
       (fun _m_id msg ->
-	match msg.Pprz.link with
-	  Some x -> message_bind msg.Pprz.name x
+	match msg.PprzLink.link with
+	  Some x -> message_bind msg.PprzLink.name x
 	| _ -> ())
       Dl_Pprz.messages;;
 

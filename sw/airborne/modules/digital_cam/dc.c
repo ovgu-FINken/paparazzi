@@ -53,6 +53,11 @@
 #define DC_AUTOSHOOT_DISTANCE_INTERVAL 50
 #endif
 
+/** default distance of the first shoot: 0m (start immediately) */
+#ifndef DC_AUTOSHOOT_DISTANCE_INIT
+#define DC_AUTOSHOOT_DISTANCE_INIT 0
+#endif
+
 /** default distance interval for survey mode: 50m */
 #ifndef DC_AUTOSHOOT_SURVEY_INTERVAL
 #define DC_AUTOSHOOT_SURVEY_INTERVAL 50
@@ -88,10 +93,13 @@ float dc_autoshoot_period;
 uint16_t dc_photo_nr = 0;
 
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #include "state.h"
 #include "subsystems/gps.h"
+#if DC_SHOT_EXTRA_DL
+#include "modules/datalink/extra_pprz_dl.h"
+#endif
 
 void dc_send_shot_position(void)
 {
@@ -100,9 +108,9 @@ void dc_send_shot_position(void)
   int16_t theta = DegOfRad(stateGetNedToBodyEulers_f()->theta * 10.0f);
   int16_t psi = DegOfRad(stateGetNedToBodyEulers_f()->psi * 10.0f);
   // course in decideg
-  int16_t course = DegOfRad(*stateGetHorizontalSpeedDir_f()) * 10;
+  int16_t course = DegOfRad(stateGetHorizontalSpeedDir_f()) * 10;
   // ground speed in cm/s
-  uint16_t speed = (*stateGetHorizontalSpeedNorm_f()) * 10;
+  uint16_t speed = stateGetHorizontalSpeedNorm_f() * 10;
   int16_t photo_nr = -1;
 
   if (dc_photo_nr < DC_IMAGE_BUFFER) {
@@ -110,6 +118,22 @@ void dc_send_shot_position(void)
     photo_nr = dc_photo_nr;
   }
 
+#if DC_SHOT_EXTRA_DL
+  // send a message on second datalink first
+  // (for instance an embedded CPU)
+  DOWNLINK_SEND_DC_SHOT(extra_pprz_tp, EXTRA_DOWNLINK_DEVICE,
+                        &photo_nr,
+                        &stateGetPositionLla_i()->lat,
+                        &stateGetPositionLla_i()->lon,
+                        &stateGetPositionLla_i()->alt,
+                        &gps.hmsl,
+                        &phi,
+                        &theta,
+                        &psi,
+                        &course,
+                        &speed,
+                        &gps.tow);
+#endif
   DOWNLINK_SEND_DC_SHOT(DefaultChannel, DefaultDevice,
                         &photo_nr,
                         &stateGetPositionLla_i()->lat,
@@ -161,6 +185,15 @@ uint8_t dc_info(void)
 #endif
   return 0;
 }
+
+void dc_send_command_common(uint8_t cmd __attribute__((unused)))
+{
+#if DC_SHOT_EXTRA_DL
+  uint8_t tab[] = { cmd };
+  DOWNLINK_SEND_PAYLOAD_COMMAND(extra_pprz_tp, EXTRA_DOWNLINK_DEVICE, 0, 1, tab);
+#endif
+}
+
 
 /* shoot on distance */
 uint8_t dc_distance(float interval)
@@ -215,7 +248,7 @@ uint8_t dc_survey(float interval, float x, float y)
     dc_gps_x = x;
     dc_gps_y = y;
   }
-  dc_gps_next_dist = 0;
+  dc_gps_next_dist = DC_AUTOSHOOT_DISTANCE_INIT;
   dc_info();
   return 0;
 }

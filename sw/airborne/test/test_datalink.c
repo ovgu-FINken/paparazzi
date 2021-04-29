@@ -19,14 +19,19 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/**
+ * @file test_datalink.c
+ *
+ * Periodically sends ALIVE (10Hz) and ping/pong (every 5s) telemetry messages.
+ */
 #define DATALINK_C
 
 #include BOARD_CONFIG
 #include "mcu.h"
 #include "mcu_periph/sys_time.h"
 #include "subsystems/datalink/downlink.h"
-
 #include "subsystems/datalink/datalink.h"
+#include "modules/datalink/pprz_dl.h"
 
 static inline void main_init(void);
 static inline void main_periodic(void);
@@ -50,6 +55,8 @@ static inline void main_init(void)
 {
   mcu_init();
   sys_time_register_timer((1. / PERIODIC_FREQUENCY), NULL);
+  downlink_init();
+  pprz_dl_init();
 }
 
 static inline void main_periodic(void)
@@ -60,17 +67,19 @@ static inline void main_periodic(void)
 static inline void main_event(void)
 {
   mcu_event();
-  DatalinkEvent();
+  pprz_dl_event();
 }
 
-void dl_parse_msg(void)
+void dl_parse_msg(struct link_device *dev __attribute__((unused)), struct transport_tx *trans __attribute__((unused)), uint8_t *buf)
 {
-  uint8_t msg_id = dl_buffer[1];
+  uint8_t msg_id = buf[1];
   switch (msg_id) {
 
     case  DL_PING: {
       DOWNLINK_SEND_PONG(DefaultChannel, DefaultDevice);
     }
-    break;
+    default:
+      break;
   }
 }
+

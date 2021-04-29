@@ -61,7 +61,7 @@ static inline void actuators_esc32_disarm(uint32_t tt, uint8_t tid);
 static inline void actuators_esc32_start(uint32_t tt, uint8_t tid);
 static inline void actuators_esc32_duty(uint32_t tt, uint8_t tid, uint16_t *cmds);
 static inline void actuators_esc32_dir(uint32_t tt, uint8_t tid);
-static bool_t actuators_esc32_play_melody(uint32_t tt, uint8_t tid, uint32_t *status_sub,
+static bool actuators_esc32_play_melody(uint32_t tt, uint8_t tid, uint32_t *status_sub,
     uint16_t melody[][2], uint8_t length);
 
 /** When receiving messages on the CAN bus */
@@ -156,7 +156,7 @@ void actuators_esc32_commit(void)
       case ESC32_STATUS_RUNNING:
         actuators_esc32_duty(ESC32_CAN_TT_GROUP, i, &actuators_esc32.cmds[(i - 1) * 4]);
 
-        if (!autopilot_motors_on) {
+        if (!autopilot_get_motors_on()) {
           actuators_esc32_disarm(ESC32_CAN_TT_GROUP, i);
           actuators_esc32.status = ESC32_STATUS_UNARMED;
         }
@@ -166,7 +166,7 @@ void actuators_esc32_commit(void)
       case ESC32_STATUS_UNARMED:
         actuators_esc32_duty(ESC32_CAN_TT_GROUP, i, &actuators_esc32.cmds[(i - 1) * 4]);
 
-        if (autopilot_motors_on) {
+        if (autopilot_get_motors_on()) {
           actuators_esc32_arm(ESC32_CAN_TT_GROUP, i);
           actuators_esc32_start(ESC32_CAN_TT_GROUP, i);
           actuators_esc32.status = ESC32_STATUS_RUNNING;
@@ -272,7 +272,7 @@ static inline void actuators_esc32_dir(uint32_t tt, uint8_t tid)
 }
 
 /** Plays a full melody */
-static bool_t actuators_esc32_play_melody(uint32_t tt, uint8_t tid, uint32_t *status_sub,
+static bool actuators_esc32_play_melody(uint32_t tt, uint8_t tid, uint32_t *status_sub,
     uint16_t melody[][2], uint8_t length)
 {
   uint32_t timer = (*status_sub & 0x00FFFFFF) << 8;
@@ -290,10 +290,10 @@ static bool_t actuators_esc32_play_melody(uint32_t tt, uint8_t tid, uint32_t *st
     }
     *status_sub = *status_sub + (1 << 24);
   } else if (counter == length && SysTimeTimer(timer) > timeout) {
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 /** When the CAN bus receives a message */

@@ -29,28 +29,32 @@
 #ifndef _INTER_THREAD_DATA_H
 #define _INTER_THREAD_DATA_H
 
+#include "math/pprz_algebra_float.h"
+#include "math/pprz_algebra_int.h"
+
+
 /* The result calculated from the opticflow */
 struct opticflow_result_t {
   float fps;              ///< Frames per second of the optical flow calculation
   uint16_t corner_cnt;    ///< The amount of coners found by FAST9
   uint16_t tracked_cnt;   ///< The amount of tracked corners
 
-  int16_t flow_x;         ///< Flow in x direction from the camera (in subpixels)
-  int16_t flow_y;         ///< Flow in y direction from the camera (in subpixels)
+  // Camera frame with the origin in the top left corner of the image
+  int16_t flow_x;         ///< Flow in x direction from the camera (in subpixels) with X positive to the right
+  int16_t flow_y;         ///< Flow in y direction from the camera (in subpixels) with Y positive to the bottom
   int16_t flow_der_x;     ///< The derotated flow calculation in the x direction (in subpixels)
   int16_t flow_der_y;     ///< The derotated flow calculation in the y direction (in subpixels)
 
-  float vel_x;            ///< The velocity in the x direction
-  float vel_y;            ///< The velocity in the y direction
+  struct FloatVect3 vel_cam;      ///< The velocity in camera frame (m/s)
+  struct FloatVect3 vel_body;     ///< The velocity in body frame (m/s) with X positive to the front of the aircraft, Y positive to the right and Z positive downwards to the ground
 
   float div_size;         ///< Divergence as determined with the size_divergence script
-};
 
-/* The state of the drone when it took an image */
-struct opticflow_state_t {
-  float phi;      ///< roll [rad]
-  float theta;    ///< pitch [rad]
-  float agl;      ///< height above ground [m]
+  float surface_roughness; ///< Surface roughness as determined with a linear optical flow fit
+  float divergence;       ///< Divergence as determined with a linear flow fit
+  uint8_t camera_id;      ///< Camera id as passed to cv_add_to_device
+
+  float noise_measurement;  ///< noise of measurement, for state filter
 };
 
 #endif

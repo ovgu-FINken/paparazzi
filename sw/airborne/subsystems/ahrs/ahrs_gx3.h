@@ -52,7 +52,7 @@ extern void gx3_packet_read_message(void);
 extern void gx3_packet_parse(uint8_t c);
 
 struct GX3Packet {
-  bool_t  msg_available;
+  bool  msg_available;
   uint32_t chksm_error;
   uint32_t hdr_error;
   uint8_t msg_buf[GX3_MAX_PAYLOAD];
@@ -79,7 +79,7 @@ struct AhrsGX3 {
   struct FloatVect3 accel;        ///< measured acceleration in IMU frame
   struct FloatRates rate;         ///< measured angular rates in IMU frame
   struct FloatRMat  rmat;         ///< measured attitude in IMU frame (rotational matrix)
-  bool_t is_aligned;
+  bool is_aligned;
 };
 
 extern struct AhrsGX3 ahrs_gx3;
@@ -93,23 +93,8 @@ extern void ahrs_gx3_align(void);
 extern void ahrs_gx3_register(void);
 extern void ahrs_gx3_publish_imu(void);
 
-static inline void ReadGX3Buffer(void)
-{
-  while (uart_char_available(&GX3_PORT) && !ahrs_gx3.packet.msg_available) {
-    gx3_packet_parse(uart_getch(&GX3_PORT));
-  }
-}
-
-static inline void ImuEvent(void)
-{
-  if (uart_char_available(&GX3_PORT)) {
-    ReadGX3Buffer();
-  }
-  if (ahrs_gx3.packet.msg_available) {
-    gx3_packet_read_message();
-    ahrs_gx3_publish_imu();
-    ahrs_gx3.packet.msg_available = FALSE;
-  }
-}
+extern void imu_gx3_init(void);
+extern void imu_gx3_periodic(void);
+extern void imu_gx3_event(void);
 
 #endif /* AHRS_GX3_H*/

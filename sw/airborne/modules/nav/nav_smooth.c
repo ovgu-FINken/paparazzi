@@ -46,7 +46,7 @@ static float u_a_ca_x, u_a_ca_y;
 static uint8_t ground_speed_timer;
 
 /* D is the current position */
-bool_t snav_init(uint8_t a, float desired_course_rad, float radius)
+bool snav_init(uint8_t a, float desired_course_rad, float radius)
 {
   wp_a = a;
   radius = fabs(radius);
@@ -55,8 +55,8 @@ bool_t snav_init(uint8_t a, float desired_course_rad, float radius)
   float da_y = WaypointY(wp_a) - stateGetPositionEnu_f()->y;
 
   /* D_CD orthogonal to current course, CD on the side of A */
-  float u_x = cos(M_PI_2 - (*stateGetHorizontalSpeedDir_f()));
-  float u_y = sin(M_PI_2 - (*stateGetHorizontalSpeedDir_f()));
+  float u_x = cos(M_PI_2 - stateGetHorizontalSpeedDir_f());
+  float u_y = sin(M_PI_2 - stateGetHorizontalSpeedDir_f());
   d_radius = - Sign(u_x * da_y - u_y * da_x) * radius;
   wp_cd.x = stateGetPositionEnu_f()->x + d_radius * u_y;
   wp_cd.y = stateGetPositionEnu_f()->y - d_radius * u_x;
@@ -114,11 +114,11 @@ bool_t snav_init(uint8_t a, float desired_course_rad, float radius)
   wp_ta.a = wp_ca.a;
   ground_speed_timer = 0;
 
-  return FALSE;
+  return false;
 }
 
 
-bool_t snav_circle1(void)
+bool snav_circle1(void)
 {
   /* circle around CD until QDR_TD */
   NavVerticalAutoThrottleMode(0); /* No pitch */
@@ -127,7 +127,7 @@ bool_t snav_circle1(void)
   return (! NavQdrCloseTo(DegOfRad(qdr_td)));
 }
 
-bool_t snav_route(void)
+bool snav_route(void)
 {
   /* Straight route from TD to TA */
   NavVerticalAutoThrottleMode(0); /* No pitch */
@@ -137,7 +137,7 @@ bool_t snav_route(void)
   return (! nav_approaching_xy(wp_ta.x, wp_ta.y, wp_td.x, wp_td.y, CARROT));
 }
 
-bool_t snav_circle2(void)
+bool snav_circle2(void)
 {
   /* circle around CA until QDR_A */
   NavVerticalAutoThrottleMode(0); /* No pitch */
@@ -158,25 +158,29 @@ static inline float ground_speed_of_course(float x)
 }
 
 /* Compute the ground speed for courses 0, 360/NB_ANGLES, ...
-   (NB_ANGLES-1)360/NB_ANGLES */
-static void compute_ground_speed(float airspeed,
-                                 float wind_x,
-                                 float wind_y)
+   (NB_ANGLES-1)360/NB_ANGLES. Return false if wind speed
+   is greater than airspeed */
+static bool compute_ground_speed(float airspeed,
+                                 float wind_east,
+                                 float wind_north)
 {
   uint8_t i;
   float alpha = 0;
-  float c = wind_x * wind_x + wind_y * wind_y - airspeed * airspeed;
+  float c = wind_north * wind_north + wind_east * wind_east - airspeed * airspeed;
   for (i = 0; i < NB_ANGLES; i++, alpha += ANGLE_STEP) {
     /* g^2 -2 scal g + c = 0 */
-    float scal = wind_x * cos(alpha) + wind_y * sin(alpha);
+    float scal = wind_east * cos(alpha) + wind_north * sin(alpha);
     float delta = 4 * (scal * scal - c);
+    if (delta < 0)
+      return false;
     ground_speeds[i] = scal + sqrt(delta) / 2.;
     Bound(ground_speeds[i], NOMINAL_AIRSPEED / 4, 2 * NOMINAL_AIRSPEED);
   }
+  return true;
 }
 
-/* Adjusting a circle around CA, tangent in A, to end at snav_desired_tow */
-bool_t snav_on_time(float nominal_radius)
+/* Adjusting a circle around CA, tangent in A, to end at snav_desired_tow */
+bool snav_on_time(float nominal_radius)
 {
   nominal_radius = fabs(nominal_radius);
 
@@ -185,7 +189,7 @@ bool_t snav_on_time(float nominal_radius)
   float remaining_time = snav_desired_tow - gps.tow / 1000.;
 
   /* Use the nominal airspeed if the estimated one is not realistic */
-  float airspeed = *stateGetAirspeed_f();
+  float airspeed = stateGetAirspeed_f();
   if (airspeed < NOMINAL_AIRSPEED / 2. ||
       airspeed > 2.* NOMINAL_AIRSPEED) {
     airspeed = NOMINAL_AIRSPEED;
@@ -194,8 +198,10 @@ bool_t snav_on_time(float nominal_radius)
   /* Recompute ground speeds every 10 s */
   if (ground_speed_timer == 0) {
     ground_speed_timer = 40; /* every 10s, called at 40Hz */
-    compute_ground_speed(airspeed, stateGetHorizontalWindspeed_f()->y,
-                         stateGetHorizontalWindspeed_f()->x); // Wind in NED frame
+    if (!compute_ground_speed(airspeed, stateGetHorizontalWindspeed_f()->y,
+                              stateGetHorizontalWindspeed_f()->x)) { // Wind in NED frame
+      return false; /* return false if the computation of ground speeds fails */
+    }
   }
   ground_speed_timer--;
 

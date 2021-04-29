@@ -36,6 +36,7 @@ extern "C" {
 #endif
 
 #include "pprz_algebra.h"
+#include "message_pragmas.h"
 
 #include <math.h>
 #include <float.h> // for FLT_MIN
@@ -99,6 +100,20 @@ struct FloatRates {
     while (_a >  M_PI) _a -= (2.*M_PI);             \
     while (_a < -M_PI) _a += (2.*M_PI);             \
   }
+
+/*
+ * Returns the real part of the log of v in base of n
+ */
+static inline float float_log_n(float v, float n)
+{
+  if (fabsf(v) < 1e-4) { // avoid inf
+    return - 1.0E+30;
+  }
+  if (fabsf(n) < 1e-4) { // avoid nan
+    return 0;
+  }
+  return logf(fabsf(v)) / logf(n);
+}
 
 //
 //
@@ -196,9 +211,9 @@ extern void float_rates_of_euler_dot(struct FloatRates *r, struct FloatEulers *e
                                      struct FloatEulers *edot);
 
 /* defines for backwards compatibility */
-#define FLOAT_VECT3_INTEGRATE_FI(_vo, _dv, _dt) float_vect3_integrate_fi(&(_vo), &(_dv), _dt)
-#define FLOAT_RATES_INTEGRATE_FI(_ra, _racc, _dt) float_rates_integrate_fi(&(_ra), &(_racc), _dt)
-#define FLOAT_RATES_OF_EULER_DOT(_ra, _e, _ed) float_rates_of_euler_dot(&(_ra), &(_e), &(_ed))
+#define FLOAT_VECT3_INTEGRATE_FI(_vo, _dv, _dt) WARNING("FLOAT_VECT3_INTEGRATE_FI macro is deprecated, use the lower case function instead") float_vect3_integrate_fi(&(_vo), &(_dv), _dt)
+#define FLOAT_RATES_INTEGRATE_FI(_ra, _racc, _dt) WARNING("FLOAT_RATES_INTEGRATE_FI macro is deprecated, use the lower case function instead") float_rates_integrate_fi(&(_ra), &(_racc), _dt)
+#define FLOAT_RATES_OF_EULER_DOT(_ra, _e, _ed)  WARNING("FLOAT_RATES_OF_EULER_DOT macro is deprecated, use the lower case function instead") float_rates_of_euler_dot(&(_ra), &(_e), &(_ed))
 
 
 /*
@@ -274,6 +289,18 @@ extern void float_rmat_vmult(struct FloatVect3 *vb, struct FloatRMat *m_a2b,
 extern void float_rmat_transp_vmult(struct FloatVect3 *vb, struct FloatRMat *m_b2a,
                                     struct FloatVect3 *va);
 
+/** rotate angle by rotation matrix.
+ * rb = m_a2b * ra
+ */
+extern void float_rmat_mult(struct FloatEulers *rb, struct FloatRMat *m_a2b,
+                            struct FloatEulers *ra);
+
+/** rotate angle by transposed rotation matrix.
+ * rb = m_b2a^T * ra
+ */
+extern void float_rmat_transp_mult(struct FloatEulers *rb, struct FloatRMat *m_b2a,
+                                   struct FloatEulers *ra);
+
 /** rotate anglular rates by rotation matrix.
  * rb = m_a2b * ra
  */
@@ -311,20 +338,20 @@ extern void float_rmat_integrate_fi(struct FloatRMat *rm, struct FloatRates *ome
 extern float float_rmat_reorthogonalize(struct FloatRMat *rm);
 
 /* defines for backwards compatibility */
-#define FLOAT_RMAT_INV(_m_b2a, _m_a2b) float_rmat_inv(&(_m_b2a), &(_m_a2b))
-#define FLOAT_RMAT_NORM(_m) float_rmat_norm(&(_m))
-#define FLOAT_RMAT_COMP(_m_a2c, _m_a2b, _m_b2c) float_rmat_comp(&(_m_a2c), &(_m_a2b), &(_m_b2c))
-#define FLOAT_RMAT_COMP_INV(_m_a2b, _m_a2c, _m_b2c) float_rmat_comp_inv(&(_m_a2b), &(_m_a2c), &(_m_b2c))
-#define FLOAT_RMAT_VMULT(_vb, _m_a2b, _va) float_rmat_vmult(&(_vb), &(_m_a2b), &(_va))
-#define FLOAT_RMAT_TRANSP_VMULT(_vb, _m_b2a, _va) float_rmat_transp_vmult(&(_vb), &(_m_b2a), &(_va))
-#define FLOAT_RMAT_RATEMULT(_rb, _m_a2b, _ra) float_rmat_ratemult(&(_rb), &(_m_a2b), &(_ra))
-#define FLOAT_RMAT_TRANSP_RATEMULT(_rb, _m_b2a, _ra) float_rmat_ratemult(&(_rb), &(_m_b2a), &(_ra))
-#define FLOAT_RMAT_OF_AXIS_ANGLE(_rm, _uv, _an) float_rmat_of_axis_angle(&(_rm), &(_uv), _an)
-#define FLOAT_RMAT_OF_EULERS(_rm, _e)     float_rmat_of_eulers_321(&(_rm), &(_e))
-#define FLOAT_RMAT_OF_EULERS_321(_rm, _e) float_rmat_of_eulers_321(&(_rm), &(_e))
-#define FLOAT_RMAT_OF_EULERS_312(_rm, _e) float_rmat_of_eulers_312(&(_rm), &(_e))
-#define FLOAT_RMAT_OF_QUAT(_rm, _q)       float_rmat_of_quat(&(_rm), &(_q))
-#define FLOAT_RMAT_INTEGRATE_FI(_rm, _omega, _dt) float_rmat_integrate_fi(&(_rm), &(_omega), &(_dt))
+#define FLOAT_RMAT_INV(_m_b2a, _m_a2b) WARNING("FLOAT_RMAT_INV macro is deprecated, use the lower case function instead") float_rmat_inv(&(_m_b2a), &(_m_a2b))
+#define FLOAT_RMAT_NORM(_m) WARNING("FLOAT_RMAT_NORM macro is deprecated, use the lower case function instead") float_rmat_norm(&(_m))
+#define FLOAT_RMAT_COMP(_m_a2c, _m_a2b, _m_b2c) WARNING("FLOAT_RMAT_COMP macro is deprecated, use the lower case function instead") float_rmat_comp(&(_m_a2c), &(_m_a2b), &(_m_b2c))
+#define FLOAT_RMAT_COMP_INV(_m_a2b, _m_a2c, _m_b2c) WARNING("FLOAT_RMAT_COMP_INV macro is deprecated, use the lower case function instead") float_rmat_comp_inv(&(_m_a2b), &(_m_a2c), &(_m_b2c))
+#define FLOAT_RMAT_VMULT(_vb, _m_a2b, _va) WARNING("FLOAT_RMAT_VMULT macro is deprecated, use the lower case function instead") float_rmat_vmult(&(_vb), &(_m_a2b), &(_va))
+#define FLOAT_RMAT_TRANSP_VMULT(_vb, _m_b2a, _va) WARNING("FLOAT_RMAT_TRANSP_VMULT macro is deprecated, use the lower case function instead") float_rmat_transp_vmult(&(_vb), &(_m_b2a), &(_va))
+#define FLOAT_RMAT_RATEMULT(_rb, _m_a2b, _ra) WARNING("FLOAT_RMAT_RATEMULT macro is deprecated, use the lower case function instead") float_rmat_ratemult(&(_rb), &(_m_a2b), &(_ra))
+#define FLOAT_RMAT_TRANSP_RATEMULT(_rb, _m_b2a, _ra) WARNING("FLOAT_RMAT_TRANSP_RATEMULT macro is deprecated, use the lower case function instead") float_rmat_ratemult(&(_rb), &(_m_b2a), &(_ra))
+#define FLOAT_RMAT_OF_AXIS_ANGLE(_rm, _uv, _an) WARNING("FLOAT_RMAT_OF_AXIS_ANGLE macro is deprecated, use the lower case function instead") float_rmat_of_axis_angle(&(_rm), &(_uv), _an)
+#define FLOAT_RMAT_OF_EULERS(_rm, _e)     WARNING("FLOAT_RMAT_OF_EULERS macro is deprecated, use the lower case function instead") float_rmat_of_eulers_321(&(_rm), &(_e))
+#define FLOAT_RMAT_OF_EULERS_321(_rm, _e) WARNING("FLOAT_RMAT_OF_EULERS_321 macro is deprecated, use the lower case function instead") float_rmat_of_eulers_321(&(_rm), &(_e))
+#define FLOAT_RMAT_OF_EULERS_312(_rm, _e) WARNING("FLOAT_RMAT_OF_EULERS_312 macro is deprecated, use the lower case function instead") float_rmat_of_eulers_312(&(_rm), &(_e))
+#define FLOAT_RMAT_OF_QUAT(_rm, _q)       WARNING("FLOAT_RMAT_OF_QUAT macro is deprecated, use the lower case function instead") float_rmat_of_quat(&(_rm), &(_q))
+#define FLOAT_RMAT_INTEGRATE_FI(_rm, _omega, _dt) WARNING("FLOAT_RMAT_INTEGRATE_FI macro is deprecated, use the lower case function instead") float_rmat_integrate_fi(&(_rm), &(_omega), &(_dt))
 
 
 
@@ -437,8 +464,13 @@ extern void float_quat_vmult(struct FloatVect3 *v_out, struct FloatQuat *q, cons
 
 /// Quaternion from Euler angles.
 extern void float_quat_of_eulers(struct FloatQuat *q, struct FloatEulers *e);
+extern void float_quat_of_eulers_zxy(struct FloatQuat *q, struct FloatEulers *e);
+extern void float_quat_of_eulers_yxz(struct FloatQuat *q, struct FloatEulers *e);
 
-/// Quaternion from unit vector and angle.
+/** Quaternion from unit vector and angle.
+ * Output quaternion is not normalized.
+ * It will be a unit quaternion only if the input vector is also unitary.
+ */
 extern void float_quat_of_axis_angle(struct FloatQuat *q, const struct FloatVect3 *uv, float angle);
 
 /** Quaternion from orientation vector.
@@ -451,27 +483,27 @@ extern void float_quat_of_rmat(struct FloatQuat *q, struct FloatRMat *rm);
 
 
 /* defines for backwards compatibility */
-#define FLOAT_QUAT_ZERO(_q) float_quat_identity(&(_q))
-#define FLOAT_QUAT_INVERT(_qo, _qi) float_quat_invert(&(_qo), &(_qi))
-#define FLOAT_QUAT_WRAP_SHORTEST(_q) float_quat_wrap_shortest(&(_q))
-#define FLOAT_QUAT_NORM(_q) float_quat_norm(&(_q))
-#define FLOAT_QUAT_NORMALIZE(_q) float_quat_normalize(&(_q))
-#define FLOAT_QUAT_COMP(_a2c, _a2b, _b2c) float_quat_comp(&(_a2c), &(_a2b), &(_b2c))
-#define FLOAT_QUAT_MULT(_a2c, _a2b, _b2c) float_quat_comp(&(_a2c), &(_a2b), &(_b2c))
-#define FLOAT_QUAT_INV_COMP(_b2c, _a2b, _a2c) float_quat_inv_comp(&(_b2c), &(_a2b), &(_a2c))
-#define FLOAT_QUAT_COMP_INV(_a2b, _a2c, _b2c) float_quat_comp_inv(&(_a2b), &(_a2c), &(_b2c))
-#define FLOAT_QUAT_COMP_NORM_SHORTEST(_a2c, _a2b, _b2c) float_quat_comp_norm_shortest(&(_a2c), &(_a2b), &(_b2c))
-#define FLOAT_QUAT_COMP_INV_NORM_SHORTEST(_a2b, _a2c, _b2c) float_quat_comp_inv_norm_shortest(&(_a2b), &(_a2c), &(_b2c))
-#define FLOAT_QUAT_INV_COMP_NORM_SHORTEST(_b2c, _a2b, _a2c) float_quat_inv_comp_norm_shortest(&(_b2c), &(_a2b), &(_a2c))
-#define FLOAT_QUAT_DIFFERENTIAL(q_out, w, dt) float_quat_differential(&(q_out), &(w), dt)
-#define FLOAT_QUAT_INTEGRATE(_q, _omega, _dt) float_quat_integrate(&(_q), &(_omega), _dt)
-#define FLOAT_QUAT_VMULT(v_out, q, v_in) float_quat_vmult(&(v_out), &(q), &(v_in))
-#define FLOAT_QUAT_DERIVATIVE(_qd, _r, _q) float_quat_derivative(&(_qd), &(_r), &(_q))
-#define FLOAT_QUAT_DERIVATIVE_LAGRANGE(_qd, _r, _q) float_quat_derivative_lagrange(&(_qd), &(_r), &(_q))
-#define FLOAT_QUAT_OF_EULERS(_q, _e) float_quat_of_eulers(&(_q), &(_e))
-#define FLOAT_QUAT_OF_AXIS_ANGLE(_q, _uv, _an) float_quat_of_axis_angle(&(_q), &(_uv), _an)
-#define FLOAT_QUAT_OF_ORIENTATION_VECT(_q, _ov) float_quat_of_orientation_vect(&(_q), &(_ov))
-#define FLOAT_QUAT_OF_RMAT(_q, _r) float_quat_of_rmat(&(_q), &(_r))
+#define FLOAT_QUAT_ZERO(_q) WARNING("FLOAT_QUAT_ZERO macro is deprecated, use the lower case function instead") float_quat_identity(&(_q))
+#define FLOAT_QUAT_INVERT(_qo, _qi) WARNING("FLOAT_QUAT_INVERT macro is deprecated, use the lower case function instead") float_quat_invert(&(_qo), &(_qi))
+#define FLOAT_QUAT_WRAP_SHORTEST(_q) WARNING("FLOAT_QUAT_WRAP_SHORTEST macro is deprecated, use the lower case function instead") float_quat_wrap_shortest(&(_q))
+#define FLOAT_QUAT_NORM(_q) WARNING("FLOAT_QUAT_NORM macro is deprecated, use the lower case function instead") float_quat_norm(&(_q))
+#define FLOAT_QUAT_NORMALIZE(_q) WARNING("FLOAT_QUAT_NORMALIZE macro is deprecated, use the lower case function instead") float_quat_normalize(&(_q))
+#define FLOAT_QUAT_COMP(_a2c, _a2b, _b2c) WARNING("FLOAT_QUAT_COMP macro is deprecated, use the lower case function instead") float_quat_comp(&(_a2c), &(_a2b), &(_b2c))
+#define FLOAT_QUAT_MULT(_a2c, _a2b, _b2c) WARNING("FLOAT_QUAT_MULT macro is deprecated, use the lower case function instead") float_quat_comp(&(_a2c), &(_a2b), &(_b2c))
+#define FLOAT_QUAT_INV_COMP(_b2c, _a2b, _a2c) WARNING("FLOAT_QUAT_INV_COMP macro is deprecated, use the lower case function instead") float_quat_inv_comp(&(_b2c), &(_a2b), &(_a2c))
+#define FLOAT_QUAT_COMP_INV(_a2b, _a2c, _b2c) WARNING("FLOAT_QUAT_COMP_INV macro is deprecated, use the lower case function instead") float_quat_comp_inv(&(_a2b), &(_a2c), &(_b2c))
+#define FLOAT_QUAT_COMP_NORM_SHORTEST(_a2c, _a2b, _b2c) WARNING("FLOAT_QUAT_COMP_NORM_SHORTEST macro is deprecated, use the lower case function instead") float_quat_comp_norm_shortest(&(_a2c), &(_a2b), &(_b2c))
+#define FLOAT_QUAT_COMP_INV_NORM_SHORTEST(_a2b, _a2c, _b2c) WARNING("FLOAT_QUAT_COMP_INV_NORM_SHORTEST macro is deprecated, use the lower case function instead") float_quat_comp_inv_norm_shortest(&(_a2b), &(_a2c), &(_b2c))
+#define FLOAT_QUAT_INV_COMP_NORM_SHORTEST(_b2c, _a2b, _a2c) WARNING("FLOAT_QUAT_INV_COMP_NORM_SHORTEST macro is deprecated, use the lower case function instead") float_quat_inv_comp_norm_shortest(&(_b2c), &(_a2b), &(_a2c))
+#define FLOAT_QUAT_DIFFERENTIAL(q_out, w, dt) WARNING("FLOAT_QUAT_DIFFERENTIAL macro is deprecated, use the lower case function instead") float_quat_differential(&(q_out), &(w), dt)
+#define FLOAT_QUAT_INTEGRATE(_q, _omega, _dt) WARNING("FLOAT_QUAT_INTEGRATE macro is deprecated, use the lower case function instead") float_quat_integrate(&(_q), &(_omega), _dt)
+#define FLOAT_QUAT_VMULT(v_out, q, v_in) WARNING("FLOAT_QUAT_VMULT macro is deprecated, use the lower case function instead") float_quat_vmult(&(v_out), &(q), &(v_in))
+#define FLOAT_QUAT_DERIVATIVE(_qd, _r, _q) WARNING("FLOAT_QUAT_DERIVATIVE macro is deprecated, use the lower case function instead") float_quat_derivative(&(_qd), &(_r), &(_q))
+#define FLOAT_QUAT_DERIVATIVE_LAGRANGE(_qd, _r, _q) WARNING("FLOAT_QUAT_DERIVATIVE_LAGRANGE macro is deprecated, use the lower case function instead") float_quat_derivative_lagrange(&(_qd), &(_r), &(_q))
+#define FLOAT_QUAT_OF_EULERS(_q, _e) WARNING("FLOAT_QUAT_OF_EULERS macro is deprecated, use the lower case function instead") float_quat_of_eulers(&(_q), &(_e))
+#define FLOAT_QUAT_OF_AXIS_ANGLE(_q, _uv, _an) WARNING("FLOAT_QUAT_OF_AXIS_ANGLE macro is deprecated, use the lower case function instead") float_quat_of_axis_angle(&(_q), &(_uv), _an)
+#define FLOAT_QUAT_OF_ORIENTATION_VECT(_q, _ov) WARNING("FLOAT_QUAT_OF_ORIENTATION_VECT macro is deprecated, use the lower case function instead") float_quat_of_orientation_vect(&(_q), &(_ov))
+#define FLOAT_QUAT_OF_RMAT(_q, _r) WARNING("FLOAT_QUAT_OF_RMAT macro is deprecated, use the lower case function instead") float_quat_of_rmat(&(_q), &(_r))
 
 
 
@@ -489,11 +521,13 @@ static inline float float_eulers_norm(struct FloatEulers *e)
 }
 extern void float_eulers_of_rmat(struct FloatEulers *e, struct FloatRMat *rm);
 extern void float_eulers_of_quat(struct FloatEulers *e, struct FloatQuat *q);
+extern void float_eulers_of_quat_zxy(struct FloatEulers *e, struct FloatQuat *q);
+extern void float_eulers_of_quat_yxz(struct FloatEulers *e, struct FloatQuat *q);
 
 /* defines for backwards compatibility */
-#define FLOAT_EULERS_OF_RMAT(_e, _rm) float_eulers_of_rmat(&(_e), &(_rm))
-#define FLOAT_EULERS_OF_QUAT(_e, _q) float_eulers_of_quat(&(_e), &(_q))
-#define FLOAT_EULERS_NORM(_e) float_eulers_norm(&(_e))
+#define FLOAT_EULERS_OF_RMAT(_e, _rm) WARNING("FLOAT_EULERS_OF_RMAT macro is deprecated, use the lower case function instead") float_eulers_of_rmat(&(_e), &(_rm))
+#define FLOAT_EULERS_OF_QUAT(_e, _q) WARNING("FLOAT_EULERS_OF_QUAT macro is deprecated, use the lower case function instead") float_eulers_of_quat(&(_e), &(_q))
+#define FLOAT_EULERS_NORM(_e) WARNING("FLOAT_EULERS_NORM macro is deprecated, use the lower case function instead") float_eulers_norm(&(_e))
 
 //
 //
@@ -575,6 +609,22 @@ static inline float float_vect_norm(const float *a, const int n)
   return sqrtf(sum);
 }
 
+/** a *= s */
+static inline void float_vect_scale(float *a, const float s, const int n)
+{
+  int i;
+  for (i = 0; i < n; i++) { a[i] *= s; }
+}
+
+/** a.b */
+static inline float float_vect_dot_product(const float *a, const float *b, const int n)
+{
+  int i;
+  float dot = 0.f;
+  for (i = 0; i < n; i++) { dot += a[i] * b[i]; }
+  return dot;
+}
+
 //
 //
 // Generic matrix algebra
@@ -585,9 +635,13 @@ static inline float float_vect_norm(const float *a, const int n)
 #define MAKE_MATRIX_PTR(_ptr, _mat, _rows) \
   float * _ptr[_rows]; \
   { \
-    int i; \
-    for (i = 0; i < _rows; i++) { _ptr[i] = &_mat[i][0]; } \
+    int __i; \
+    for (__i = 0; __i < _rows; __i++) { _ptr[__i] = &_mat[__i][0]; } \
   }
+
+extern void float_mat_invert(float **o, float **mat, int n);
+extern void float_mat_exp(float **a, float **o, int n);
+extern float float_mat_norm_li(float **o, int m, int n);
 
 /** a = 0 */
 static inline void float_mat_zero(float **a, int m, int n)
@@ -606,6 +660,8 @@ static inline void float_mat_copy(float **a, float **b, int m, int n)
     for (j = 0; j < n; j++) { a[i][j] = b[i][j]; }
   }
 }
+
+
 
 /** o = a + b */
 static inline void float_mat_sum(float **o, float **a, float **b, int m, int n)
@@ -626,7 +682,7 @@ static inline void float_mat_diff(float **o, float **a, float **b, int m, int n)
 }
 
 /** transpose square matrix */
-static inline void float_mat_transpose(float **a, int n)
+static inline void float_mat_transpose_square(float **a, int n)
 {
   int i, j;
   for (i = 0; i < n; i++) {
@@ -634,6 +690,18 @@ static inline void float_mat_transpose(float **a, int n)
       float t = a[i][j];
       a[i][j] = a[j][i];
       a[j][i] = t;
+    }
+  }
+}
+
+
+/** transpose non-square matrix */
+static inline void float_mat_transpose(float **o, float **a, int n, int m)
+{
+  int i, j;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < m; j++) {
+      o[j][i] = a[i][j];
     }
   }
 }
@@ -656,6 +724,84 @@ static inline void float_mat_mul(float **o, float **a, float **b, int m, int n, 
     }
   }
 }
+
+/** o = a * b
+ *
+ * a: [m x n]
+ * b: [n x l]
+ * o: [m x l]
+ *
+ * Multiply two matrices with eachother.
+ * By using a temporary array to store result. The resulting matrix can be stored in one
+ * of the input matrices when this function is used, which is useful for consecutive multiplications
+ * (e.g. when doing matrix exponentiation), at the cost of some copy overhead.
+ */
+static inline void float_mat_mul_copy(float **o, float **a, float **b, int m, int n, int l)
+{
+  float temp[m][l];
+  int i, j, k;
+  for (i = 0; i < m; i++) {
+    for (j = 0; j < l; j++) {
+      temp[i][j] = 0.;
+      for (k = 0; k < n; k++) {
+        temp[i][j] += a[i][k] * b[k][j];
+      }
+    }
+  }
+  MAKE_MATRIX_PTR(_o,  o,  m);
+  MAKE_MATRIX_PTR(_temp,  temp,  m);
+  float_mat_copy(_o, _temp, m, l);
+}
+
+
+/** o = a * b
+ *
+ * a: [m x n]
+ * b: [n x 1]
+ * o: [m x 1]
+ */
+static inline void float_mat_vect_mul(float *o, float **a, float *b, int m, int n)
+{
+  int i, j;
+  for (i = 0; i < m; i++) {
+    o[i] = 0;
+    for (j = 0; j < n; j++) {
+      o[i] += a[i][j] * b[j];
+    }
+  }
+}
+
+/** a *= k, where k is a scalar value
+ *
+ * a: [m x n]
+ * k: [1 x 1]
+ */
+static inline void float_mat_scale(float **a, float k, int m, int n)
+{
+  int i, j;
+  for (i = 0; i < m; i++) {
+    for (j = 0; j < n; j++) {
+      a[i][j] *= k;
+    }
+  }
+}
+
+/** a += k*b, where k is a scalar value
+ *
+ * a: [m x n]
+ * b: [m x n]
+ * k: [1 x 1]
+ */
+static inline void float_mat_sum_scaled(float **a, float **b, float k, int m, int n)
+{
+  int i, j;
+  for (i = 0; i < m; i++) {
+    for (j = 0; j < n; j++) {
+      a[i][j] += k * b[i][j];
+    }
+  }
+}
+
 
 /** matrix minor
  *
@@ -697,6 +843,28 @@ static inline void float_mat_col(float *o, float **a, int m, int c)
     o[i] = a[i][c];
   }
 }
+
+/** Make an n x n identity matrix (for matrix passed as array) */
+static inline void float_mat_diagonal_scal(float **o, float v, int n)
+{
+  int i, j;
+  for (i = 0 ; i < n; i++) {
+    for (j = 0 ; j < n; j++) {
+      if (i == j) {
+        o[i][j] = v;
+      } else {
+        o[i][j] = 0.0;
+      }
+    }
+  }
+}
+
+extern bool float_mat_inv_2d(float inv_out[4], float mat_in[4]);
+extern void float_mat2_mult(struct FloatVect2 *vect_out, float mat[4], struct FloatVect2 vect_in);
+extern bool float_mat_inv_4d(float invOut[16], float mat_in[16]);
+
+extern void vect_bound_in_2d(struct FloatVect3 *vect3, float bound);
+extern void vect_scale(struct FloatVect3 *vect3, float norm_des);
 
 #ifdef __cplusplus
 } /* extern "C" */

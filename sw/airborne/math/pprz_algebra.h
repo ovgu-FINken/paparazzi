@@ -42,7 +42,8 @@ extern "C" {
 
 #include <float.h>  /* for FLT_EPSILON */
 #include <string.h> /* for memcpy      */
-#include "std.h" /* for ABS */
+#include "std.h"  /* for ABS */
+#include "math.h" /* for log and fabs */
 
 #define SQUARE(_a) ((_a)*(_a))
 
@@ -229,8 +230,8 @@ extern "C" {
 /*  */
 #define VECT3_BOUND_BOX(_v, _v_min, _v_max) {       \
     if ((_v).x > (_v_max).x) (_v).x = (_v_max).x; else if ((_v).x < (_v_min).x) (_v).x = (_v_min).x; \
-    if ((_v).y > (_v_max).y) (_v).y = (_v_max).y; else if ((_v).y < (_v_min).y) (_v).y = (_v_min).z; \
-    if ((_v).z > (_v_max).y) (_v).z = (_v_max).z; else if ((_v).z < (_v_min).z) (_v).z = (_v_min).z; \
+    if ((_v).y > (_v_max).y) (_v).y = (_v_max).y; else if ((_v).y < (_v_min).y) (_v).y = (_v_min).y; \
+    if ((_v).z > (_v_max).z) (_v).z = (_v_max).z; else if ((_v).z < (_v_min).z) (_v).z = (_v_min).z; \
   }
 
 /*  */
@@ -409,6 +410,12 @@ extern "C" {
     if ((_v).r > (_v_max).r) (_v).r = (_v_max).r; else if ((_v).r < (_v_min).r) (_v).r = (_v_min).r; \
   }
 
+#define RATES_BOUND_BOX_ABS(_v, _v_max) {       \
+    if ((_v).p > (_v_max).p) (_v).p = (_v_max).p; else if ((_v).p < -(_v_max).p) (_v).p = -(_v_max).p; \
+    if ((_v).q > (_v_max).q) (_v).q = (_v_max).q; else if ((_v).q < -(_v_max).q) (_v).q = -(_v_max).q; \
+    if ((_v).r > (_v_max).r) (_v).r = (_v_max).r; else if ((_v).r < -(_v_max).r) (_v).r = -(_v_max).r; \
+  }
+
 #define RATES_ADD_SCALED_VECT(_ro, _v, _s) {    \
     (_ro).p += (_v).x * (_s);                   \
     (_ro).q += (_v).y * (_s);                   \
@@ -440,6 +447,17 @@ extern "C" {
     MAT33_ELMT((_mat1),2,2) = MAT33_ELMT((_mat2),2,2);  \
   }
 
+#define MAT33_MULT_SCALAR(_mat1,_scalar) {     \
+    MAT33_ELMT((_mat1),0,0) = MAT33_ELMT((_mat1),0,0)*_scalar;  \
+    MAT33_ELMT((_mat1),0,1) = MAT33_ELMT((_mat1),0,1)*_scalar;  \
+    MAT33_ELMT((_mat1),0,2) = MAT33_ELMT((_mat1),0,2)*_scalar;  \
+    MAT33_ELMT((_mat1),1,0) = MAT33_ELMT((_mat1),1,0)*_scalar;  \
+    MAT33_ELMT((_mat1),1,1) = MAT33_ELMT((_mat1),1,1)*_scalar;  \
+    MAT33_ELMT((_mat1),1,2) = MAT33_ELMT((_mat1),1,2)*_scalar;  \
+    MAT33_ELMT((_mat1),2,0) = MAT33_ELMT((_mat1),2,0)*_scalar;  \
+    MAT33_ELMT((_mat1),2,1) = MAT33_ELMT((_mat1),2,1)*_scalar;  \
+    MAT33_ELMT((_mat1),2,2) = MAT33_ELMT((_mat1),2,2)*_scalar;  \
+  }
 
 /* multiply _vin by _mat, store in _vout */
 #define MAT33_VECT3_MUL(_vout, _mat, _vin) {    \
@@ -499,6 +517,58 @@ extern "C" {
     MAT33_ELMT((_mat), _row, 2) = (_vin).z * (_s);           \
   }
 
+/* outer product of _v_a and _v_b, resulting in a 3x3 matrix */
+#define VECT3_VECT3_TRANS_MUL(_mat, _v_a, _v_b) { \
+    MAT33_ELMT((_mat),0,0) = (_v_a).x*(_v_b).x;   \
+    MAT33_ELMT((_mat),0,1) = (_v_a).x*(_v_b).y;   \
+    MAT33_ELMT((_mat),0,2) = (_v_a).x*(_v_b).z;   \
+    MAT33_ELMT((_mat),1,0) = (_v_a).y*(_v_b).x;   \
+    MAT33_ELMT((_mat),1,1) = (_v_a).y*(_v_b).y;   \
+    MAT33_ELMT((_mat),1,2) = (_v_a).y*(_v_b).z;   \
+    MAT33_ELMT((_mat),2,0) = (_v_a).z*(_v_b).x;   \
+    MAT33_ELMT((_mat),2,1) = (_v_a).z*(_v_b).y;   \
+    MAT33_ELMT((_mat),2,2) = (_v_a).z*(_v_b).z;   \
+  }
+
+/* elementwise subtraction of two 3x3 matrices */
+#define MAT33_MAT33_DIFF(_mat1, _mat2, _mat3) {                                 \
+    MAT33_ELMT((_mat1),0,0) = MAT33_ELMT((_mat2),0,0)-MAT33_ELMT((_mat3),0,0);  \
+    MAT33_ELMT((_mat1),0,1) = MAT33_ELMT((_mat2),0,1)-MAT33_ELMT((_mat3),0,1);  \
+    MAT33_ELMT((_mat1),0,2) = MAT33_ELMT((_mat2),0,2)-MAT33_ELMT((_mat3),0,2);  \
+    MAT33_ELMT((_mat1),1,0) = MAT33_ELMT((_mat2),1,0)-MAT33_ELMT((_mat3),1,0);  \
+    MAT33_ELMT((_mat1),1,1) = MAT33_ELMT((_mat2),1,1)-MAT33_ELMT((_mat3),1,1);  \
+    MAT33_ELMT((_mat1),1,2) = MAT33_ELMT((_mat2),1,2)-MAT33_ELMT((_mat3),1,2);  \
+    MAT33_ELMT((_mat1),2,0) = MAT33_ELMT((_mat2),2,0)-MAT33_ELMT((_mat3),2,0);  \
+    MAT33_ELMT((_mat1),2,1) = MAT33_ELMT((_mat2),2,1)-MAT33_ELMT((_mat3),2,1);  \
+    MAT33_ELMT((_mat1),2,2) = MAT33_ELMT((_mat2),2,2)-MAT33_ELMT((_mat3),2,2);  \
+  }
+
+/* elementwise addition of two 3x3 matrices */
+#define MAT33_MAT33_SUM(_mat1, _mat2, _mat3) {                                  \
+    MAT33_ELMT((_mat1),0,0) = MAT33_ELMT((_mat2),0,0)+MAT33_ELMT((_mat3),0,0);  \
+    MAT33_ELMT((_mat1),0,1) = MAT33_ELMT((_mat2),0,1)+MAT33_ELMT((_mat3),0,1);  \
+    MAT33_ELMT((_mat1),0,2) = MAT33_ELMT((_mat2),0,2)+MAT33_ELMT((_mat3),0,2);  \
+    MAT33_ELMT((_mat1),1,0) = MAT33_ELMT((_mat2),1,0)+MAT33_ELMT((_mat3),1,0);  \
+    MAT33_ELMT((_mat1),1,1) = MAT33_ELMT((_mat2),1,1)+MAT33_ELMT((_mat3),1,1);  \
+    MAT33_ELMT((_mat1),1,2) = MAT33_ELMT((_mat2),1,2)+MAT33_ELMT((_mat3),1,2);  \
+    MAT33_ELMT((_mat1),2,0) = MAT33_ELMT((_mat2),2,0)+MAT33_ELMT((_mat3),2,0);  \
+    MAT33_ELMT((_mat1),2,1) = MAT33_ELMT((_mat2),2,1)+MAT33_ELMT((_mat3),2,1);  \
+    MAT33_ELMT((_mat1),2,2) = MAT33_ELMT((_mat2),2,2)+MAT33_ELMT((_mat3),2,2);  \
+  }
+
+/* transpose of a 3x3 matrix */
+#define MAT33_TRANS(_mat1,_mat2) {                      \
+    MAT33_ELMT((_mat1),0,0) = MAT33_ELMT((_mat2),0,0);  \
+    MAT33_ELMT((_mat1),0,1) = MAT33_ELMT((_mat2),1,0);  \
+    MAT33_ELMT((_mat1),0,2) = MAT33_ELMT((_mat2),2,0);  \
+    MAT33_ELMT((_mat1),1,0) = MAT33_ELMT((_mat2),0,1);  \
+    MAT33_ELMT((_mat1),1,1) = MAT33_ELMT((_mat2),1,1);  \
+    MAT33_ELMT((_mat1),1,2) = MAT33_ELMT((_mat2),2,1);  \
+    MAT33_ELMT((_mat1),2,0) = MAT33_ELMT((_mat2),0,2);  \
+    MAT33_ELMT((_mat1),2,1) = MAT33_ELMT((_mat2),1,2);  \
+    MAT33_ELMT((_mat1),2,2) = MAT33_ELMT((_mat2),2,2);  \
+  }
+
 
 //
 //
@@ -514,7 +584,7 @@ extern "C" {
     (_q).qz = (_z);         \
   }
 
-/* _qc = _qa - _qc */
+/* _qc = _qa - _qb */
 #define QUAT_DIFF(_qc, _qa, _qb) {      \
     (_qc).qi = (_qa).qi - (_qb).qi;     \
     (_qc).qx = (_qa).qx - (_qb).qx;     \
@@ -575,6 +645,9 @@ extern "C" {
     (_qo).qy = (_qi).qy / (_s); \
     (_qo).qz = (_qi).qz / (_s); \
   }
+
+/* return = _qa * _qb */
+#define QUAT_DOT_PRODUCT(_qa, _qb) ((_qa).qi * (_qb).qi + (_qa).qx * (_qb).qx + (_qa).qy * (_qb).qy + (_qa).qz * (_qb).qz)
 
 //
 //

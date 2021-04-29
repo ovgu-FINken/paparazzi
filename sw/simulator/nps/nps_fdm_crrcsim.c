@@ -44,6 +44,7 @@
 #include "math/pprz_geodetic_float.h"
 #include "math/pprz_algebra.h"
 #include "math/pprz_algebra_float.h"
+#include "math/pprz_isa.h"
 
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
@@ -120,6 +121,11 @@ void nps_fdm_init(double dt)
   fdm.init_dt = dt;
   fdm.curr_dt = dt;
   fdm.nan_count = 0;
+  fdm.pressure = -1;
+  fdm.pressure_sl = PPRZ_ISA_SEA_LEVEL_PRESSURE;
+  fdm.total_pressure = -1;
+  fdm.dynamic_pressure = -1;
+  fdm.temperature = -1;
 
   init_ltp();
 
@@ -141,7 +147,7 @@ void nps_fdm_init(double dt)
   send_servo_cmd(&crrcsim, zero);
 }
 
-void nps_fdm_run_step(bool_t launch __attribute__((unused)), double *commands, int commands_nb)
+void nps_fdm_run_step(bool launch __attribute__((unused)), double *commands, int commands_nb)
 {
   // read state
   if (get_msg(&crrcsim, crrcsim.data_buffer) <= 0) {
@@ -385,6 +391,13 @@ static void decode_gpspacket(struct NpsFdm *fdm, byte *buffer)
   fdm->ltp_ecef_vel = vel;
   ecef_of_ned_vect_d(&fdm->ecef_ecef_vel, &ltpdef, &vel);
 
+  /* No airspeed from CRRCSIM?
+   * use ground speed for now, since we also don't know wind
+   */
+  struct DoubleVect3 ltp_airspeed;
+  VECT3_COPY(ltp_airspeed, vel);
+  fdm.airspeed = double_vect3_norm(&ltp_airspeed);
+
   /* gps position (1e7 deg to rad and 1e3 m to m) */
   struct LlaCoor_d pos;
   pos.lon = (double)LongOfBuf(buffer, 15) * 1.74533e-9;
@@ -398,6 +411,8 @@ static void decode_gpspacket(struct NpsFdm *fdm, byte *buffer)
   fdm->lla_pos = pos;
   ecef_of_lla_d(&fdm->ecef_pos, &pos);
   fdm->hmsl = pos.alt - NAV_MSL0 / 1000.;
+
+  fdm->pressure = pprz_isa_pressure_of_altitude(fdm->hmsl);
 
   /* gps time */
   fdm->time = (double)UShortOfBuf(buffer, 27);
@@ -428,7 +443,7 @@ static void decode_ahrspacket(struct NpsFdm *fdm, byte *buffer)
   fdm->ltp_to_body_eulers.phi = (double)ShortOfBuf(buffer, 1) * 0.000106526 - NPS_CRRCSIM_ROLL_NEUTRAL;
   fdm->ltp_to_body_eulers.theta = (double)ShortOfBuf(buffer, 3) * 0.000106526 - NPS_CRRCSIM_PITCH_NEUTRAL;
   fdm->ltp_to_body_eulers.psi = (double)ShortOfBuf(buffer, 5) * 0.000106526;
-  DOUBLE_QUAT_OF_EULERS(fdm->ltp_to_body_quat, fdm->ltp_to_body_eulers);
+  double_quat_of_eulers(&fdm->ltp_to_body_quat, &fdm->ltp_to_body_eulers);
 
 #if NPS_CRRCSIM_DEBUG
   printf("decode ahrs %f %f %f\n",

@@ -22,6 +22,7 @@
  *
  *)
 
+
 let default_background = "white"
 
 type gtkTreeViewDropPosition =
@@ -132,17 +133,17 @@ let encode_crs =
 
 let recode_crs = fun s ->
   let n = String.length s in
-  let s' = String.create n in
+  let s' = Bytes.create n in
   let i = ref 0 and j = ref 0 in
   while !i < n do
     if !i < n-1 && s.[!i] == '\\' && s.[!i+1] == 'n' then begin
-      s'.[!j] <- '\n';
+      Bytes.set s' (!j)  '\n';
       incr i
     end else
-      s'.[!j] <- s.[!i];
+      Bytes.set s' (!j) s.[!i];
     incr i; incr j
   done;
-  String.sub s' 0 !j
+  Bytes.to_string (Bytes.sub s' 0 !j)
 
 
 
@@ -351,21 +352,21 @@ let set_attribs = fun ((model, path):node) attribs ->
 let rec replace_assoc a v = function
 [] -> [(a, v)]
   | (a', v')::l ->
-    if a = String.uppercase a'
+    if a = Compat.uppercase_ascii a'
     then (a, v)::l
     else (a', v')::replace_assoc a v l
 
 let set_attrib = fun node (a, v) ->
   let atbs = attribs node in
-  set_attribs node (replace_assoc (String.uppercase a) v atbs)
+  set_attribs node (replace_assoc (Compat.uppercase_ascii a) v atbs)
 
 let attrib = fun node at ->
-  let at = String.uppercase at in
+  let at = Compat.uppercase_ascii at in
   let ats = attribs node in
   let rec loop = function
   [] -> raise Not_found
     | (a,v)::avs ->
-      if String.uppercase a = at then v else loop avs in
+      if Compat.uppercase_ascii a = at then v else loop avs in
   loop ats
 
 let tag = fun ((model, path):node) ->

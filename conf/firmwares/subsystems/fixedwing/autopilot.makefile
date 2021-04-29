@@ -26,7 +26,6 @@
 ## COMMON FIXEDWING ALL TARGETS (SIM + AP + FBW ...)
 ##
 
-
 #
 # Board config + Include paths
 #
@@ -46,8 +45,6 @@ ifeq ($(OPTIONS), minimal)
 else
   $(TARGET).CFLAGS 	+= -DWIND_INFO
 endif
-
-$(TARGET).CFLAGS 	+= -DTRAFFIC_INFO
 
 #
 # frequencies
@@ -86,7 +83,7 @@ $(TARGET).srcs 		+= $(SRC_FIXEDWING)/inter_mcu.c
 # Math functions
 #
 ifneq ($(TARGET),fbw)
-$(TARGET).srcs += math/pprz_geodetic_int.c math/pprz_geodetic_float.c math/pprz_geodetic_double.c math/pprz_trig_int.c math/pprz_orientation_conversion.c math/pprz_algebra_int.c math/pprz_algebra_float.c math/pprz_algebra_double.c
+$(TARGET).srcs += math/pprz_geodetic_int.c math/pprz_geodetic_float.c math/pprz_geodetic_double.c math/pprz_trig_int.c math/pprz_orientation_conversion.c math/pprz_algebra_int.c math/pprz_algebra_float.c math/pprz_algebra_double.c math/pprz_stat.c
 endif
 
 #
@@ -94,6 +91,7 @@ endif
 #
 ifneq ($(TARGET),fbw)
 $(TARGET).srcs += mcu_periph/i2c.c
+$(TARGET).srcs += mcu_periph/softi2c.c
 $(TARGET).srcs += $(SRC_ARCH)/mcu_periph/i2c_arch.c
 endif
 
@@ -113,13 +111,20 @@ ifeq ($(ARCH), stm32)
   ns_srcs       += $(SRC_ARCH)/mcu_periph/gpio_arch.c
 endif
 
+ifeq ($(ARCH), chibios)
+  ns_srcs       += $(SRC_ARCH)/mcu_periph/gpio_arch.c
+endif
+
+ifeq ($(ARCH), linux)
+  ns_srcs       += $(SRC_ARCH)/mcu_periph/gpio_arch.c
+endif
+
 
 #
 # Main
 #
-ifeq ($(RTOS), chibios-libopencm3)
- ns_srcs += $(SRC_FIRMWARE)/main_chibios_libopencm3.c
- ns_srcs += $(SRC_FIRMWARE)/chibios-libopencm3/chibios_init.c
+ifeq ($(RTOS), chibios)
+ ns_srcs += $(SRC_FIRMWARE)/main_chibios.c
 else
  ns_srcs += $(SRC_FIRMWARE)/main.c
 endif
@@ -132,7 +137,7 @@ ns_CFLAGS 		+= -DUSE_LED
 ifneq ($(SYS_TIME_LED),none)
   ns_CFLAGS 	+= -DSYS_TIME_LED=$(SYS_TIME_LED)
 endif
-ifneq ($(ARCH), lpc21)
+ifeq ($(ARCH), $(filter $(ARCH), stm32 sim))
   ns_srcs 	+= $(SRC_ARCH)/led_hw.c
 endif
 
@@ -142,6 +147,9 @@ endif
 #
 ns_srcs 		+= mcu_periph/uart.c
 ns_srcs 		+= $(SRC_ARCH)/mcu_periph/uart_arch.c
+ifeq ($(ARCH), linux)
+ns_srcs			+= $(SRC_ARCH)/serial_port.c
+endif
 
 
 #
@@ -168,7 +176,14 @@ fbw_srcs 		+= subsystems/actuators.c
 
 ap_CFLAGS 		+= -DAP
 ap_srcs 		+= $(SRC_FIRMWARE)/main_ap.c
-ap_srcs 		+= $(SRC_FIRMWARE)/autopilot.c
+ap_srcs 		+= autopilot.c
+ap_srcs 		+= $(SRC_FIRMWARE)/autopilot_firmware.c
+ifeq ($(USE_GENERATED_AUTOPILOT), TRUE)
+ap_srcs 		+= $(SRC_FIRMWARE)/autopilot_generated.c
+ap_CFLAGS 	+= -DUSE_GENERATED_AUTOPILOT=1
+else
+ap_srcs 		+= $(SRC_FIRMWARE)/autopilot_static.c
+endif
 ap_srcs 		+= state.c
 ap_srcs 		+= subsystems/settings.c
 ap_srcs 		+= $(SRC_ARCH)/subsystems/settings_arch.c
@@ -196,7 +211,7 @@ sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
 sim.CFLAGS 		+= -DDOWNLINK -DPERIODIC_TELEMETRY -DDOWNLINK_TRANSPORT=ivy_tp -DDOWNLINK_DEVICE=ivy_tp
-sim.srcs 		+= subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c subsystems/datalink/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
+sim.srcs 		+= subsystems/datalink/downlink.c subsystems/datalink/datalink.c $(SRC_FIRMWARE)/fixedwing_datalink.c pprzlink/src/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c
 
@@ -212,14 +227,11 @@ sim.srcs        += $(SRC_ARCH)/sim_ahrs.c $(SRC_ARCH)/sim_ir.c
 # SINGLE MCU / DUAL MCU
 #
 
-ifeq ($(BOARD),classix)
-  include $(CFG_FIXEDWING)/intermcu_spi.makefile
-else
-  # Single MCU's run both
-  ifeq ($(SEPARATE_FBW),)
-    ap.CFLAGS 		+= $(fbw_CFLAGS)
-    ap.srcs 		+= $(fbw_srcs)
-  endif
+
+# Single MCU's run both
+ifeq ($(SEPARATE_FBW),)
+  ap.CFLAGS 		+= $(fbw_CFLAGS)
+  ap.srcs 		+= $(fbw_srcs)
 endif
 
 #
@@ -231,3 +243,18 @@ fbw.srcs 		+= $(fbw_srcs) $(ns_srcs)
 
 ap.CFLAGS 		+= $(ap_CFLAGS) $(ns_CFLAGS)
 ap.srcs 		+= $(ap_srcs) $(ns_srcs)
+
+######################################################################
+##
+## include firmware independent nps makefile and add fixedwing specifics
+##
+ifneq ($(TARGET), hitl)
+  include $(CFG_SHARED)/nps.makefile
+else
+  include $(CFG_SHARED)/hitl.makefile
+endif
+nps.srcs += nps/nps_autopilot_fixedwing.c
+
+# add normal ap and fbw sources
+nps.CFLAGS  += $(fbw_CFLAGS) $(ap_CFLAGS)
+nps.srcs    += $(fbw_srcs) $(ap_srcs)

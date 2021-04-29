@@ -24,10 +24,38 @@
  *
  * MPU-9250 driver common functions (I2C and SPI).
  *
- * Still needs the either the I2C or SPI specific implementation.
+ * Still needs the either I2C or SPI specific implementation.
  */
 
 #include "peripherals/mpu9250.h"
+
+const float MPU9250_GYRO_SENS[4] = {
+  MPU9250_GYRO_SENS_250,
+  MPU9250_GYRO_SENS_500,
+  MPU9250_GYRO_SENS_1000,
+  MPU9250_GYRO_SENS_2000
+};
+
+const int32_t MPU9250_GYRO_SENS_FRAC[4][2] = {
+  { MPU9250_GYRO_SENS_250_NUM, MPU9250_GYRO_SENS_250_DEN },
+  { MPU9250_GYRO_SENS_500_NUM, MPU9250_GYRO_SENS_500_DEN },
+  { MPU9250_GYRO_SENS_1000_NUM, MPU9250_GYRO_SENS_1000_DEN },
+  { MPU9250_GYRO_SENS_2000_NUM, MPU9250_GYRO_SENS_2000_DEN }
+};
+
+const float MPU9250_ACCEL_SENS[4] = {
+  MPU9250_ACCEL_SENS_2G,
+  MPU9250_ACCEL_SENS_4G,
+  MPU9250_ACCEL_SENS_8G,
+  MPU9250_ACCEL_SENS_16G
+};
+
+const int32_t MPU9250_ACCEL_SENS_FRAC[4][2] = {
+  { MPU9250_ACCEL_SENS_2G_NUM, MPU9250_ACCEL_SENS_2G_DEN },
+  { MPU9250_ACCEL_SENS_4G_NUM, MPU9250_ACCEL_SENS_4G_DEN },
+  { MPU9250_ACCEL_SENS_8G_NUM, MPU9250_ACCEL_SENS_8G_DEN },
+  { MPU9250_ACCEL_SENS_16G_NUM, MPU9250_ACCEL_SENS_16G_DEN }
+};
 
 void mpu9250_set_default_config(struct Mpu9250Config *c)
 {
@@ -37,7 +65,7 @@ void mpu9250_set_default_config(struct Mpu9250Config *c)
   c->dlpf_accel_cfg = MPU9250_DEFAULT_DLPF_ACCEL_CFG;
   c->gyro_range = MPU9250_DEFAULT_FS_SEL;
   c->accel_range = MPU9250_DEFAULT_AFS_SEL;
-  c->drdy_int_enable = FALSE;
+  c->drdy_int_enable = false;
 
   /* Number of bytes to read starting with MPU9250_REG_INT_STATUS
    * By default read only gyro and accel data -> 15 bytes.
@@ -45,8 +73,9 @@ void mpu9250_set_default_config(struct Mpu9250Config *c)
    */
   c->nb_bytes = 15;
   c->nb_slaves = 0;
+  c->nb_slave_init = 0;
 
-  c->i2c_bypass = FALSE;
+  c->i2c_bypass = false;
 }
 
 void mpu9250_send_config(Mpu9250ConfigSet mpu_set, void *mpu, struct Mpu9250Config *config)
@@ -111,7 +140,7 @@ void mpu9250_send_config(Mpu9250ConfigSet mpu_set, void *mpu, struct Mpu9250Conf
       config->init_status++;
       break;
     case MPU9250_CONF_DONE:
-      config->initialized = TRUE;
+      config->initialized = true;
       break;
     default:
       break;

@@ -13,7 +13,6 @@
 #include "inter_mcu.h"
 #include "autopilot.h"
 #include "subsystems/gps.h"
-#include "subsystems/navigation/traffic_info.h"
 #include "generated/settings.h"
 #include "firmwares/fixedwing/nav.h"
 #include "firmwares/fixedwing/stabilization/stabilization_attitude.h"
@@ -35,14 +34,16 @@
 uint8_t ir_estim_mode;
 uint8_t vertical_mode;
 uint8_t inflight_calib_mode;
-bool_t rc_event_1, rc_event_2;
-bool_t launch;
+bool rc_event_1, rc_event_2;
 uint8_t gps_nb_ovrn, link_fbw_fbw_nb_err, link_fbw_nb_err;
 float alt_roll_pgain;
 float roll_rate_pgain;
 uint16_t datalink_time = 0;
+uint16_t datalink_nb_msgs = 0;
 
-
+#ifndef SIM_UPDATE_DL
+#define SIM_UPDATE_DL TRUE
+#endif
 
 uint8_t ac_id;
 
@@ -64,7 +65,11 @@ value sim_sys_time_task(value unit)
 value sim_periodic_task(value unit)
 {
   sensors_task();
+#if USE_GENERATED_AUTOPILOT
+  autopilot_periodic();
+#else
   attitude_loop();
+#endif
   reporting_task();
   modules_periodic_task();
   periodic_task_fbw();
@@ -82,7 +87,9 @@ value sim_monitor_task(value unit)
 
 value sim_nav_task(value unit)
 {
+#if !USE_GENERATED_AUTOPILOT
   navigation_task();
+#endif
   return unit;
 }
 
@@ -105,7 +112,7 @@ value sim_init(value unit)
 
 value update_bat(value bat)
 {
-  electrical.vsupply = Int_val(bat);
+  electrical.vsupply = (float)Int_val(bat) / 10.;
   return Val_unit;
 }
 
@@ -138,7 +145,9 @@ value set_datalink_message(value s)
     dl_buffer[i] = ss[i];
   }
 
-  dl_parse_msg();
+  dl_msg_available = true;
+  DlCheckAndParse(&(DOWNLINK_DEVICE).device, &ivy_tp.trans_tx, dl_buffer, &dl_msg_available, SIM_UPDATE_DL);
+
   return Val_unit;
 }
 

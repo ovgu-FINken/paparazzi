@@ -29,7 +29,7 @@ type gps_acc_level = GPS_ACC_HIGH | GPS_ACC_LOW | GPS_ACC_VERY_LOW | GPS_NO_ACC
 type aircraft = private {
     ac_name : string;
     ac_speech_name : string;
-    config : Pprz.values;
+    config : PprzLink.values;
     track : MapTrack.track;
     color: color;
     fp_group : MapFP.flight_plan;
@@ -49,6 +49,7 @@ type aircraft = private {
     pages : GObj.widget;
     notebook_label : GMisc.label;
     strip : Strip.t;
+    rc_max_rate : float;
     mutable first_pos : bool;
     mutable last_block_name : string;
     mutable in_kill_mode : bool;
@@ -65,12 +66,13 @@ type aircraft = private {
     mutable last_unix_time : float;
     mutable airspeed : float;
     mutable version : string;
-    mutable last_gps_acc : gps_acc_level
+    mutable last_gps_acc : gps_acc_level;
+    mutable last_bat_warn_time : float
   }
 
 val aircrafts : (string, aircraft) Hashtbl.t
 
-val safe_bind : string -> (string -> Pprz.values -> unit) -> unit
+val safe_bind : string -> (string -> PprzLink.values -> unit) -> unit
 
 val track_size : int ref
 (** Default length for A/C tracks on the 2D view *)
@@ -78,8 +80,8 @@ val track_size : int ref
 val auto_hide_fp : bool -> unit
 (** Automatically hide flight plan of not selected ac *)
 
-val listen_acs_and_msgs : MapCanvas.widget -> GPack.notebook -> GPack.box -> Pages.alert -> bool -> Gtk_tools.pixmap_in_drawin_area -> bool -> unit
-(** [listen_acs_and_msgs geomap aircraft_notebook alert_page auto_center_new_ac alt_graph timestamp] *)
+val listen_acs_and_msgs : MapCanvas.widget -> GPack.notebook -> GPack.box -> bool -> Pages.alert -> bool -> string -> Gtk_tools.pixmap_in_drawin_area -> bool -> unit
+(** [listen_acs_and_msgs geomap aircraft_notebook confirm_kill alert_page auto_center_new_ac alt_graph timestamp] *)
 
 val jump_to_block : string -> int -> unit
 (** [jump_to_block ac_id block_id] Sends a JUMP_TO_BLOCK message *)

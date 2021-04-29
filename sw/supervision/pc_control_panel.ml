@@ -22,19 +22,65 @@
  *
  *)
 
+
 open Printf
 module Utils = Pc_common
 
 let (//) = Filename.concat
 
+(*Search recursively files in a directory*)
+let walk_directory_tree dir pattern =
+  let re = Str.regexp pattern in (* pre-compile the regexp *)
+  let select str = Str.string_match re str 0 in
+  let rec walk acc = function
+  | [] -> (acc)
+  | dir::tail ->
+      let contents = Array.to_list (Sys.readdir dir) in
+      let contents = List.rev_map (Filename.concat dir) contents in
+      let dirs, files =
+        List.fold_left (fun (dirs,files) f ->
+             match (Unix.stat f).Unix.st_kind with
+             | Unix.S_REG -> (dirs, f::files)  (* Regular file *)
+             | Unix.S_DIR -> (f::dirs, files)  (* Directory *)
+             | _ -> (dirs, files)
+          ) ([],[]) contents
+      in
+      let matched = List.filter (select) files in
+      walk (matched @ acc) (dirs @ tail)
+  in
+  walk [] [dir]
+
 let control_panel_xml_file = Utils.conf_dir // "control_panel.xml"
 let control_panel_xml = ExtXml.parse_file control_panel_xml_file
+let tools_directory = (Utils.conf_dir // "tools")
+let tool_files = if (Sys.file_exists tools_directory) then (walk_directory_tree tools_directory ".*\\.xml") else []
+let tools_xml = List.map (fun f -> ExtXml.parse_file f) tool_files
+let blacklist_file = tools_directory // "blacklisted"
+
+let rec build_list l channel =
+    try
+      build_list ((input_line channel) :: l) channel
+    with End_of_file -> close_in channel; List.rev l
+
 let programs =
   let h = Hashtbl.create 7 in
   let s = ExtXml.child ~select:(fun x -> Xml.attrib x "name" = "programs") control_panel_xml "section" in
+  (*List blacklisted programs*)
+  let b = if Sys.file_exists blacklist_file
+            then (List.filter (fun s -> ((String.length s) > 0 && (String.get s 0) != '#')) (build_list [] (open_in blacklist_file)))
+            else [] in
+  (*Adds tools to h*)
   List.iter
     (fun p -> Hashtbl.add h (ExtXml.attrib p "name") p)
+    tools_xml;
+  (*Overwrite tools in h by the custom configuration from control_panel.xml*)
+  List.iter
+    (fun p -> Hashtbl.replace h (ExtXml.attrib p "name") p)
     (Xml.children s);
+  (*Remove blacklisted programs*)
+  List.iter
+    (fun p -> Hashtbl.remove h p)
+    b;
   h
 
 let program_command = fun x ->
@@ -115,37 +161,39 @@ let close_programs = fun gui ->
 let parse_process_args = fun (name, args) ->
   (* How to do it with a simple regexp split ??? *)
   (* Mark spaces into args *)
+  let args = Bytes.of_string args in
   let marked_space = Char.chr 0 in
   let in_quotes = ref false in
-  for i = 0 to String.length args - 1 do
-    match args.[i] with
-      ' ' when !in_quotes -> args.[i] <- marked_space
+  for i = 0 to Bytes.length args - 1 do
+    match Bytes.get args i with
+      ' ' when !in_quotes -> Bytes.set args i marked_space
     | '"' -> in_quotes := not !in_quotes
     | _ -> ()
   done;
   (* Split *)
-  let args = Str.split (Str.regexp "[ ]+") args in
+  let args = Str.split (Str.regexp "[ ]+") (Bytes.to_string args) in
+  let args = List.map Bytes.of_string args in
   (* Restore spaces and remove quotes *)
   let restore_spaces = fun s ->
-    let n = String.length s in
+    let n = Bytes.length s in
     for i = 0 to n - 1 do
-      if s.[i] = marked_space then s.[i] <- ' '
+      if Bytes.get s i = marked_space then Bytes.set s i ' '
     done;
-    if n >= 2 && s.[0] = '"' then
-      String.sub s 1 (n-2)
+    if n >= 2 && Bytes.get s 0 = '"' then
+      Bytes.sub s 1 (n-2)
     else
       s in
   let args = List.map restore_spaces args in
   (* Remove the first "arg" which is the command *)
   let args = List.tl args in
   (* Build the XML arg list *)
-  let is_option = fun s -> String.length s > 0 && s.[0] = '-' in
+  let is_option = fun s -> Bytes.length s > 0 && Bytes.get s 0 = '-' in
   let rec xml_args = function
       [] -> []
     | option::value::l when not (is_option value) ->
-	Xml.Element("arg", ["flag",option; "constant", value],[])::xml_args l
+	Xml.Element("arg", ["flag", Bytes.to_string option; "constant",  Bytes.to_string value],[])::xml_args l
     | option::l ->
-	Xml.Element("arg", ["flag",option],[])::xml_args l in
+	Xml.Element("arg", ["flag", Bytes.to_string option],[])::xml_args l in
   Xml.Element("program", ["name", name], xml_args args)
 
 let save_session = fun gui session_combo ->
@@ -194,15 +242,28 @@ let get_simtype = fun (target_combo : Gtk_tools.combo) ->
       | choice -> List.nth targets (choice-1)
 
 let supervision = fun ?file gui log (ac_combo : Gtk_tools.combo) (target_combo : Gtk_tools.combo) ->
+  let get_program_args = fun program ->
+    let args = ref "" in
+    List.iter
+	  (fun arg ->
+	    let constant =
+          match try double_quote (Xml.attrib arg "constant") with _ -> "" with
+            "@AIRCRAFT" -> (Gtk_tools.combo_value ac_combo)
+          | "@AC_ID" -> gui#entry_ac_id#text
+          | const -> const in
+	    args := sprintf "%s %s %s" !args (ExtXml.attrib arg "flag") constant)
+	  (Xml.children program);
+    !args
+  in
+
   let run_gcs = fun () ->
-    run_and_monitor ?file gui log "GCS" ""
-  and run_server = fun args ->
-    run_and_monitor ?file gui log "Server" args
-  and choose_and_run_sitl = fun ac_name ->
+    let args = get_program_args (Hashtbl.find programs "GCS") in
+    run_and_monitor ?file gui log "GCS" args in
+  let run_server = fun args -> run_and_monitor ?file gui log "Server" args in
+  let choose_and_run_sitl = fun ac_name ->
     let get_args = fun simtype ac_name ->
       match simtype with
           "sim" -> sprintf "-a %s -t %s --boot --norc" ac_name simtype
-        | "jsbsim" -> sprintf "-a %s -t %s" ac_name simtype
         | "nps" -> sprintf "-a %s -t %s" ac_name simtype
         | _ -> "none"
     in
@@ -210,8 +271,10 @@ let supervision = fun ?file gui log (ac_combo : Gtk_tools.combo) (target_combo :
     let args = get_args sim_type ac_name in
     if args <> "none" then begin
       run_and_monitor ?file gui log "Simulator" args;
-      run_and_monitor ?file gui log "GCS" "";
-      run_and_monitor ?file gui log "Server" "-n"
+      run_gcs ();
+      run_server "-n";
+      if sim_type = "nps" then
+        run_and_monitor ?file gui log "Data Link" "-udp -udp_broadcast"
     end
   in
 
@@ -236,21 +299,6 @@ let supervision = fun ?file gui log (ac_combo : Gtk_tools.combo) (target_combo :
 
   register_custom_sessions ();
   Gtk_tools.select_in_combo session_combo "Simulation";
-
-  let get_program_args = fun program ->
-    let args = ref "" in
-    List.iter
-	  (fun arg ->
-	    let constant =
-          match try double_quote (Xml.attrib arg "constant") with _ -> "" with
-            "@AIRCRAFT" -> (Gtk_tools.combo_value ac_combo)
-          | "@AC_ID" -> gui#entry_ac_id#text
-          | const -> const in
-	    args := sprintf "%s %s %s" !args (ExtXml.attrib arg "flag") constant)
-	  (Xml.children program);
-    !args
-  in
-
 
   let execute_custom = fun session_name ->
     let session = try Hashtbl.find sessions session_name with Not_found -> failwith (sprintf "Unknown session: %s" session_name) in
@@ -336,4 +384,3 @@ let supervision = fun ?file gui log (ac_combo : Gtk_tools.combo) (target_combo :
   in
   ignore (gui#menu_item_delete_session#connect#activate ~callback);
   session_combo, execute_custom
-

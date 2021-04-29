@@ -29,13 +29,13 @@
 
 #include <stdio.h>
 #include "modules/mission/mission_common.h"
-#include "firmwares/fixedwing/autopilot.h"
+#include "autopilot.h"
 #include "firmwares/fixedwing/nav.h"
 #include "subsystems/navigation/common_nav.h"
 #include "generated/flight_plan.h"
 
 /// Utility function: converts lla (int) to local point (float)
-bool_t mission_point_of_lla(struct EnuCoor_f *point, struct LlaCoor_i *lla)
+bool mission_point_of_lla(struct EnuCoor_f *point, struct LlaCoor_i *lla)
 {
   /// TODO: don't convert to float, either use double or do completely in fixed point
   struct LlaCoor_f lla_f;
@@ -58,63 +58,63 @@ bool_t mission_point_of_lla(struct EnuCoor_f *point, struct LlaCoor_i *lla)
   /* Update point */
   point->x = waypoints[WP_HOME].x + dx;
   point->y = waypoints[WP_HOME].y + dy;
-  point->z = lla->alt;
+  point->z = lla_f.alt;
 
-  return TRUE;
+  return true;
 }
 
 // navigation time step
-const float dt_navigation = 1.0 / ((float)NAVIGATION_FREQUENCY);
+static const float dt_navigation = 1.0 / ((float)NAVIGATION_FREQUENCY);
 
 // dirty hack to comply with nav_approaching_xy function
 struct EnuCoor_f last_wp_f = { 0., 0., 0. };
 
 /** Navigation function to a single waypoint
  */
-static inline bool_t mission_nav_wp(struct _mission_wp *wp)
+static inline bool mission_nav_wp(struct _mission_wp *wp)
 {
   if (nav_approaching_xy(wp->wp.wp_f.x, wp->wp.wp_f.y, last_wp_f.x, last_wp_f.y, CARROT)) {
     last_wp_f = wp->wp.wp_f; // store last wp
-    return FALSE; // end of mission element
+    return false; // end of mission element
   }
   // set navigation command
   fly_to_xy(wp->wp.wp_f.x, wp->wp.wp_f.y);
   NavVerticalAutoThrottleMode(0.);
   NavVerticalAltitudeMode(wp->wp.wp_f.z, 0.);
-  return TRUE;
+  return true;
 }
 
 /** Navigation function on a circle
  */
-static inline bool_t mission_nav_circle(struct _mission_circle *circle)
+static inline bool mission_nav_circle(struct _mission_circle *circle)
 {
   nav_circle_XY(circle->center.center_f.x, circle->center.center_f.y, circle->radius);
   NavVerticalAutoThrottleMode(0.);
   NavVerticalAltitudeMode(circle->center.center_f.z, 0.);
-  return TRUE;
+  return true;
 }
 
 /** Navigation function along a segment
  */
-static inline bool_t mission_nav_segment(struct _mission_segment *segment)
+static inline bool mission_nav_segment(struct _mission_segment *segment)
 {
   if (nav_approaching_xy(segment->to.to_f.x, segment->to.to_f.y, segment->from.from_f.x, segment->from.from_f.y,
                          CARROT)) {
     last_wp_f = segment->to.to_f;
-    return FALSE; // end of mission element
+    return false; // end of mission element
   }
   nav_route_xy(segment->from.from_f.x, segment->from.from_f.y, segment->to.to_f.x, segment->to.to_f.y);
   NavVerticalAutoThrottleMode(0.);
   NavVerticalAltitudeMode(segment->to.to_f.z, 0.); // both altitude should be the same anyway
-  return TRUE;
+  return true;
 }
 
 /** Navigation function along a path
  */
-static inline bool_t mission_nav_path(struct _mission_path *path)
+static inline bool mission_nav_path(struct _mission_path *path)
 {
   if (path->nb == 0) {
-    return FALSE; // nothing to do
+    return false; // nothing to do
   }
   if (path->nb == 1) {
     // handle as a single waypoint
@@ -124,7 +124,7 @@ static inline bool_t mission_nav_path(struct _mission_path *path)
   }
   if (path->path_idx == path->nb - 1) {
     last_wp_f = path->path.path_f[path->path_idx]; // store last wp
-    return FALSE; // end of path
+    return false; // end of path
   }
   // normal case
   struct EnuCoor_f from_f = path->path.path_f[path->path_idx];
@@ -135,9 +135,15 @@ static inline bool_t mission_nav_path(struct _mission_path *path)
   if (nav_approaching_xy(to_f.x, to_f.y, from_f.x, from_f.y, CARROT)) {
     path->path_idx++; // go to next segment
   }
-  return TRUE;
+  return true;
 }
 
+/** Call custom navigation function
+ */
+static inline bool mission_nav_custom(struct _mission_custom *custom, bool init)
+{
+  return custom->reg->cb(custom->nb, custom->params, init);
+}
 
 int mission_run()
 {
@@ -145,10 +151,10 @@ int mission_run()
   struct _mission_element *el = NULL;
   if ((el = mission_get()) == NULL) {
     // TODO do something special like a waiting circle before ending the mission ?
-    return FALSE; // end of mission
+    return false; // end of mission
   }
 
-  bool_t el_running = FALSE;
+  bool el_running = false;
   switch (el->type) {
     case MissionWP:
       el_running = mission_nav_wp(&(el->element.mission_wp));
@@ -161,6 +167,9 @@ int mission_run()
       break;
     case MissionPath:
       el_running = mission_nav_path(&(el->element.mission_path));
+      break;
+    case MissionCustom:
+      el_running = mission_nav_custom(&(el->element.mission_custom), mission.element_time < dt_navigation);
       break;
     default:
       // invalid type or pattern not yet handled
@@ -178,5 +187,5 @@ int mission_run()
     mission.current_idx = (mission.current_idx + 1) % MISSION_ELEMENT_NB;
   }
 
-  return TRUE;
+  return true;
 }

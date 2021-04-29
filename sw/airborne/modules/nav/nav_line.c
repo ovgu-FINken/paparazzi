@@ -33,13 +33,12 @@
 enum line_status { LR12, LQC21, LTC2, LQC22, LR21, LQC12, LTC1, LQC11 };
 static enum line_status line_status;
 
-bool_t nav_line_setup(void)
+void nav_line_setup(void)
 {
   line_status = LR12;
-  return FALSE;
 }
 
-bool_t nav_line_run(uint8_t l1, uint8_t l2, float radius)
+bool nav_line_run(uint8_t l1, uint8_t l2, float radius)
 {
   radius = fabs(radius);
   float alt = waypoints[l1].a;
@@ -146,7 +145,7 @@ bool_t nav_line_run(uint8_t l1, uint8_t l2, float radius)
       }
       break;
     default: /* Should not occur !!! End the pattern */
-      return FALSE;
+      return false;
   }
-  return TRUE; /* This pattern never ends */
+  return true; /* This pattern never ends */
 }

@@ -24,178 +24,109 @@
 
 open Printf
 
-type module_conf = { xml : Xml.xml; file : string; filename : string; vpath : string option; param : Xml.xml list; extra_targets : string list; }
+(** simple boolean expressions *)
+type bool_expr =
+  | Any
+  | Var of string
+  | Not of bool_expr
+  | And of bool_expr * bool_expr
+  | Or of bool_expr * bool_expr
 
-let (//) = Filename.concat
+(** evaluate a boolean expression for a given value *)
+let rec eval_bool v = function
+  | Any -> true
+  | Var x -> v = x
+  | Not e -> not (eval_bool v e)
+  | And (e1, e2) -> eval_bool v e1 && eval_bool v e2
+  | Or (e1, e2) -> eval_bool v e1 || eval_bool v e2
 
-let paparazzi_conf = Env.paparazzi_home // "conf"
-let modules_dir = paparazzi_conf // "modules"
-let autopilot_dir = paparazzi_conf // "autopilot"
+(** pretty print boolean expression *)
+let print_bool = fun v e ->
+  let rec print_b v = function
+    | Any -> eprintf "Any "
+    | Var x -> eprintf "Var ( %s =? %s ) " x v
+    | Not e -> eprintf "Not ( "; (print_b v e); eprintf ") "
+    | And (e1, e2) -> eprintf "And ( "; print_b v e1; print_b v e2; eprintf ") "
+    | Or (e1, e2) -> eprintf "Or ( "; print_b v e1; print_b v e2; eprintf ") "
+  in
+  print_b v e; eprintf "\n"
+
+(** pretty print boolean expression *)
+let sprint_bool = fun v e ->
+  let rec print_b s v = function
+    | Any -> sprintf "%sAny " s
+    | Var x -> sprintf "%sVar ( %s =? %s ) " s x v
+    | Not e -> let s = sprintf "%sNot ( " s in
+               let s = print_b s v e in
+               sprintf "%s) " s
+    | And (e1, e2) -> let s = sprintf "%sAnd ( " s in
+                      let s = print_b s v e1 in
+                      let s =  print_b s v e2 in
+                      sprintf "%s) " s
+    | Or (e1, e2) -> let s = sprintf "%sOr ( " s in
+                     let s = print_b s v e1 in
+                     let s = print_b s v e2 in
+                     sprintf "%s) " s
+  in
+  print_b "" v e
+
+(** pretty print boolean expression *)
+let sprint_expr = fun e ->
+  let rec print_b s = function
+    | Any -> sprintf "%sAny " s
+    | Var x -> sprintf "%s %s " s x
+    | Not e -> let s = sprintf "%sNot ( " s in
+               let s = print_b s e in
+               sprintf "%s) " s
+    | And (e1, e2) -> let s = sprintf "%sAnd ( " s in
+                      let s = print_b s e1 in
+                      let s =  print_b s e2 in
+                      sprintf "%s) " s
+    | Or (e1, e2) -> let s = sprintf "%sOr ( " s in
+                     let s = print_b s e1 in
+                     let s = print_b s e2 in
+                     sprintf "%s) " s
+  in
+  print_b "" e
+
 
 (** remove all duplicated elements of a list *)
-let singletonize = fun l ->
+let singletonize = fun ?(compare = compare) l ->
   let rec loop = fun l ->
     match l with
-        [] | [_] -> l
-      | x::((x'::_) as xs) ->
-        if x = x' then loop xs else x::loop xs in
+    | [] | [_] -> l
+    | x::((x'::_) as xs) -> if compare x x' = 0 then loop xs else x::loop xs in
   loop (List.sort compare l)
 
 (** union of two lists *)
-let union = fun l1 l2 ->
-  let l = l1 @ l2 in
-  let sl = List.sort compare l in
-  singletonize sl
+let union = fun l1 l2 -> singletonize (l1 @ l2)
 
 (** union of a list of list *)
-let union_of_lists = fun l ->
-  let sl = List.sort compare (List.flatten l) in
-  singletonize sl
+let union_of_lists = fun l -> singletonize (List.flatten l)
 
-(** [targets_of_field]
-    * Returns the targets of a makefile node in modules
-    * Default "ap|sim" *)
-let pipe_regexp = Str.regexp "|"
-let targets_of_field = fun field default ->
-  try
-    Str.split pipe_regexp (ExtXml.attrib_or_default field "target" default)
-  with
-      _ -> []
-
-(** [get_autopilot_of_airframe xml]
-    * Returns (autopilot xml, main freq) from airframe xml file *)
-let get_autopilot_of_airframe = fun xml ->
-  (* extract all "autopilot" sections *)
-  let section = List.filter (fun s -> compare (Xml.tag s) "autopilot" = 0) (Xml.children xml) in
-  (* Raise error if more than one modules section *)
-  match section with
-      [autopilot] ->
-        let freq = try Some (Xml.attrib autopilot "freq") with _ -> None in
-        let ap = try Xml.attrib autopilot "name" with _ -> raise Not_found in
-        (autopilot_dir // ap, freq)
-    | [] -> raise Not_found
-    | _ -> failwith "Error: you have more than one 'autopilot' section in your airframe file"
-
-(** [get_modules_of_airframe xml]
-    * Returns a list of module configuration from airframe file *)
-let rec get_modules_of_airframe = fun xml ->
-  (* extract all "modules" sections *)
-  let section = List.filter (fun s -> compare (Xml.tag s) "modules" = 0) (Xml.children xml) in
-  (* get autopilot file if any *)
-  let ap_file = try
-                  let (ap, _) = get_autopilot_of_airframe xml in
-                  ap
-    with _ -> "" in
-  (* Raise error if more than one modules section *)
-  match section with
-      [modules] ->
-      (* if only one section, returns a list of configuration *)
-        let t_global = targets_of_field modules "" in
-        let get_module = fun m t ->
-          (* extract dir name if any and add paparazzi_home path if dir path is not global *)
-          let (dir, vpath) = try
-            let dir = ExtXml.attrib m "dir" in
-            let dir = if Filename.is_relative dir then Env.paparazzi_home // dir else "" in
-            (dir, Some dir)
-          with _ -> (modules_dir, None) in
-          let filename = ExtXml.attrib m "name" in
-          let file = dir // filename in
-          let targets = singletonize (t @ targets_of_field m "") in
-          { xml = ExtXml.parse_file file; file = file; filename = filename; vpath = vpath; param = Xml.children m; extra_targets = targets }
-        in
-        let modules_list = List.map (fun m ->
-          if compare (Xml.tag m) "load" <> 0 then Xml2h.xml_error "load";
-          get_module m t_global
-        ) (Xml.children modules) in
-        let ap_modules = try
-                           get_modules_of_airframe (ExtXml.parse_file ap_file)
-          with _ -> [] in
-        modules_list @ ap_modules
-    | [] -> []
-    | _ -> failwith "Error: you have more than one 'modules' section in your airframe file"
-
-(** [get_targets_of_module xml]
-    * Returns the list of targets of a module *)
-let get_targets_of_module = fun conf ->
-  let targets = List.map (fun x ->
-    match String.lowercase (Xml.tag x) with
-        "makefile" -> targets_of_field x Env.default_module_targets
-      | _ -> []
-  ) (Xml.children conf.xml) in
-  let targets = (List.flatten targets) @ conf.extra_targets in
-  (* return a singletonized list *)
-  singletonize (List.sort compare targets)
-
-(** [unload_unused_modules modules ?print_error]
-    * Returns a list of [modules] where unused modules are removed
-    * If [print_error] is true, a warning is printed *)
-let unload_unused_modules = fun modules print_error ->
-  let target = try Sys.getenv "TARGET" with _ -> "" in
-  let is_target_in_module = fun m ->
-    let target_is_in_module = List.exists (fun x -> String.compare target x = 0) (get_targets_of_module m) in
-    if print_error && not target_is_in_module then
-      Printf.fprintf stderr "Info: Module %s unloaded, target %s not supported\n" (Xml.attrib m.xml "name") target;
-    target_is_in_module
+(** [bool_expr_of_string]
+ * Returns the boolean expression of a string
+ *)
+let bool_expr_of_string =
+  let rec expr_of_string op = function
+    | [] -> Any
+    | [e] -> Var e
+    | l::ls -> op (Var l) (expr_of_string op ls)
   in
-  if String.length target = 0 then
-    modules
-  else
-    List.find_all is_target_in_module modules
+  let pipe = Str.regexp "|" in
+  fun s ->
+    match s with 
+    | None -> Any
+    | Some t ->
+        if String.length t > 0 && String.get t 0 = '!' then
+          Not (expr_of_string (fun x y -> Or(x,y)) (Str.split pipe (String.sub t 1 ((String.length t) - 1))))
+        else
+          expr_of_string (fun x y -> Or(x,y)) (Str.split pipe t)
 
-(** [get_modules_name xml]
-    * Returns a list of loaded modules' name *)
-let get_modules_name = fun xml ->
-  (* extract all "modules" sections *)
-  let modules = get_modules_of_airframe xml in
-  (* filter the list if target is not supported *)
-  let modules = unload_unused_modules modules false in
-  (* return a list of modules name *)
-  List.map (fun m -> ExtXml.attrib m.xml "name") modules
 
-(** [get_modules_dir xml]
-    * Returns the list of modules directories *)
-let get_modules_dir = fun modules ->
-  let dir = List.map (fun m -> try Xml.attrib m.xml "dir" with _ -> ExtXml.attrib m.xml "name") modules in
-  singletonize (List.sort compare dir)
-
-(** [is_element_unselected target file]
- * Returns True if [target] is supported the element [file],
- * [file] being the file name of an Xml file (module or setting) *)
-let is_element_unselected = fun ?(verbose=false) target name ->
-  let test_targets = fun targets ->
-    List.exists (fun t ->
-      let l = String.length t in
-      (* test for inverted selection *)
-      if l > 0 && t.[0] = '!' then
-        not ((String.sub t 1 (l-1)) = target)
-      else
-        t = target
-    ) targets
-  in
-  try
-    let name = (Env.paparazzi_home // "conf" // name) in
-    let xml = Xml.parse_file name in
-    match Xml.tag xml with
-    | "settings" ->
-        let targets = Xml.attrib xml "target" in
-        let target_list = Str.split (Str.regexp "|") targets in
-        let unselected = not (test_targets target_list) in
-        if unselected && verbose then
-          begin Printf.printf "Info: settings '%s' unloaded for target '%s'\n" name target; flush stdout end;
-        unselected
-    | "module" ->
-        let targets = List.map (fun x ->
-          match String.lowercase (Xml.tag x) with
-          | "makefile" -> targets_of_field x Env.default_module_targets
-          | _ -> []
-          ) (Xml.children xml) in
-        let targets = (List.flatten targets) in
-        (* singletonized list *)
-        let targets = singletonize (List.sort compare targets) in
-        let unselected = not (test_targets targets) in
-        if unselected && verbose then
-          begin Printf.printf "Info: module '%s' unloaded for target '%s'\n" name target; flush stdout end;
-        unselected
-    | _ -> false
-  with _ -> false
+(** [test_targets target targets]
+ * Test if [target] is allowed [targets]
+ * Return true if target is allowed, false if target is not in list or rejected (prefixed by !) *)
+let test_targets = fun target targets ->
+  eval_bool target targets
 

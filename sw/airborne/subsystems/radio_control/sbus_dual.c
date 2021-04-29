@@ -28,9 +28,21 @@
 #include "subsystems/radio_control/sbus_dual.h"
 #include BOARD_CONFIG
 #include "mcu_periph/uart.h"
-#include "mcu_periph/gpio.h"
 #include <string.h>
 
+#ifndef RC_POLARITY_GPIO_PORT
+#define RC_POLARITY_GPIO_PORT 0
+#endif
+#ifndef RC_POLARITY_GPIO_PIN
+#define RC_POLARITY_GPIO_PIN 0
+#endif
+
+#ifndef RC2_POLARITY_GPIO_PORT
+#define RC2_POLARITY_GPIO_PORT RC_POLARITY_GPIO_PORT
+#endif
+#ifndef RC2_POLARITY_GPIO_PIN
+#define RC2_POLARITY_GPIO_PIN RC_POLARITY_GPIO_PIN
+#endif
 
 /** SBUS struct */
 struct Sbus sbus1, sbus2;
@@ -50,12 +62,12 @@ static void send_sbus(struct transport_tx *trans, struct link_device *dev)
 // Init function
 void radio_control_impl_init(void)
 {
-  sbus_common_init(&sbus1, &SBUS1_UART_DEV);
-  sbus_common_init(&sbus2, &SBUS2_UART_DEV);
+  sbus_common_init(&sbus1, &SBUS1_UART_DEV, RC_POLARITY_GPIO_PORT, RC_POLARITY_GPIO_PIN);
+  sbus_common_init(&sbus2, &SBUS2_UART_DEV, RC2_POLARITY_GPIO_PORT, RC2_POLARITY_GPIO_PIN);
 
   // Register telemetry message
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "PPM", send_sbus);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PPM, send_sbus);
 #endif
 }
 
@@ -78,7 +90,7 @@ void radio_control_impl_event(void (* _received_frame_handler)(void))
       NormalizePpmIIR(sbus2.pulses, radio_control);
       _received_frame_handler();
     }
-    sbus2.frame_available = FALSE;
+    sbus2.frame_available = false;
   }
   if (sbus1.frame_available) {
     radio_control.frame_cpt++;
@@ -90,6 +102,6 @@ void radio_control_impl_event(void (* _received_frame_handler)(void))
       NormalizePpmIIR(sbus1.pulses, radio_control);
       _received_frame_handler();
     }
-    sbus1.frame_available = FALSE;
+    sbus1.frame_available = false;
   }
 }

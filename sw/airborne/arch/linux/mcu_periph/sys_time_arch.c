@@ -39,7 +39,6 @@
 #define SYS_TIME_THREAD_PRIO 29
 #endif
 
-pthread_t sys_time_thread;
 static struct timespec startup_time;
 
 static void sys_tick_handler(void);
@@ -77,8 +76,8 @@ void *sys_time_thread_main(void *data)
   while (1) {
     unsigned long long missed;
     /* Wait for the next timer event. If we have missed any the
-	   number is written to "missed" */
-	int r = read(fd, &missed, sizeof(missed));
+     number is written to "missed" */
+    int r = read(fd, &missed, sizeof(missed));
     if (r == -1) {
       perror("Couldn't read timer!");
     }
@@ -98,11 +97,15 @@ void sys_time_arch_init(void)
 
   clock_gettime(CLOCK_MONOTONIC, &startup_time);
 
-  int ret = pthread_create(&sys_time_thread, NULL, sys_time_thread_main, NULL);
+  pthread_t tid;
+  int ret = pthread_create(&tid, NULL, sys_time_thread_main, NULL);
   if (ret) {
     perror("Could not setup sys_time_thread");
     return;
   }
+#ifndef __APPLE__
+  pthread_setname_np(tid, "sys_time");
+#endif
 }
 
 static void sys_tick_handler(void)
@@ -136,11 +139,56 @@ static void sys_tick_handler(void)
     if (sys_time.timer[i].in_use &&
         sys_time.nb_tick >= sys_time.timer[i].end_time) {
       sys_time.timer[i].end_time += sys_time.timer[i].duration;
-      sys_time.timer[i].elapsed = TRUE;
+      sys_time.timer[i].elapsed = true;
       /* call registered callbacks, WARNING: they will be executed in the sys_time thread! */
       if (sys_time.timer[i].cb) {
         sys_time.timer[i].cb(i);
       }
     }
   }
+}
+
+/**
+ * Get the time in microseconds since startup.
+ * WARNING: overflows after 71min34seconds!
+ * @return current system time as uint32_t
+ */
+uint32_t get_sys_time_usec(void)
+{
+  /* get current time */
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+
+  /* time difference to startup */
+  time_t d_sec = now.tv_sec - startup_time.tv_sec;
+  long d_nsec = now.tv_nsec - startup_time.tv_nsec;
+
+  /* wrap if negative nanoseconds */
+  if (d_nsec < 0) {
+    d_sec -= 1;
+    d_nsec += 1000000000L;
+  }
+  return d_sec * 1000000 + d_nsec / 1000;
+}
+
+/**
+ * Get the time in milliseconds since startup.
+ * @return milliseconds since startup as uint32_t
+ */
+uint32_t get_sys_time_msec(void)
+{
+  /* get current time */
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+
+  /* time difference to startup */
+  time_t d_sec = now.tv_sec - startup_time.tv_sec;
+  long d_nsec = now.tv_nsec - startup_time.tv_nsec;
+
+  /* wrap if negative nanoseconds */
+  if (d_nsec < 0) {
+    d_sec -= 1;
+    d_nsec += 1000000000L;
+  }
+  return d_sec * 1000 + d_nsec / 1000000;
 }

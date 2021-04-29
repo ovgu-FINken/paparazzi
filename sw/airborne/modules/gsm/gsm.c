@@ -39,7 +39,7 @@ Reporting:
   In: OK
   Out: AT+CMGS=\"GCS_NUMBER\"
   In: >
-  Out: gps.utm_pos.east, gps.utm_pos.north, gps.course, gps.hmsl, gps.gspeed, -gps.ned_vel.z, vsupply, autopilot_flight_time, rssi  CTRLZ
+  Out: gps.utm_pos.east, gps.utm_pos.north, gps.course, gps.hmsl, gps.gspeed, -gps.ned_vel.z, electrical.vsupply, autopilot.flight_time, rssi  CTRLZ
 
 Receiving:
   In: +CMTI: ...,<number>
@@ -61,8 +61,10 @@ Receiving:
 #include "subsystems/datalink/downlink.h"
 #include "subsystems/gps.h"
 #include "autopilot.h"
+#include "subsystems/electrical.h"
 //#include "subsystems/navigation/common_nav.h"  //why is should this be needed?
 #include "generated/settings.h"
+#include "led.h"
 
 #ifndef GSM_LINK
 #define GSM_LINK UART3100
@@ -73,7 +75,7 @@ Receiving:
 #define GSMLinkDev (&(GSM_LINK).device)
 
 #define GSMLinkChAvailable() GSMLinkDev->check_available(GSMLinkDev->periph)
-#define GSMLinkTransmit(_c) GSMLinkDev->put_byte(GSMLinkDev->periph, _c)
+#define GSMLinkTransmit(_c) GSMLinkDev->put_byte(GSMLinkDev->periph, 0, _c)
 #define GSMLinkGetch() GSMLinkDev->get_byte(GSMLinkDev->periph)
 #define ReadGSMBuffer() { while (GSMLinkChAvailable&&!gsm_line_received) gsm_parse(GSMLinkGetch()); }
 
@@ -150,7 +152,7 @@ void gsm_init(void)
     //
     //  Send_AT();
     //  gsm_status = STATUS_SEND_AT;
-    //  gsm_gsm_init_status = FALSE;
+    //  gsm_gsm_init_status = false;
   }
   gcs_index = 0;
   gcs_index_max = 0;
@@ -170,7 +172,7 @@ void gsm_init_report(void)   /* Second call */
 
     Send_AT();
     gsm_status = STATUS_SEND_AT;
-    gsm_gsm_init_report_status = FALSE;
+    gsm_gsm_init_report_status = false;
   }
 }
 
@@ -399,10 +401,10 @@ void gsm_send_report_continue(void)
   uint8_t rssi = atoi(gsm_buf + strlen("+CSQ: "));
 
   // Donnee GPS :ne sont pas envoyes gps_mode, gps.tow, gps.utm_pos.zone, gps_nb_ovrn
-  // Donnees batterie (seuls vsupply et autopilot_flight_time sont envoyes)
+  // Donnees batterie (seuls vsupply et autopilot.flight_time sont envoyes)
   // concatenation de toutes les infos en un seul message à transmettre
   sprintf(data_to_send, "%ld %ld %d %ld %d %d %d %d %d", gps.utm_pos.east, gps.utm_pos.north, gps_course, gps.hmsl,
-          gps.gspeed, -gps.ned_vel.z, vsupply, autopilot_flight_time, rssi);
+          gps.gspeed, -gps.ned_vel.z, electrical.vsupply, autopilot.flight_time, rssi);
 
   // send the number and wait for the prompt
   char buf[32];

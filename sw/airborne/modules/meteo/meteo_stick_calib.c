@@ -141,8 +141,8 @@ static bool mtostk_populate_float_array_from_buffer(float *ar,
 
   float **eeprom_buffer_float = (float **) eeprom_buffer;
 
-  _Static_assert(sizeof(uint32_t) == sizeof(time_t),
-                 "sizeof (uint32_t) differ from sizeof (time_t)");
+  _Static_assert(sizeof(uint32_t) == sizeof(mtostk_time_t),
+                 "sizeof (uint32_t) differ from sizeof (mtostk_time_t)");
   _Static_assert(sizeof(uint32_t) == sizeof(float),
                  "sizeof (uint32_t) differ from sizeof (float)");
 
@@ -284,7 +284,7 @@ float mtostk_apply_polynomial_temp(Sensors_params *params, float temp, float val
       return mtostk_apply_polynomial(params->coeffs[params->num_temp - 1], params->num_coeff, value);
     } else {
       int i;
-      for (i = 0; i < params->num_temp - 2; i++) {
+      for (i = 0; i <= params->num_temp - 2; i++) {
         const float t1 = params->temps[i];
         const float t2 = params->temps[i + 1];
         if (temp > t1 && temp <= t2) {

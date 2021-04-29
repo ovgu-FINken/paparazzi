@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010  ENAC
+ * Copyright (C) 2016  2016 Michal Podhradsky <http://github.com/podhrmic>
  *
  * This file is part of paparazzi.
  *
@@ -19,30 +20,41 @@
  * Boston, MA 02111-1307, USA.
  *
  */
-
-/** \file extra_pprz_dl.h
- *  \brief Extra datalink using PPRZ protocol
- *
+/**
+ * @file "modules/datalink/extra_pprz_dl.h"
+ * Extra datalink and telemetry using PPRZ protocol
  */
-
 #ifndef EXTRA_PPRZ_DL_H
 #define EXTRA_PPRZ_DL_H
 
 #include "subsystems/datalink/datalink.h"
-#include "subsystems/datalink/pprz_transport.h"
+#include "pprzlink/pprz_transport.h"
+
+#if USE_UDP
+#include "mcu_periph/udp.h"
+#endif
+
+#if USE_USB_SERIAL
+#include "mcu_periph/usb_serial.h"
+#endif
 
 /* PPRZ transport structure */
 extern struct pprz_transport extra_pprz_tp;
 
-/* Datalink Event */
+extern uint8_t extra_dl_buffer[MSG_SIZE]  __attribute__((aligned));
 
-#define ExtraDatalinkEvent() {                        \
-    PprzCheckAndParse(EXTRA_DOWNLINK_DEVICE, extra_pprz_tp); \
-    DlCheckAndParse();                                  \
-  }
+/** Datalink Event */
+void extra_pprz_dl_event(void);
+
 
 /** Init function */
 extern void extra_pprz_dl_init(void);
+
+/** Periodic function
+ *
+ * should be called at TELEMETRY_FREQUENCY
+ */
+extern void extra_pprz_dl_periodic(void);
 
 #endif /* EXTRA_PPRZ_DL_H */
 

@@ -45,9 +45,6 @@
 PRINT_CONFIG_VAR(KROOZ_SMPLRT_DIV)
 PRINT_CONFIG_VAR(KROOZ_LOWPASS_FILTER)
 
-#ifndef KROOZ_GYRO_RANGE
-#define KROOZ_GYRO_RANGE MPU60X0_GYRO_RANGE_250
-#endif
 PRINT_CONFIG_VAR(KROOZ_GYRO_RANGE)
 
 #ifndef KROOZ_ACCEL_RANGE
@@ -66,7 +63,7 @@ static uint32_t ad7689_event_timer;
 static uint8_t axis_cnt;
 static uint8_t axis_nb;
 
-void imu_impl_init(void)
+void imu_krooz_init(void)
 {
   /////////////////////////////////////////////////////////////////////
   // MPU-60X0
@@ -76,22 +73,22 @@ void imu_impl_init(void)
   imu_krooz.mpu.config.dlpf_cfg = KROOZ_LOWPASS_FILTER;
   imu_krooz.mpu.config.gyro_range = KROOZ_GYRO_RANGE;
   imu_krooz.mpu.config.accel_range = KROOZ_ACCEL_RANGE;
-  imu_krooz.mpu.config.drdy_int_enable = TRUE;
+  imu_krooz.mpu.config.drdy_int_enable = true;
 
   hmc58xx_init(&imu_krooz.hmc, &(IMU_KROOZ_I2C_DEV), HMC58XX_ADDR);
 
   // Init median filters
 #if IMU_KROOZ_USE_ACCEL_MEDIAN_FILTER
-  InitMedianFilterVect3Int(median_accel);
+  InitMedianFilterVect3Int(median_accel, MEDIAN_DEFAULT_SIZE);
 #endif
-  InitMedianFilterVect3Int(median_mag);
+  InitMedianFilterVect3Int(median_mag, MEDIAN_DEFAULT_SIZE);
 
   RATES_ASSIGN(imu_krooz.rates_sum, 0, 0, 0);
   VECT3_ASSIGN(imu_krooz.accel_sum, 0, 0, 0);
   imu_krooz.meas_nb = 0;
 
-  imu_krooz.hmc_eoc = FALSE;
-  imu_krooz.mpu_eoc = FALSE;
+  imu_krooz.hmc_eoc = false;
+  imu_krooz.mpu_eoc = false;
 
   imu_krooz.ad7689_trans.slave_idx     = IMU_KROOZ_SPI_SLAVE_IDX;
   imu_krooz.ad7689_trans.select        = SPISelectUnselect;
@@ -112,7 +109,7 @@ void imu_impl_init(void)
   imu_krooz_sd_arch_init();
 }
 
-void imu_periodic(void)
+void imu_krooz_periodic(void)
 {
   // Start reading the latest gyroscope data
   if (!imu_krooz.mpu.config.initialized) {
@@ -162,7 +159,7 @@ void imu_krooz_event(void)
 {
   if (imu_krooz.mpu_eoc) {
     mpu60x0_i2c_read(&imu_krooz.mpu);
-    imu_krooz.mpu_eoc = FALSE;
+    imu_krooz.mpu_eoc = false;
   }
 
   // If the MPU6050 I2C transaction has succeeded: convert the data
@@ -170,7 +167,7 @@ void imu_krooz_event(void)
   if (imu_krooz.mpu.data_available) {
     RATES_ADD(imu_krooz.rates_sum, imu_krooz.mpu.data_rates.rates);
     imu_krooz.meas_nb++;
-    imu_krooz.mpu.data_available = FALSE;
+    imu_krooz.mpu.data_available = false;
   }
 
   if (SysTimeTimer(ad7689_event_timer) > 215) {
@@ -216,7 +213,7 @@ void imu_krooz_event(void)
 
   if (imu_krooz.hmc_eoc) {
     hmc58xx_read(&imu_krooz.hmc);
-    imu_krooz.hmc_eoc = FALSE;
+    imu_krooz.hmc_eoc = false;
   }
 
   // If the HMC5883 I2C transaction has succeeded: convert the data
@@ -224,7 +221,7 @@ void imu_krooz_event(void)
   if (imu_krooz.hmc.data_available) {
     VECT3_ASSIGN(imu.mag_unscaled, imu_krooz.hmc.data.vect.y, -imu_krooz.hmc.data.vect.x, imu_krooz.hmc.data.vect.z);
     UpdateMedianFilterVect3Int(median_mag, imu.mag_unscaled);
-    imu_krooz.hmc.data_available = FALSE;
+    imu_krooz.hmc.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_BOARD_ID, get_sys_time_usec(), &imu.mag);
   }

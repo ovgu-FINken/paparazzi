@@ -54,6 +54,27 @@
 #define MS_DIFF_PRESSURE_SCALE 1.0f
 #endif
 
+// Test if pressure sensor is configured and/or should send ABI message
+#ifdef MS_PRESSURE_SLAVE_IDX
+#ifndef USE_MS_PRESSURE
+#define USE_MS_PRESSURE TRUE
+#endif
+#endif
+
+// Test if diff pressure sensor is configured and/or should send ABI message
+#ifdef MS_DIFF_PRESSURE_SLAVE_IDX
+#ifndef USE_MS_DIFF_PRESSURE
+#define USE_MS_DIFF_PRESSURE TRUE
+#endif
+#endif
+
+// Test if temperature sensor is configured and/or should send ABI message
+#ifdef MS_TEMPERATURE_SLAVE_IDX
+#ifndef USE_MS_TEMPERATURE
+#define USE_MS_TEMPERATURE TRUE
+#endif
+#endif
+
 // Test if EEPROM slave index is configured
 // if not, don't use EEPROM
 #ifndef MS_EEPROM_SLAVE_IDX
@@ -76,7 +97,7 @@ static inline float get_pressure(uint32_t raw)
 #if USE_MS_EEPROM
   return mtostk_get_calibrated_value(&meteo_stick.calib, MTOSTK_ABS_PRESS, uncal_abs, meteo_stick.current_temperature);
 #else
-  return (MS_PRESSURE_OFFSET * uncal_abs) + MS_PRESSURE_OFFSET;
+  return (MS_PRESSURE_SCALE * uncal_abs) + MS_PRESSURE_OFFSET;
 #endif
 }
 
@@ -101,6 +122,10 @@ static inline float get_temp(uint32_t raw)
 
 static float pitot_offset;
 static int pitot_counter;
+// number of measures for averaging initial offset
+#define MS_PITOT_COUNTER 20
+// filtering coefficient (0 no filter, 1 constant value)
+#define MS_PITOT_FILTER 0.6
 
 static inline float get_diff(uint32_t raw)
 {
@@ -148,9 +173,8 @@ static inline float get_humidity(uint32_t raw)
 #endif
 
 #if LOG_MS
-#include "sdLog.h"
-#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
-bool_t log_ptu_started;
+#include "modules/loggers/sdlog_chibios.h"
+bool log_ptu_started;
 #endif
 
 /* Includes and function to send over telemetry
@@ -163,7 +187,7 @@ bool_t log_ptu_started;
 
 #if SEND_MS
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 #include "subsystems/gps.h"
 
@@ -191,7 +215,7 @@ void meteo_stick_init(void)
   // Init absolute pressure
   meteo_stick.pressure.config.mux = ADS1220_MUX_AIN0_AVSS;
   meteo_stick.pressure.config.gain = ADS1220_GAIN_1;
-  meteo_stick.pressure.config.pga_bypass = TRUE;
+  meteo_stick.pressure.config.pga_bypass = true;
   meteo_stick.pressure.config.rate = ADS1220_RATE_45_HZ;
   meteo_stick.pressure.config.conv = ADS1220_CONTINIOUS_CONVERSION;
   meteo_stick.pressure.config.vref = ADS1220_VREF_VDD;
@@ -205,7 +229,7 @@ void meteo_stick_init(void)
   // Init differential pressure
   meteo_stick.diff_pressure.config.mux = ADS1220_MUX_AIN0_AVSS;
   meteo_stick.diff_pressure.config.gain = ADS1220_GAIN_2;
-  meteo_stick.diff_pressure.config.pga_bypass = TRUE;
+  meteo_stick.diff_pressure.config.pga_bypass = true;
   meteo_stick.diff_pressure.config.rate = ADS1220_RATE_45_HZ;
   meteo_stick.diff_pressure.config.conv = ADS1220_CONTINIOUS_CONVERSION;
   meteo_stick.diff_pressure.config.vref = ADS1220_VREF_VDD;
@@ -219,7 +243,7 @@ void meteo_stick_init(void)
   // Init temperature
   meteo_stick.temperature.config.mux = ADS1220_MUX_AIN0_AIN1;
   meteo_stick.temperature.config.gain = ADS1220_GAIN_4;
-  meteo_stick.temperature.config.pga_bypass = TRUE;
+  meteo_stick.temperature.config.pga_bypass = true;
   meteo_stick.temperature.config.rate = ADS1220_RATE_45_HZ;
   meteo_stick.temperature.config.conv = ADS1220_CONTINIOUS_CONVERSION;
   meteo_stick.temperature.config.vref = ADS1220_VREF_EXTERNAL_REF;
@@ -248,11 +272,12 @@ void meteo_stick_init(void)
   eeprom25AA256_init(&meteo_stick.eeprom, &(MS_SPI_DEV), MS_EEPROM_SLAVE_IDX);
 #endif
 
-  // Number of measurements before setting pitor offset
-  pitot_counter = 10;
+  // Number of measurements before setting pitot offset
+  pitot_counter = MS_PITOT_COUNTER;
+  meteo_stick.reset_dp_offset = false;
 
 #if LOG_MS
-  log_ptu_started = FALSE;
+  log_ptu_started = false;
 #endif
 }
 
@@ -322,15 +347,15 @@ void meteo_stick_periodic(void)
         sdLogWriteLog(pprzLogFile, "#\n");
         sdLogWriteLog(pprzLogFile,
                       "P(adc) T(adc) H(ticks) P_diff(adc) P(hPa) T(C) H(\%) CAS(m/s) FIX TOW(ms) WEEK Lat(1e7rad) Lon(1e7rad) HMSL(mm) GS(cm/s) course(1e7rad) VZ(cm/s)\n");
-        log_ptu_started = TRUE;
+        log_ptu_started = true;
       }
 #else
       sdLogWriteLog(pprzLogFile,
-                    "P(adc) T(adc) H(ticks) P_diff(adc) P(hPa) T(C) H(\%) CAS(m/s) FIX TOW(ms) WEEK Lat(1e7rad) Lon(1e7rad) HMSL(mm) GS(cm/s) course(1e7rad) VZ(cm/s)\n");
-      log_ptu_started = TRUE;
+                    "P(adc) T(adc) H(ticks) P_diff(adc) P(hPa) T(C) H(%%) CAS(m/s) FIX TOW(ms) WEEK Lat(1e7rad) Lon(1e7rad) HMSL(mm) GS(cm/s) course(1e7rad) VZ(cm/s)\n");
+      log_ptu_started = true;
 #endif
     } else {
-      sdLogWriteLog(pprzLogFile, "%d %d %d %d %.2f %.2f %.2f %.2f %d %d %d %d %d %d %d %d %d\n",
+      sdLogWriteLog(pprzLogFile, "%lu %lu %lu %lu %.2f %.2f %.2f %.2f %d %lu %d %lu %lu %lu %d %lu %lu\n",
                     meteo_stick.pressure.data, meteo_stick.temperature.data,
                     meteo_stick.humidity_period, meteo_stick.diff_pressure.data,
                     meteo_stick.current_pressure, meteo_stick.current_temperature,
@@ -346,6 +371,12 @@ void meteo_stick_periodic(void)
 #if SEND_MS
   meteo_stick_send_data();
 #endif
+
+  // Check if DP offset reset is required
+  if (meteo_stick.reset_dp_offset) {
+    pitot_counter = MS_PITOT_COUNTER;
+    meteo_stick.reset_dp_offset = false;
+  }
 }
 
 /** Event function
@@ -365,9 +396,12 @@ void meteo_stick_event(void)
 #ifdef MS_PRESSURE_SLAVE_IDX
   // send absolute pressure data over ABI as soon as available
   if (meteo_stick.pressure.data_available) {
+    uint32_t now_ts = get_sys_time_usec();
     meteo_stick.current_pressure = get_pressure(meteo_stick.pressure.data);
-    AbiSendMsgBARO_ABS(METEO_STICK_SENDER_ID, meteo_stick.current_pressure);
-    meteo_stick.pressure.data_available = FALSE;
+#if USE_MS_PRESSURE
+    AbiSendMsgBARO_ABS(METEO_STICK_SENDER_ID, now_ts, meteo_stick.current_pressure);
+#endif
+    meteo_stick.pressure.data_available = false;
   }
 #endif
 
@@ -375,15 +409,22 @@ void meteo_stick_event(void)
   // send differential pressure data over ABI as soon as available
   if (meteo_stick.diff_pressure.data_available) {
     if (pitot_counter > 0) {
-      pitot_counter--;
-      if (pitot_counter == 0) {
+      if (pitot_counter == MS_PITOT_COUNTER) {
+        // set initial value
         pitot_offset = meteo_stick.diff_pressure.data;
+      } else {
+        pitot_offset = pitot_offset * MS_PITOT_FILTER + (1.0f - MS_PITOT_FILTER) * meteo_stick.diff_pressure.data;
       }
+      pitot_counter--;
     }
-    float diff = get_diff(meteo_stick.diff_pressure.data);
-    AbiSendMsgBARO_DIFF(METEO_STICK_SENDER_ID, diff);
-    meteo_stick.current_airspeed = get_pitot(meteo_stick.diff_pressure.data);
-    meteo_stick.diff_pressure.data_available = FALSE;
+    else {
+#if USE_MS_DIFF_PRESSURE
+      float diff = get_diff(meteo_stick.diff_pressure.data);
+      AbiSendMsgBARO_DIFF(METEO_STICK_SENDER_ID, diff);
+#endif
+      meteo_stick.current_airspeed = get_pitot(meteo_stick.diff_pressure.data);
+      meteo_stick.diff_pressure.data_available = false;
+    }
   }
 #endif
 
@@ -391,8 +432,10 @@ void meteo_stick_event(void)
   // send temperature data over ABI as soon as available
   if (meteo_stick.temperature.data_available) {
     meteo_stick.current_temperature = get_temp(meteo_stick.temperature.data);
+#if USE_MS_TEMPERATURE
     AbiSendMsgTEMPERATURE(METEO_STICK_SENDER_ID, meteo_stick.current_temperature);
-    meteo_stick.temperature.data_available = FALSE;
+#endif
+    meteo_stick.temperature.data_available = false;
   }
 #endif
 

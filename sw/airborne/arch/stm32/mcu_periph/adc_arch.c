@@ -147,7 +147,7 @@ PRINT_CONFIG_MSG("Analog to Digital Coverter 2 active")
 #if USE_AD3
 PRINT_CONFIG_MSG("Analog to Digital Coverter 3 active")
 #endif
-#if !USE_AD1 && !USE_AD2 && !USE_AD3
+#if !USE_AD1 && !USE_AD2 && !USE_AD3 && !defined FBW
 #warning ALL ADC CONVERTERS INACTIVE
 #endif
 
@@ -193,17 +193,21 @@ static uint8_t nb_adc1_channels = 0;
 static uint8_t nb_adc2_channels = 0;
 static uint8_t nb_adc3_channels = 0;
 
+#if USE_AD1 || USE_AD2 || USE_AD3
+#define ADC_NUM_CHANNELS 4
+#endif
+
 #if USE_AD1
 /// List of buffers, one for each active channel.
-static struct adc_buf *adc1_buffers[4];
+static struct adc_buf *adc1_buffers[ADC_NUM_CHANNELS];
 #endif
 #if USE_AD2
 /// List of buffers, one for each active channel.
-static struct adc_buf *adc2_buffers[4];
+static struct adc_buf *adc2_buffers[ADC_NUM_CHANNELS];
 #endif
 #if USE_AD3
 /// List of buffers, one for each active channel.
-static struct adc_buf *adc3_buffers[4];
+static struct adc_buf *adc3_buffers[ADC_NUM_CHANNELS];
 #endif
 
 #if USE_ADC_WATCHDOG
@@ -222,11 +226,12 @@ static struct {
 
 void adc_init(void)
 {
-
+#if USE_AD1 || USE_AD2 || USE_AD3
   uint8_t x = 0;
 
   // ADC channel mapping
   uint8_t adc_channel_map[4];
+#endif
 
   /* Init GPIO ports for ADC operation
    */
@@ -369,7 +374,6 @@ void adc_init(void)
 
 void adc_buf_channel(uint8_t adc_channel, struct adc_buf *s, uint8_t av_nb_sample)
 {
-
   if (adc_channel < nb_adc1_channels) {
 #if USE_AD1
     adc1_buffers[adc_channel] = s;
@@ -471,7 +475,7 @@ static inline void adc_init_irq(void)
 static inline void adc_init_single(uint32_t adc, uint8_t nb_channels, uint8_t *channel_map)
 {
   // Paranoia, must be down for 2+ ADC clock cycles before calibration
-  adc_off(adc);
+  adc_power_off(adc);
 
   /* Configure ADC */
   /* Explicitly setting most registers, reset/default values are correct for most */
@@ -497,11 +501,7 @@ static inline void adc_init_single(uint32_t adc, uint8_t nb_channels, uint8_t *c
 
   /* Set CR2 register. */
   /* Clear TSVREFE */
-#if defined(STM32F1)
-  adc_disable_temperature_sensor(adc);
-#elif defined(STM32F4)
   adc_disable_temperature_sensor();
-#endif
   /* Clear EXTTRIG */
   adc_disable_external_trigger_regular(adc);
   /* Clear ALIGN */
@@ -545,14 +545,10 @@ static inline void adc_init_single(uint32_t adc, uint8_t nb_channels, uint8_t *c
   /* Enable ADC<X> */
   adc_power_on(adc);
 #if defined(STM32F1)
-  /* Enable ADC<X> reset calibaration register */
+  /* Rest ADC<X> calibaration register and wait until done */
   adc_reset_calibration(adc);
-  /* Check the end of ADC<X> reset calibration */
-  while ((ADC_CR2(adc) & ADC_CR2_RSTCAL) != 0);
-  /* Start ADC<X> calibaration */
-  adc_calibration(adc);
-  /* Check the end of ADC<X> calibration */
-  while ((ADC_CR2(adc) & ADC_CR2_CAL) != 0);
+  /* Start ADC<X> calibaration and wait until done */
+  adc_calibrate(adc);
 #endif
 
   return;
@@ -582,9 +578,11 @@ void adc1_2_isr(void)
 void adc_isr(void)
 #endif
 {
+#if USE_AD1 || USE_AD2 || USE_AD3
   uint8_t channel = 0;
   uint16_t value  = 0;
   struct adc_buf *buf;
+#endif
 
 #if USE_ADC_WATCHDOG
   /*
@@ -593,7 +591,7 @@ void adc_isr(void)
     at least 500 hz, but we inject adc value in sampling buffer only at 50hz
    */
   const uint32_t timeStampDiff = get_sys_time_msec() - adc_watchdog.timeStamp;
-  const bool_t shouldAccumulateValue = timeStampDiff > 20;
+  const bool shouldAccumulateValue = timeStampDiff > 20;
   if (shouldAccumulateValue) {
     adc_watchdog.timeStamp = get_sys_time_msec();
   }

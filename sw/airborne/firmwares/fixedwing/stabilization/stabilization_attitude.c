@@ -33,7 +33,7 @@
 #include "firmwares/fixedwing/nav.h"
 #include "generated/airframe.h"
 #include CTRL_TYPE_H
-#include "firmwares/fixedwing/autopilot.h"
+#include "autopilot.h"
 
 /* outer loop parameters */
 float h_ctl_course_setpoint; /* rad, CW/north */
@@ -44,10 +44,10 @@ float h_ctl_course_dgain;
 float h_ctl_roll_max_setpoint;
 
 /* roll and pitch disabling */
-bool_t h_ctl_disabled;
+bool h_ctl_disabled;
 
 /* AUTO1 rate mode */
-bool_t h_ctl_auto1_rate;
+bool h_ctl_auto1_rate;
 
 
 /* inner roll loop parameters */
@@ -145,7 +145,7 @@ void h_ctl_init(void)
   h_ctl_pitch_mode = 0;
 #endif
 
-  h_ctl_disabled = FALSE;
+  h_ctl_disabled = false;
 
   h_ctl_roll_setpoint = 0.;
 #ifdef H_CTL_ROLL_PGAIN
@@ -190,7 +190,7 @@ void h_ctl_init(void)
 #endif
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "CALIBRATION", send_calibration);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_CALIBRATION, send_calibration);
 #endif
 }
 
@@ -203,17 +203,17 @@ void h_ctl_course_loop(void)
   static float last_err;
 
   // Ground path error
-  float err = *stateGetHorizontalSpeedDir_f() - h_ctl_course_setpoint;
+  float err = stateGetHorizontalSpeedDir_f() - h_ctl_course_setpoint;
   NormRadAngle(err);
 
 #ifdef STRONG_WIND
   // Usefull path speed
   const float reference_advance = (NOMINAL_AIRSPEED / 2.);
-  float advance = cos(err) * (*stateGetHorizontalSpeedNorm_f()) / reference_advance;
+  float advance = cos(err) * stateGetHorizontalSpeedNorm_f() / reference_advance;
 
   if (
     (advance < 1.)  &&                          // Path speed is small
-    ((*stateGetHorizontalSpeedNorm_f()) < reference_advance)  // Small path speed is due to wind (small groundspeed)
+    (stateGetHorizontalSpeedNorm_f() < reference_advance)  // Small path speed is due to wind (small groundspeed)
   ) {
     /*
     // rough crabangle approximation
@@ -267,7 +267,7 @@ void h_ctl_course_loop(void)
   static float h_ctl_course_slew_rate = 0.;
   float nav_angle_saturation = h_ctl_roll_max_setpoint / h_ctl_course_pgain; /* heading error corresponding to max_roll */
   float half_nav_angle_saturation = nav_angle_saturation / 2.;
-  if (launch) {  /* prevent accumulator run-up on the ground */
+  if (autopilot.launch) {  /* prevent accumulator run-up on the ground */
     if (err > half_nav_angle_saturation) {
       h_ctl_course_slew_rate = Max(h_ctl_course_slew_rate, 0.);
       err = Min(err, (half_nav_angle_saturation + h_ctl_course_slew_rate));
@@ -282,7 +282,7 @@ void h_ctl_course_loop(void)
   }
 #endif
 
-  float speed_depend_nav = (*stateGetHorizontalSpeedNorm_f()) / NOMINAL_AIRSPEED;
+  float speed_depend_nav = stateGetHorizontalSpeedNorm_f() / NOMINAL_AIRSPEED;
   Bound(speed_depend_nav, 0.66, 1.5);
 
   float cmd = -h_ctl_course_pgain * speed_depend_nav * (err + d_err * h_ctl_course_dgain);
@@ -451,7 +451,12 @@ inline static void h_ctl_pitch_loop(void)
     h_ctl_elevator_of_roll = 0.;
   }
 
-  h_ctl_pitch_loop_setpoint =  h_ctl_pitch_setpoint + h_ctl_elevator_of_roll / h_ctl_pitch_pgain * fabs(att->phi);
+  if (v_ctl_mode == V_CTL_MODE_LANDING) {
+    h_ctl_pitch_loop_setpoint =  h_ctl_pitch_setpoint;
+  }
+  else {
+    h_ctl_pitch_loop_setpoint =  h_ctl_pitch_setpoint + h_ctl_elevator_of_roll / h_ctl_pitch_pgain * fabs(att->phi);
+  }
 
   float err = 0;
 
@@ -461,7 +466,7 @@ inline static void h_ctl_pitch_loop(void)
       err = att->theta - h_ctl_pitch_loop_setpoint;
       break;
     case H_CTL_PITCH_MODE_AOA:
-      err = (*stateGetAngleOfAttack_f()) - h_ctl_pitch_loop_setpoint;
+      err = stateGetAngleOfAttack_f() - h_ctl_pitch_loop_setpoint;
       break;
     default:
       err = att->theta - h_ctl_pitch_loop_setpoint;

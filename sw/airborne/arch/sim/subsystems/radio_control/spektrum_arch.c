@@ -27,6 +27,7 @@
  */
 
 #include "subsystems/radio_control.h"
+#include "subsystems/radio_control/spektrum_arch.h"
 #include "subsystems/radio_control/spektrum.h"
 #include "std.h"
 #include <inttypes.h>
@@ -37,15 +38,13 @@
 #include <caml/mlvalues.h>
 #endif
 
-static bool_t spektrum_available;
-
-void radio_control_spektrum_try_bind(void) {}
+static bool spektrum_available;
 
 void radio_control_impl_init(void)
 {
-  spektrum_available = FALSE;
+  spektrum_available = false;
 }
-void RadioControlEventImp(void (*frame_handler)(void))
+void spektrum_event(void (*frame_handler)(void))
 {
   if (spektrum_available) {
     radio_control.frame_cpt++;
@@ -53,8 +52,10 @@ void RadioControlEventImp(void (*frame_handler)(void))
     radio_control.status = RC_OK;
     (*frame_handler)();
   }
-  spektrum_available = FALSE;
+  spektrum_available = false;
 }
+
+void spektrum_try_bind(void) {}
 
 #if USE_NPS
 #ifdef RADIO_CONTROL
@@ -65,7 +66,7 @@ void radio_control_feed(void)
   radio_control.values[RADIO_YAW]      = nps_radio_control.yaw * MAX_PPRZ;
   radio_control.values[RADIO_THROTTLE] = nps_radio_control.throttle * MAX_PPRZ;
   radio_control.values[RADIO_MODE]     = nps_radio_control.mode * MAX_PPRZ;
-  spektrum_available = TRUE;
+  spektrum_available = true;
 }
 #else //RADIO_CONTROL
 void radio_control_feed(void) {}
@@ -89,7 +90,7 @@ value update_rc_channel(value c, value v)
 
 value send_ppm(value unit)
 {
-  spektrum_available = TRUE;
+  spektrum_available = true;
   return unit;
 }
 #else // RADIO_CONTROL

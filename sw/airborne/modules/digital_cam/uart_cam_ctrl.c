@@ -45,10 +45,11 @@
 
 #include "state.h"
 
-#define CameraLinkDev (&(CAMERA_LINK).device)
-#define CameraLinkTransmit(c) CameraLinkDev->put_byte(CameraLinkDev->periph, c)
-#define CameraLinkChAvailable() CameraLinkDev->check_available(CameraLinkDev->periph)
-#define CameraLinkGetch() CameraLinkGetch->get_byte(CameraLinkDev->periph)
+
+#define CameraLinkDev (&((CAMERA_LINK).device))
+#define CameraLinkTransmit(c) CameraLinkDev->put_byte(CameraLinkDev->periph, 0, c)
+#define CameraLinkChAvailable() CameraLinkDev->char_available(CameraLinkDev->periph)
+#define CameraLinkGetch() CameraLinkDev->get_byte(CameraLinkDev->periph)
 
 union dc_shot_union dc_shot_msg;
 union mora_status_union mora_status_msg;
@@ -60,12 +61,6 @@ int digital_cam_uart_thumbnails = 0;
 static uint8_t thumbs[THUMB_COUNT][THUMB_MSG_SIZE];
 static uint8_t thumb_pointer = 0;
 
-
-
-#define ReadCameraBuffer() {                      \
-    while (CameraLinkChAvailable())               \
-      digital_cam_uart_parse(CameraLinkGetch());  \
-  }
 
 void digital_cam_uart_event(void)
 {
@@ -129,7 +124,7 @@ void digital_cam_uart_init(void)
     }
   }
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "PAYLOAD", send_thumbnails);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_PAYLOAD, send_thumbnails);
 #endif
 
 #ifdef SITL
@@ -157,8 +152,8 @@ void dc_send_command(uint8_t cmd)
       dc_shot_msg.data.phi = stateGetNedToBodyEulers_i()->phi;
       dc_shot_msg.data.theta = stateGetNedToBodyEulers_i()->theta;
       dc_shot_msg.data.psi = stateGetNedToBodyEulers_i()->psi;
-      dc_shot_msg.data.vground = *stateGetHorizontalSpeedNorm_i();
-      dc_shot_msg.data.course = *stateGetHorizontalSpeedDir_i();
+      dc_shot_msg.data.vground = stateGetHorizontalSpeedNorm_i();
+      dc_shot_msg.data.course = stateGetHorizontalSpeedDir_i();
       dc_shot_msg.data.groundalt = POS_BFP_OF_REAL(state.alt_agl_f);
 
       MoraHeader(MORA_SHOOT, MORA_SHOOT_MSG_SIZE);
@@ -179,4 +174,7 @@ void dc_send_command(uint8_t cmd)
     default:
       break;
   }
+
+  // call command send_command function
+  dc_send_command_common(cmd);
 }

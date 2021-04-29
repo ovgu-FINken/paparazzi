@@ -53,26 +53,73 @@ PRINT_CONFIG_MSG("Gyro/Accel output rate is 100Hz at 1kHz internal sampling")
 #define IMU_MPU_SMPLRT_DIV 3
 PRINT_CONFIG_MSG("Gyro/Accel output rate is 2kHz at 8kHz internal sampling")
 #else
-#error Non-default PERIODIC_FREQUENCY: please define MPU_HMC_LOWPASS_FILTER and MPU_HMC_SMPLRT_DIV.
+#error Non-default PERIODIC_FREQUENCY: please define IMU_MPU_LOWPASS_FILTER and IMU_MPU_SMPLRT_DIV.
 #endif
 #endif
 PRINT_CONFIG_VAR(IMU_MPU_LOWPASS_FILTER)
 PRINT_CONFIG_VAR(IMU_MPU_SMPLRT_DIV)
 
-#ifndef IMU_MPU_GYRO_RANGE
-#define IMU_MPU_GYRO_RANGE MPU60X0_GYRO_RANGE_2000
-#endif
 PRINT_CONFIG_VAR(IMU_MPU_GYRO_RANGE)
-
-#ifndef IMU_MPU_ACCEL_RANGE
-#define IMU_MPU_ACCEL_RANGE MPU60X0_ACCEL_RANGE_16G
-#endif
 PRINT_CONFIG_VAR(IMU_MPU_ACCEL_RANGE)
+
+// Default channels order
+#ifndef IMU_MPU_CHAN_X
+#define IMU_MPU_CHAN_X 0
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_CHAN_X)
+#ifndef IMU_MPU_CHAN_Y
+#define IMU_MPU_CHAN_Y 1
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_CHAN_Y)
+#ifndef IMU_MPU_CHAN_Z
+#define IMU_MPU_CHAN_Z 2
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_CHAN_Z)
+
+#ifndef IMU_MPU_X_SIGN
+#define IMU_MPU_X_SIGN 1
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_X_SIGN)
+#ifndef IMU_MPU_Y_SIGN
+#define IMU_MPU_Y_SIGN 1
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_Y_SIGN)
+#ifndef IMU_MPU_Z_SIGN
+#define IMU_MPU_Z_SIGN 1
+#endif
+PRINT_CONFIG_VAR(IMU_MPU_Z_SIGN)
+
+/* mag by default rotated by 90deg around z axis relative to MPU */
+#ifndef IMU_HMC_CHAN_X
+#define IMU_HMC_CHAN_X 1
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_CHAN_X)
+#ifndef IMU_HMC_CHAN_Y
+#define IMU_HMC_CHAN_Y 0
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_CHAN_Y)
+#ifndef IMU_HMC_CHAN_Z
+#define IMU_HMC_CHAN_Z 2
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_CHAN_Z)
+
+#ifndef IMU_HMC_X_SIGN
+#define IMU_HMC_X_SIGN 1
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_X_SIGN)
+#ifndef IMU_HMC_Y_SIGN
+#define IMU_HMC_Y_SIGN -1
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_Y_SIGN)
+#ifndef IMU_HMC_Z_SIGN
+#define IMU_HMC_Z_SIGN 1
+#endif
+PRINT_CONFIG_VAR(IMU_HMC_Z_SIGN)
 
 
 struct ImuMpu6000Hmc5883 imu_mpu_hmc;
 
-void imu_impl_init(void)
+void imu_mpu_hmc_init(void)
 {
   mpu60x0_spi_init(&imu_mpu_hmc.mpu, &IMU_MPU_SPI_DEV, IMU_MPU_SPI_SLAVE_IDX);
   // change the default configuration
@@ -86,7 +133,7 @@ void imu_impl_init(void)
 }
 
 
-void imu_periodic(void)
+void imu_mpu_hmc_periodic(void)
 {
   mpu60x0_spi_periodic(&imu_mpu_hmc.mpu);
 
@@ -102,9 +149,22 @@ void imu_mpu_hmc_event(void)
 
   mpu60x0_spi_event(&imu_mpu_hmc.mpu);
   if (imu_mpu_hmc.mpu.data_available) {
-    RATES_COPY(imu.gyro_unscaled, imu_mpu_hmc.mpu.data_rates.rates);
-    VECT3_COPY(imu.accel_unscaled, imu_mpu_hmc.mpu.data_accel.vect);
-    imu_mpu_hmc.mpu.data_available = FALSE;
+    // set channel order
+    struct Int32Vect3 accel = {
+      IMU_MPU_X_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_accel.value[IMU_MPU_CHAN_X]),
+      IMU_MPU_Y_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_accel.value[IMU_MPU_CHAN_Y]),
+      IMU_MPU_Z_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_accel.value[IMU_MPU_CHAN_Z])
+    };
+    struct Int32Rates rates = {
+      IMU_MPU_X_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_rates.value[IMU_MPU_CHAN_X]),
+      IMU_MPU_Y_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_rates.value[IMU_MPU_CHAN_Y]),
+      IMU_MPU_Z_SIGN * (int32_t)(imu_mpu_hmc.mpu.data_rates.value[IMU_MPU_CHAN_Z])
+    };
+    // unscaled vector
+    VECT3_COPY(imu.accel_unscaled, accel);
+    RATES_COPY(imu.gyro_unscaled, rates);
+
+    imu_mpu_hmc.mpu.data_available = false;
     imu_scale_gyro(&imu);
     imu_scale_accel(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_MPU6000_HMC_ID, now_ts, &imu.gyro);
@@ -114,11 +174,11 @@ void imu_mpu_hmc_event(void)
   /* HMC58XX event task */
   hmc58xx_event(&imu_mpu_hmc.hmc);
   if (imu_mpu_hmc.hmc.data_available) {
-    /* mag rotated by 90deg around z axis relative to MPU */
-    imu.mag_unscaled.x =  imu_mpu_hmc.hmc.data.vect.y;
-    imu.mag_unscaled.y = -imu_mpu_hmc.hmc.data.vect.x;
-    imu.mag_unscaled.z =  imu_mpu_hmc.hmc.data.vect.z;
-    imu_mpu_hmc.hmc.data_available = FALSE;
+    /* mag by default rotated by 90deg around z axis relative to MPU */
+    imu.mag_unscaled.x = IMU_HMC_X_SIGN * imu_mpu_hmc.hmc.data.value[IMU_HMC_CHAN_X];
+    imu.mag_unscaled.y = IMU_HMC_Y_SIGN * imu_mpu_hmc.hmc.data.value[IMU_HMC_CHAN_Y];
+    imu.mag_unscaled.z = IMU_HMC_Z_SIGN * imu_mpu_hmc.hmc.data.value[IMU_HMC_CHAN_Z];
+    imu_mpu_hmc.hmc.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_MPU6000_HMC_ID, now_ts, &imu.mag);
   }

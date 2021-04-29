@@ -34,12 +34,12 @@
 
 #ifdef RECTANGLE_SURVEY_USE_INTERLEAVE
 #define USE_INTERLEAVE TRUE
-#else 
+#else
 #define USE_INTERLEAVE FALSE
 #endif
 
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 #if PERIODIC_TELEMETRY
@@ -51,17 +51,25 @@
 #include "modules/nav/nav_survey_rectangle_rotorcraft.h"
 #include "state.h"
 
+#ifndef RECTANGLE_SURVEY_HEADING_NS
+#define RECTANGLE_SURVEY_HEADING_NS 0.f
+#endif
+
+#ifndef RECTANGLE_SURVEY_HEADING_WE
+#define RECTANGLE_SURVEY_HEADING_WE 90.f
+#endif
+
 float sweep = RECTANGLE_SURVEY_DEFAULT_SWEEP;
-static bool_t nav_survey_rectangle_active = FALSE;
+static bool nav_survey_rectangle_active = false;
 uint16_t rectangle_survey_sweep_num;
-bool_t nav_in_segment = FALSE;
-bool_t nav_in_circle = FALSE;
-bool_t interleave = USE_INTERLEAVE;
+bool nav_in_segment = false;
+bool nav_in_circle = false;
+bool interleave = USE_INTERLEAVE;
 
 static struct EnuCoor_f survey_from, survey_to;
 static struct EnuCoor_i survey_from_i, survey_to_i;
 
-static bool_t survey_uturn __attribute__((unused)) = FALSE;
+static bool survey_uturn __attribute__((unused)) = false;
 static survey_orientation_t survey_orientation = NS;
 
 float nav_survey_shift;
@@ -92,11 +100,11 @@ static void send_survey(struct transport_tx *trans, struct link_device *dev)
 void nav_survey_rectangle_rotorcraft_init(void)
 {
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "SURVEY", send_survey);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_SURVEY, send_survey);
 #endif
 }
 
-bool_t nav_survey_rectangle_rotorcraft_setup(uint8_t wp1, uint8_t wp2, float grid, survey_orientation_t so)
+void nav_survey_rectangle_rotorcraft_setup(uint8_t wp1, uint8_t wp2, float grid, survey_orientation_t so)
 {
   rectangle_survey_sweep_num = 0;
   nav_survey_west = Min(WaypointX(wp1), WaypointX(wp2));
@@ -137,8 +145,9 @@ bool_t nav_survey_rectangle_rotorcraft_setup(uint8_t wp1, uint8_t wp2, float gri
     }
   }
   nav_survey_shift = grid;
-  survey_uturn = FALSE;
-  nav_survey_rectangle_active = FALSE;
+  sweep = grid;
+  survey_uturn = false;
+  nav_survey_rectangle_active = false;
 
   //go to start position
   ENU_BFP_OF_REAL(survey_from_i, survey_from);
@@ -147,26 +156,28 @@ bool_t nav_survey_rectangle_rotorcraft_setup(uint8_t wp1, uint8_t wp2, float gri
   LINE_STOP_FUNCTION;
   NavVerticalAltitudeMode(waypoints[wp1].enu_f.z, 0.);
   if (survey_orientation == NS) {
-    nav_set_heading_deg(0);
+    nav_set_heading_deg(RECTANGLE_SURVEY_HEADING_NS);
   } else {
-    nav_set_heading_deg(90);
+    nav_set_heading_deg(RECTANGLE_SURVEY_HEADING_WE);
   }
-  return FALSE;
 }
 
-
-bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
+bool nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
 {
-  static bool_t is_last_half = FALSE;
+  #ifdef NAV_SURVEY_RECTANGLE_DYNAMIC
+  nav_survey_shift = (nav_survey_shift > 0 ? sweep : -sweep);
+  #endif  
+
+  static bool is_last_half = false;
   static float survey_radius;
-  nav_survey_active = TRUE;
+  nav_survey_active = true;
 
   /* entry scan */ // wait for start position and altitude be reached
   if (!nav_survey_rectangle_active && ((!nav_approaching_from(&survey_from_i, NULL, 0))
                                      || (fabsf(stateGetPositionEnu_f()->z - waypoints[wp1].enu_f.z)) > 1.)) {
   } else {
     if (!nav_survey_rectangle_active) {
-      nav_survey_rectangle_active = TRUE;
+      nav_survey_rectangle_active = true;
       LINE_START_FUNCTION;
     }
 
@@ -221,7 +232,7 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
                 }else {
                   survey_radius = nav_survey_shift /2.;
                 }
-                is_last_half = FALSE;
+                is_last_half = false;
               } else { // last sweep not half
                 nav_survey_shift = -nav_survey_shift;
                 if (interleave) {
@@ -233,7 +244,7 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
               rectangle_survey_sweep_num ++;
             } else { //room for half sweep after
               survey_radius = nav_survey_shift / 2.;
-              is_last_half = TRUE;
+              is_last_half = true;
             }
           } else {// room for full sweep after
             survey_radius = nav_survey_shift;
@@ -270,7 +281,7 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
                 }else {
                   survey_radius = nav_survey_shift /2.;
                 }
-                is_last_half = FALSE;
+                is_last_half = false;
               } else { // last sweep not half
                 nav_survey_shift = -nav_survey_shift;
                 if (interleave) {
@@ -282,7 +293,7 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
               rectangle_survey_sweep_num ++;
             } else { //room for half sweep after
               survey_radius = nav_survey_shift / 2.;
-              is_last_half = TRUE;
+              is_last_half = true;
             }
           } else {// room for full sweep after
             survey_radius = nav_survey_shift;
@@ -306,8 +317,8 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
           }
         }
 
-        nav_in_segment = FALSE;
-        survey_uturn = TRUE;
+        nav_in_segment = false;
+        survey_uturn = true;
         LINE_STOP_FUNCTION;
 #ifdef DIGITAL_CAM
         float temp;
@@ -350,8 +361,8 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
         ENU_BFP_OF_REAL(survey_to_i, waypoints[0].enu_f);
       }
       if (nav_approaching_from(&survey_to_i, NULL, 0)) {
-        survey_uturn = FALSE;
-        nav_in_circle = FALSE;
+        survey_uturn = false;
+        nav_in_circle = false;
         LINE_START_FUNCTION;
       } else {
 
@@ -369,7 +380,6 @@ bool_t nav_survey_rectangle_rotorcraft_run(uint8_t wp1, uint8_t wp2)
     } /* END turn */
 
   } /* END entry scan  */
-  return TRUE;
+  return true;
 
 }// /* END survey_retangle */
-

@@ -29,7 +29,7 @@
  */
 #define PERIODIC_C_MAIN
 #define ABI_C
-#define DATALINK_C
+#define MODULES_C
 
 #include "subsystems/datalink/telemetry.h"
 #include "subsystems/datalink/datalink.h"
@@ -38,6 +38,7 @@
 
 #include "generated/airframe.h"
 #include "generated/settings.h"
+#include "generated/modules.h"
 
 #include "std.h"
 #include "mcu.h"
@@ -47,7 +48,6 @@
 #include "state.h"
 #include "subsystems/imu.h"
 #include "subsystems/ahrs.h"
-#include "subsystems/ahrs/ahrs_aligner.h"
 
 #include "subsystems/commands.h"
 #include "subsystems/actuators.h"
@@ -72,8 +72,6 @@ static void send_autopilot_version(struct transport_tx *trans, struct link_devic
 static void send_actuators(struct transport_tx *trans, struct link_device *dev);
 static void send_commands(struct transport_tx *trans, struct link_device *dev);
 
-uint16_t datalink_time = 0;
-
 int main(void)
 {
   main_init();
@@ -94,10 +92,8 @@ static inline void main_init(void)
   stateInit();
   actuators_init();
 
-  imu_init();
-#if USE_AHRS_ALIGNER
-  ahrs_aligner_init();
-#endif
+  modules_init();
+
   ahrs_init();
 
   settings_init();
@@ -106,10 +102,12 @@ static inline void main_init(void)
 
   downlink_init();
 
-  register_periodic_telemetry(DefaultPeriodic, "AUTOPILOT_VERSION", send_autopilot_version);
-  register_periodic_telemetry(DefaultPeriodic, "ALIVE", send_alive);
-  register_periodic_telemetry(DefaultPeriodic, "COMMANDS", send_commands);
-  register_periodic_telemetry(DefaultPeriodic, "ACTUATORS", send_actuators);
+  modules_init();
+
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AUTOPILOT_VERSION, send_autopilot_version);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_ALIVE, send_alive);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_COMMANDS, send_commands);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_ACTUATORS, send_actuators);
 
   // send body_to_imu from here for now
   AbiSendMsgBODY_TO_IMU_QUAT(1, orientationGetQuat_f(&imu.body_to_imu));
@@ -127,48 +125,19 @@ static inline void main_periodic_task(void)
   SetActuatorsFromCommands(commands, 0);
 
   if (sys_time.nb_sec > 1) {
-    imu_periodic();
+    modules_periodic_task();
   }
   RunOnceEvery(10, { LED_PERIODIC();});
   RunOnceEvery(PERIODIC_FREQUENCY, { datalink_time++; });
   periodic_telemetry_send_Main(DefaultPeriodic, &(DefaultChannel).trans_tx, &(DefaultDevice).device);
+
+  modules_periodic_task();
 }
 
 static inline void main_event_task(void)
 {
   mcu_event();
-  ImuEvent();
-  DatalinkEvent();
-}
-
-
-void dl_parse_msg(void)
-{
-  uint8_t msg_id = dl_buffer[1];
-  switch (msg_id) {
-
-    case  DL_PING: {
-      DOWNLINK_SEND_PONG(DefaultChannel, DefaultDevice);
-    }
-    break;
-    case DL_SETTING:
-      if (DL_SETTING_ac_id(dl_buffer) == AC_ID) {
-        uint8_t i = DL_SETTING_index(dl_buffer);
-        float val = DL_SETTING_value(dl_buffer);
-        DlSetting(i, val);
-        DOWNLINK_SEND_DL_VALUE(DefaultChannel, DefaultDevice, &i, &val);
-      }
-      break;
-    case DL_GET_SETTING : {
-      if (DL_GET_SETTING_ac_id(dl_buffer) != AC_ID) { break; }
-      uint8_t i = DL_GET_SETTING_index(dl_buffer);
-      float val = settings_get_value(i);
-      DOWNLINK_SEND_DL_VALUE(DefaultChannel, DefaultDevice, &i, &val);
-    }
-    break;
-    default:
-      break;
-  }
+  modules_event_task();
 }
 
 static void send_alive(struct transport_tx *trans, struct link_device *dev)

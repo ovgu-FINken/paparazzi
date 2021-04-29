@@ -31,9 +31,41 @@
 #include "generated/airframe.h"
 #include "subsystems/imu.h"
 
-/* default sensitivitiy */
-#include "subsystems/imu/imu_mpu60x0_defaults.h"
 #include "peripherals/mpu60x0_spi.h"
+
+#ifndef ASPIRIN_2_GYRO_RANGE
+#define ASPIRIN_2_GYRO_RANGE MPU60X0_GYRO_RANGE_2000
+#endif
+
+#ifndef ASPIRIN_2_ACCEL_RANGE
+#define ASPIRIN_2_ACCEL_RANGE MPU60X0_ACCEL_RANGE_16G
+#endif
+
+// Set default sensitivity based on range if needed
+#if !defined IMU_GYRO_P_SENS & !defined IMU_GYRO_Q_SENS & !defined IMU_GYRO_R_SENS
+#define IMU_GYRO_P_SENS MPU60X0_GYRO_SENS[ASPIRIN_2_GYRO_RANGE]
+#define IMU_GYRO_P_SENS_NUM MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][0]
+#define IMU_GYRO_P_SENS_DEN MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][1]
+#define IMU_GYRO_Q_SENS MPU60X0_GYRO_SENS[ASPIRIN_2_GYRO_RANGE]
+#define IMU_GYRO_Q_SENS_NUM MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][0]
+#define IMU_GYRO_Q_SENS_DEN MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][1]
+#define IMU_GYRO_R_SENS MPU60X0_GYRO_SENS[ASPIRIN_2_GYRO_RANGE]
+#define IMU_GYRO_R_SENS_NUM MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][0]
+#define IMU_GYRO_R_SENS_DEN MPU60X0_GYRO_SENS_FRAC[ASPIRIN_2_GYRO_RANGE][1]
+#endif
+
+// Set default sensitivity based on range if needed
+#if !defined IMU_ACCEL_X_SENS & !defined IMU_ACCEL_Y_SENS & !defined IMU_ACCEL_Z_SENS
+#define IMU_ACCEL_X_SENS MPU60X0_ACCEL_SENS[ASPIRIN_2_ACCEL_RANGE]
+#define IMU_ACCEL_X_SENS_NUM MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][0]
+#define IMU_ACCEL_X_SENS_DEN MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][1]
+#define IMU_ACCEL_Y_SENS MPU60X0_ACCEL_SENS[ASPIRIN_2_ACCEL_RANGE]
+#define IMU_ACCEL_Y_SENS_NUM MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][0]
+#define IMU_ACCEL_Y_SENS_DEN MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][1]
+#define IMU_ACCEL_Z_SENS MPU60X0_ACCEL_SENS[ASPIRIN_2_ACCEL_RANGE]
+#define IMU_ACCEL_Z_SENS_NUM MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][0]
+#define IMU_ACCEL_Z_SENS_DEN MPU60X0_ACCEL_SENS_FRAC[ASPIRIN_2_ACCEL_RANGE][1]
+#endif
 
 struct ImuAspirin2Spi {
   struct Mpu60x0_Spi mpu;
@@ -41,13 +73,13 @@ struct ImuAspirin2Spi {
   struct spi_transaction wait_slave4_trans;
   volatile uint8_t wait_slave4_tx_buf[1];
   volatile uint8_t wait_slave4_rx_buf[2];
-  volatile bool_t slave4_ready;
+  volatile bool slave4_ready;
 };
 
 extern struct ImuAspirin2Spi imu_aspirin2;
 
+extern void imu_aspirin2_init(void);
 extern void imu_aspirin2_event(void);
-
-#define ImuEvent imu_aspirin2_event
+extern void imu_aspirin2_periodic(void);
 
 #endif /* IMU_ASPIRIN_2_H */

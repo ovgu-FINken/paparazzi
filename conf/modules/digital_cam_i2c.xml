@@ -1,6 +1,6 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
-<module name="atmega_i2c_cam_ctrl" dir="digital_cam">
+<module name="digital_cam_i2c" dir="digital_cam">
   <doc>
     <description>
       Digital Photo Camera Triggering (using a I2C channel)
@@ -10,10 +10,13 @@
       Using the PAYLOAD_COMMAND, all functions of the camera can be controlled.
       It can trigger photos based on GPS distance, time or circle radius in both fixedwings and rotorcraft.
     </description>
+    <configure name="ATMEGA_I2C_DEV" value="i2cX" description="select which i2c peripheral to use (default i2c0)"/>
     <define name="DC_SHOOT_ON_BUTTON_RELEASE" />
     <define name="DC_SHOT_SYNC_SEND" value="TRUE|FALSE" description="send DC_SHOT message when photo was taken (default: TRUE)"/>
   </doc>
-  <conflicts>digital_cam,digital_cam_servo,digital_cam_uart,digital_cam_video</conflicts>
+  <dep>
+    <conflicts>digital_cam,digital_cam_servo,digital_cam_uart,digital_cam_video</conflicts>
+  </dep>
   <header>
     <file name="atmega_i2c_cam_ctrl.h"/>
     <file name="dc.h"/>
@@ -23,13 +26,14 @@
   <periodic fun="atmega_i2c_cam_ctrl_periodic()"  autorun="TRUE" freq="10"/>
   <event fun="atmega_i2c_cam_ctrl_event()"/>
 
-  <datalink message="PAYLOAD_COMMAND" fun="ParseCameraCommand()"/>
+  <datalink message="PAYLOAD_COMMAND" fun="ParseCameraCommand(buf)"/>
 
   <makefile target="ap">
+    <configure name="ATMEGA_I2C_DEV" default="i2c0" case="upper|lower"/>
+    <define name="USE_$(ATMEGA_I2C_DEV_UPPER)"/>
+    <define name="ATMEGA_I2C_DEV" value="$(ATMEGA_I2C_DEV_LOWER)"/>
     <file name="atmega_i2c_cam_ctrl.c"/>
     <file name="dc.c"/>
-    <define name="ATMEGA_I2C_DEV" value="i2c0"/>
-    <define name="USE_I2C0" value="1"/>
   </makefile>
 
   <makefile target="sim">

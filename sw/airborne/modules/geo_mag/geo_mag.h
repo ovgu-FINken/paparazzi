@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012  Sergey Krukowski <softsr@yahoo.de>
- * Copyright (C) 2015  OpenUAS <info@openuas.org>
+ * Copyright (C) 2020  OpenUAS <info@openuas.org>
  *
  * This file is part of paparazzi.
  *
@@ -23,7 +23,7 @@
 /**
  * @file modules/geo_mag/geo_mag.h
  * @brief Calculation of the Geomagnetic field vector from current location.
- * This module is based on the WMM2015 model (http://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml).
+ * This module is based on the world magnetic model from (http://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml).
  */
 
 #ifndef GEO_MAG_H
@@ -34,8 +34,8 @@
 
 struct GeoMag {
   struct DoubleVect3 vect;
-  bool_t calc_once;
-  bool_t ready;
+  bool calc_once;
+  bool ready;
 };
 
 extern void geo_mag_init(void);

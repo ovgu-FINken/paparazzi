@@ -73,7 +73,7 @@
 #include "firmwares/fixedwing/nav.h"
 #include "generated/airframe.h"
 #include CTRL_TYPE_H
-#include "firmwares/fixedwing/autopilot.h"
+#include "autopilot.h"
 
 
 /* outer loop parameters */
@@ -85,10 +85,10 @@ float h_ctl_course_dgain;
 float h_ctl_roll_max_setpoint;
 
 /* roll and pitch disabling */
-bool_t h_ctl_disabled;
+bool h_ctl_disabled;
 
 /* AUTO1 rate mode */
-bool_t h_ctl_auto1_rate;
+bool h_ctl_auto1_rate;
 
 struct HCtlAdaptRef {
   float roll_angle;
@@ -196,7 +196,7 @@ float h_ctl_aileron_of_throttle;
 float h_ctl_elevator_of_roll;
 float h_ctl_pitch_of_roll; // Should be used instead of elevator_of_roll
 
-bool_t use_airspeed_ratio;
+bool use_airspeed_ratio;
 float airspeed_ratio2;
 #define AIRSPEED_RATIO_MIN 0.5
 #define AIRSPEED_RATIO_MAX 2.
@@ -309,7 +309,7 @@ void h_ctl_init(void)
   h_ctl_course_dgain = H_CTL_COURSE_DGAIN;
   h_ctl_roll_max_setpoint = H_CTL_ROLL_MAX_SETPOINT;
 
-  h_ctl_disabled = FALSE;
+  h_ctl_disabled = false;
 
   h_ctl_roll_setpoint = 0.;
   h_ctl_roll_attitude_gain = H_CTL_ROLL_ATTITUDE_GAIN;
@@ -349,7 +349,7 @@ void h_ctl_init(void)
   h_ctl_pitch_of_roll = H_CTL_PITCH_OF_ROLL;
 #endif
 
-  use_airspeed_ratio = FALSE;
+  use_airspeed_ratio = false;
   airspeed_ratio2 = 1.;
 
 #if USE_PITCH_TRIM
@@ -361,9 +361,9 @@ void h_ctl_init(void)
 #endif
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "CALIBRATION", send_calibration);
-  register_periodic_telemetry(DefaultPeriodic, "TUNE_ROLL", send_tune_roll);
-  register_periodic_telemetry(DefaultPeriodic, "H_CTL_A", send_ctl_a);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_CALIBRATION, send_calibration);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_TUNE_ROLL, send_tune_roll);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_H_CTL_A, send_ctl_a);
 #endif
 }
 
@@ -376,14 +376,14 @@ void h_ctl_course_loop(void)
   static float last_err;
 
   // Ground path error
-  float err = h_ctl_course_setpoint - (*stateGetHorizontalSpeedDir_f());
+  float err = h_ctl_course_setpoint - stateGetHorizontalSpeedDir_f();
   NormRadAngle(err);
 
   float d_err = err - last_err;
   last_err = err;
   NormRadAngle(d_err);
 
-  float speed_depend_nav = (*stateGetHorizontalSpeedNorm_f()) / NOMINAL_AIRSPEED;
+  float speed_depend_nav = stateGetHorizontalSpeedNorm_f() / NOMINAL_AIRSPEED;
   Bound(speed_depend_nav, 0.66, 1.5);
 
   h_ctl_roll_setpoint = h_ctl_course_pre_bank_correction * h_ctl_course_pre_bank
@@ -399,7 +399,7 @@ static inline void compute_airspeed_ratio(void)
   if (use_airspeed_ratio) {
     // low pass airspeed
     static float airspeed = 0.;
-    airspeed = (15 * airspeed + (*stateGetAirspeed_f())) / 16;
+    airspeed = (15 * airspeed + stateGetAirspeed_f()) / 16;
     // compute ratio
     float airspeed_ratio = airspeed / NOMINAL_AIRSPEED;
     Bound(airspeed_ratio, AIRSPEED_RATIO_MIN, AIRSPEED_RATIO_MAX);
@@ -487,7 +487,7 @@ inline static void h_ctl_roll_loop(void)
   struct FloatRates *body_rate = stateGetBodyRates_f();
   float d_err = h_ctl_ref.roll_rate - body_rate->p;
 
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     h_ctl_roll_sum_err = 0.;
   } else {
     if (h_ctl_roll_igain > 0.) {
@@ -604,7 +604,7 @@ inline static void h_ctl_pitch_loop(void)
   last_err = err;
 #endif
 
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     h_ctl_pitch_sum_err = 0.;
   } else {
     if (h_ctl_pitch_igain > 0.) {
@@ -646,7 +646,7 @@ inline static void h_ctl_yaw_loop(void)
   float ny = 0.f;
 #endif
 
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     h_ctl_yaw_ny_sum_err = 0.;
   } else {
     if (h_ctl_yaw_ny_igain > 0.) {
@@ -663,7 +663,7 @@ inline static void h_ctl_yaw_loop(void)
 #endif
 
 #ifdef USE_AIRSPEED
-  float Vo = *stateGetAirspeed_f();
+  float Vo = stateGetAirspeed_f();
   Bound(Vo, STALL_AIRSPEED, RACE_AIRSPEED);
 #else
   float Vo = NOMINAL_AIRSPEED;
@@ -712,7 +712,7 @@ inline static void h_ctl_cl_loop(void)
 #if H_CTL_CL_LOOP_USE_AIRSPEED_SETPOINT
   float corrected_airspeed = v_ctl_auto_airspeed_setpoint;
 #else
-  float corrected_airspeed = *stateGetAirspeed_f();
+  float corrected_airspeed = stateGetAirspeed_f();
 #endif
 #if H_CTL_CL_LOOP_INCREASE_FLAPS_WITH_LOADFACTOR
   corrected_airspeed /= sqrtf(nz);
@@ -729,7 +729,7 @@ inline static void h_ctl_cl_loop(void)
   }
 
   // no control in manual mode
-  if (pprz_mode == PPRZ_MODE_MANUAL) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL) {
     cmd = 0.f;
   }
   // bound max flap angle

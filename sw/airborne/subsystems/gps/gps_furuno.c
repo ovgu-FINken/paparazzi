@@ -26,8 +26,8 @@
  * GPS furuno based NMEA parser
  */
 
-#include "gps_nmea.h"
 #include "subsystems/gps.h"
+#include "gps_nmea.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -55,9 +55,9 @@ static const char *gps_furuno_settings[GPS_FURUNO_SETTINGS_NB] = {
 
 static uint8_t furuno_cfg_cnt = 0;
 
-static void nmea_parse_perdcrv(void);
+static bool nmea_parse_perdcrv(void);
 
-#define GpsLinkDevice (&(GPS_LINK).device)
+#define GpsLinkDevice (&(NMEA_GPS_LINK).device)
 
 /**
  * Configure furuno GPS.
@@ -71,11 +71,12 @@ void nmea_configure(void)
   for (i = furuno_cfg_cnt; i < GPS_FURUNO_SETTINGS_NB; i++) {
     len = strlen(gps_furuno_settings[i]);
     // Check if there is enough space to send the config msg
-    if (GpsLinkDevice->check_free_space(GpsLinkDevice->periph, len + 6)) {
+    long fd = 0;
+    if (GpsLinkDevice->check_free_space(GpsLinkDevice->periph, &fd, len + 6)) {
       crc = nmea_calc_crc(gps_furuno_settings[i], len);
       sprintf(buf, "$%s*%02X\r\n", gps_furuno_settings[i], crc);
       for (j = 0; j < len + 6; j++) {
-        GpsLinkDevice->put_byte(GpsLinkDevice->periph, buf[j]);
+        GpsLinkDevice->put_byte(GpsLinkDevice->periph, fd, buf[j]);
       }
       furuno_cfg_cnt++;
     } else {
@@ -83,7 +84,7 @@ void nmea_configure(void)
       return;
     }
   }
-  gps_nmea.is_configured = TRUE;
+  gps_nmea.is_configured = true;
 }
 
 void nmea_parse_prop_init(void)
@@ -92,14 +93,15 @@ void nmea_parse_prop_init(void)
 }
 
 
-void nmea_parse_prop_msg(void)
+bool nmea_parse_prop_msg(void)
 {
   if (gps_nmea.msg_len > 5 && !strncmp(gps_nmea.msg_buf , "PERDCRV", 7)) {
-    nmea_parse_perdcrv();
+    return nmea_parse_perdcrv();
   }
+  return false;
 }
 
-void nmea_parse_perdcrv(void)
+bool nmea_parse_perdcrv(void)
 {
   int i = 8;
 
@@ -111,17 +113,20 @@ void nmea_parse_perdcrv(void)
 
   //EAST VEL
   double east_vel = strtod(&gps_nmea.msg_buf[i], NULL);
-  gps.ned_vel.y = east_vel * 100; // in cm/s
+  gps_nmea.state.ned_vel.y = east_vel * 100; // in cm/s
 
   // Ignore reserved
   nmea_read_until(&i);
 
   // NORTH VEL
   double north_vel = strtod(&gps_nmea.msg_buf[i], NULL);
-  gps.ned_vel.x = north_vel * 100; // in cm/s
+  gps_nmea.state.ned_vel.x = north_vel * 100; // in cm/s
 
   //Convert velocity to ecef
   struct LtpDef_i ltp;
-  ltp_def_from_ecef_i(&ltp, &gps.ecef_pos);
-  ecef_of_ned_vect_i(&gps.ecef_vel, &ltp, &gps.ned_vel);
+  ltp_def_from_ecef_i(&ltp, &gps_nmea.state.ecef_pos);
+  ecef_of_ned_vect_i(&gps_nmea.state.ecef_vel, &ltp, &gps_nmea.state.ned_vel);
+
+  /* indicate that msg was valid and gps_nmea.state updated */
+  return true;
 }

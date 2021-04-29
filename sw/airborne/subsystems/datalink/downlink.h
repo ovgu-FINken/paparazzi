@@ -30,47 +30,13 @@
 
 #include <inttypes.h>
 
-#ifndef PPRZ_DATALINK_EXPORT
-
+#include "generated/airframe.h"
 #include "generated/modules.h"
-#include "messages.h"
-#include "generated/airframe.h" // AC_ID is required
+#include "pprzlink/messages.h"
+#include "subsystems/datalink/datalink.h"
 
-#if defined SITL
-/** Software In The Loop simulation uses IVY bus directly as the transport layer */
-#include "ivy_transport.h"
-
-#else /** SITL */
-
-#include "subsystems/datalink/pprz_transport.h"
-#include "subsystems/datalink/pprzlog_transport.h"
-#include "subsystems/datalink/xbee.h"
-#include "subsystems/datalink/w5100.h"
-#if USE_SUPERBITRF
-#include "subsystems/datalink/superbitrf.h"
-#endif
-#if USE_AUDIO_TELEMETRY
-#include "subsystems/datalink/audio_telemetry.h"
-#endif
-#if USE_USB_SERIAL
-#include "mcu_periph/usb_serial.h"
-#endif
-#ifdef USE_UDP
-#include "mcu_periph/udp.h"
-#endif
-#include "mcu_periph/uart.h"
-
-#endif /** !SITL */
-
-#else /* PPRZ_DATALINK_EXPORT defined */
-
-#include "messages.h"
-#include "pprz_transport.h"
-#ifndef AC_ID
-#define AC_ID 0
-#endif
-
-#endif
+// FIXME test prog still need some includes here
+#include "modules/datalink/pprz_dl.h"
 
 #ifndef DefaultChannel
 #define DefaultChannel DOWNLINK_TRANSPORT
@@ -79,15 +45,6 @@
 #ifndef DefaultDevice
 #define DefaultDevice DOWNLINK_DEVICE
 #endif
-
-/** Downlink structure */
-struct downlink {
-  uint8_t nb_ovrn;    ///< Counter of messages not sent because of unavailibity of the output buffer
-  uint16_t nb_bytes;  ///< Number of bytes send over telemetry
-  uint16_t nb_msgs;   ///< Number of messages send over telemetry
-};
-
-extern struct downlink downlink;
 
 // Init function
 extern void downlink_init(void);

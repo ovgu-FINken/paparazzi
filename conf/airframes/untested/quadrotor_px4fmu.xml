@@ -14,28 +14,28 @@
     <target name="ap" board="px4fmu_1.7"/>
 
     <target name="nps" board="pc">
-      <subsystem name="fdm" type="jsbsim"/>
+      <module name="fdm" type="jsbsim"/>
     </target>
 
-    <subsystem name="motor_mixing"/>
-    <subsystem name="actuators"     type="pwm">
+    <module name="motor_mixing"/>
+    <module name="actuators"     type="pwm">
       <define name="SERVO_HZ" value="400"/>
-    </subsystem>
+    </module>
 
-    <subsystem name="radio_control" type="ppm"/>
-    <subsystem name="telemetry"     type="transparent"/>
-    <subsystem name="imu"           type="px4fmu_v1.7"/>
-    <subsystem name="gps"           type="ublox"/>
-    <subsystem name="stabilization" type="int_quat"/>
-    <subsystem name="ahrs"          type="int_cmpl_quat">
+    <module name="radio_control" type="ppm"/>
+    <module name="telemetry"     type="transparent"/>
+    <module name="imu"           type="px4fmu_v1.7"/>
+    <module name="gps"           type="ublox"/>
+    <module name="stabilization" type="int_quat"/>
+    <module name="ahrs"          type="int_cmpl_quat">
       <define name="AHRS_GRAVITY_UPDATE_NORM_HEURISTIC" value="TRUE"/>
-    </subsystem>
-    <subsystem name="ins"/>
+    </module>
+    <module name="ins"/>
   </firmware>
 
   <modules main_freq="512">
-    <load name="sys_mon.xml"/>
-    <load name="gps_ubx_ucenter.xml"/>
+    <module name="sys_mon"/>
+    <module name="gps" type="ubx_ucenter"/>
   </modules>
 
   <servos driver="Pwm">
@@ -66,7 +66,7 @@
   </section>
 
   <command_laws>
-    <call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
+    <call fun="motor_mixing_run(autopilot_get_motors_on(),FALSE,values)"/>
     <set servo="FRONT"  value="motor_mixing.commands[0]"/>
     <set servo="BACK"   value="motor_mixing.commands[1]"/>
     <set servo="RIGHT"  value="motor_mixing.commands[2]"/>
@@ -100,30 +100,6 @@
   <section name="INS" prefix="INS_">
   </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <!-- setpoints -->
-    <define name="SP_MAX_P" value="10000"/>
-    <define name="SP_MAX_Q" value="10000"/>
-    <define name="SP_MAX_R" value="10000"/>
-    <define name="DEADBAND_P" value="20"/>
-    <define name="DEADBAND_Q" value="20"/>
-    <define name="DEADBAND_R" value="200"/>
-    <define name="REF_TAU" value="4"/>
-
-    <!-- feedback -->
-    <define name="GAIN_P" value="400"/>
-    <define name="GAIN_Q" value="400"/>
-    <define name="GAIN_R" value="350"/>
-
-    <define name="IGAIN_P" value="75"/>
-    <define name="IGAIN_Q" value="75"/>
-    <define name="IGAIN_R" value="50"/>
-
-    <!-- feedforward -->
-    <define name="DDGAIN_P" value="300"/>
-    <define name="DDGAIN_Q" value="300"/>
-    <define name="DDGAIN_R" value="300"/>
-  </section>
 
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
@@ -187,9 +163,9 @@
   </section>
 
   <section name="SIMULATOR" prefix="NPS_">
-    <define name="ACTUATOR_NAMES"  value="{&quot;front_motor&quot;, &quot;back_motor&quot;, &quot;right_motor&quot;, &quot;left_motor&quot;}"/>
-    <define name="JSBSIM_MODEL" value="&quot;simple_quad&quot;"/>
-    <define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_default.h&quot;"/>
+    <define name="ACTUATOR_NAMES"  value="front_motor, back_motor, right_motor, left_motor" type="string[]"/>
+    <define name="JSBSIM_MODEL" value="simple_quad" type="string"/>
+    <define name="SENSORS_PARAMS" value="nps_sensors_params_default.h" type="string"/>
   </section>
 
   <section name="AUTOPILOT">

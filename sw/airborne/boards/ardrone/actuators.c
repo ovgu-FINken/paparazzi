@@ -71,7 +71,7 @@ static inline void actuators_ardrone_reset_flipflop(void)
 {
   gpio_setup_output(ARDRONE_GPIO_PORT, ARDRONE_GPIO_PIN_IRQ_FLIPFLOP);
   gpio_clear(ARDRONE_GPIO_PORT, ARDRONE_GPIO_PIN_IRQ_FLIPFLOP);
-  int32_t stop = sys_time.nb_sec + 2;
+  uint32_t stop = sys_time.nb_sec + 2;
   while (sys_time.nb_sec < stop);
   gpio_set(ARDRONE_GPIO_PORT, ARDRONE_GPIO_PIN_IRQ_FLIPFLOP);
 }
@@ -169,10 +169,10 @@ int actuators_ardrone_cmd(uint8_t cmd, uint8_t *reply, int replylen)
 void actuators_ardrone_motor_status(void);
 void actuators_ardrone_motor_status(void)
 {
-  static bool_t last_motor_on = FALSE;
+  static bool last_motor_on = false;
 
   // Reset Flipflop sequence
-  static bool_t reset_flipflop_counter = 0;
+  static uint8_t reset_flipflop_counter = 0;
   if (reset_flipflop_counter > 0) {
     reset_flipflop_counter--;
 
@@ -189,7 +189,7 @@ void actuators_ardrone_motor_status(void)
 
   // If a motor IRQ line is set
   if (gpio_get(ARDRONE_GPIO_PORT, ARDRONE_GPIO_PIN_IRQ_INPUT) == 1) {
-    if (autopilot_motors_on) {
+    if (autopilot_get_motors_on()) {
       if (last_motor_on) {
         // Tell paparazzi that one motor has stalled
         autopilot_set_motors_on(FALSE);
@@ -200,7 +200,7 @@ void actuators_ardrone_motor_status(void)
 
     }
   }
-  last_motor_on = autopilot_motors_on;
+  last_motor_on = autopilot_get_motors_on();
 
 }
 

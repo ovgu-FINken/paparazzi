@@ -33,18 +33,18 @@ EXT_DIR=$(PAPARAZZI_SRC)/sw/ext
 include $(PAPARAZZI_SRC)/conf/Makefile.arm-embedded-toolchain
 
 
-all: libopencm3 luftboot chibios fatfs
+all: libopencm3 luftboot chibios fatfs libsbp mavlink TRICAL hacl-c key_generator rustlink ecl matrix
 
 # update (and init if needed) all submodules
 update_submodules:
 	$(Q)if [ -d $(PAPARAZZI_SRC)/.git ]; then \
-		cd $(PAPARAZZI_SRC) && git submodule update --init; \
+		cd $(PAPARAZZI_SRC) && git submodule update --init --recursive; \
 	fi
 
 # update (and init if needed) a specific submodule
 %.update:
 	$(Q)if [ -d $(PAPARAZZI_SRC)/.git ]; then \
-		cd $(PAPARAZZI_SRC) && git submodule update --init sw/ext/$*; \
+		cd $(PAPARAZZI_SRC) && git submodule update --init --recursive sw/ext/$*; \
 	fi
 
 # only build currentl checkout of libopencm3
@@ -65,9 +65,39 @@ luftboot: libopencm3.update luftboot.update luftboot.build
 luftboot_flash: luftboot.build
 	$(Q)$(MAKE) -C luftboot/src flash BMP_PORT?=/dev/ttyACM0 LIBOPENCM3=../../libopencm3 PREFIX=$(PREFIX)
 
+hacl-c: hacl-c.update
+
+key_generator: key_generator.update
+
+rustlink: rustlink.update
+
 chibios: chibios.update
 
+TRICAL: TRICAL.update
+
 fatfs: fatfs.update
+
+ecl: ecl.update
+
+matrix: matrix.update
+
+mavlink: mavlink.update mavlink.build
+
+mavlink.build:
+	@echo GENERATE $(PAPARAZZI_SRC)/var/include/mavlink
+	$(Q)PYTHONPATH=$(EXT_DIR)/mavlink python2 $(EXT_DIR)/mavlink/pymavlink/tools/mavgen.py --output $(PAPARAZZI_SRC)/var/include/mavlink --lang C $(EXT_DIR)/mavlink/message_definitions/v1.0/paparazzi.xml --no-validate > /dev/null
+
+libsbp: libsbp.update
+
+pprzlink: pprzlink.update pprzlink.build
+
+pprzlink.build:
+	$(Q)$(MAKE) -C pprzlink
+
+opencv_bebop: opencv_bebop.update opencv_bebop.build
+
+opencv_bebop.build:
+	$(Q)$(MAKE) -C opencv_bebop
 
 clean:
 	$(Q)if [ -f libopencm3/Makefile ]; then \
@@ -77,5 +107,10 @@ clean:
 		$(MAKE) -C luftboot/src clean; \
 	fi
 
+clean_opencv_bebop:
+	$(Q)if [ -f opencv_bebop/Makefile ]; then \
+		$(MAKE) -C opencv_bebop clean; \
+	fi
+
 .NOTPARALLEL: libopencm3 luftboot
-.PHONY: all clean update_submodules libopencm3 luftboot chibios fatfs luftboot_flash libopencm3.build luftboot.build
+.PHONY: all clean update_submodules libopencm3 luftboot chibios fatfs luftboot_flash libopencm3.build luftboot.build mavlink.build libsbp pprzlink pprzlink.build opencv_bebop opencv_bebop.build clean_opencv_bebop TRICAL

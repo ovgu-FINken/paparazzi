@@ -24,6 +24,7 @@
 
 open Printf
 open Latlong
+
 let (//) = Filename.concat
 
 let sof = string_of_float
@@ -33,7 +34,7 @@ let float_attr = fun xml a -> float_of_string (ExtXml.attrib xml a)
 let rec assoc_nocase at = function
 [] -> raise Not_found
   | (a, v)::avs ->
-    if String.uppercase at = String.uppercase a then v else assoc_nocase at avs
+    if Compat.uppercase_ascii at = Compat.uppercase_ascii a then v else assoc_nocase at avs
 
 (** Returns the WGS84 coordinates of a waypoint, either from its relative x and
     y coordinates or from its lat and long *)
@@ -63,7 +64,7 @@ XmlEdit.Deleted -> wp#delete ()
       let wgs84 = geo_of_xml utm_ref float_attrib in
 
       wp#geomap#edit_georef_name wp#name (assoc_nocase "name" attribs);
-      wp#set wgs84;      
+      wp#set wgs84;
       wp#set_name (assoc_nocase "name" attribs)
     with
         _ -> ()
@@ -202,20 +203,21 @@ let display_kml = fun ?group color geomap xml ->
   try
     let document = ExtXml.child xml "Document" in
     let rec loop = fun child ->
-      match String.lowercase (Xml.tag child) with
-          "placemark" ->
-            let linestring = ExtXml.child child "LineString" in
-            let coordinates = ExtXml.child linestring "coordinates" in
+      let tag = Compat.lowercase_ascii (Xml.tag child) in
+      match tag with
+        | "linestring" | "linearring" ->
+            let coordinates = ExtXml.child child "coordinates" in
             begin
               match Xml.children coordinates with
                   [Xml.PCData text] ->
                     let points = Str.split space_regexp text in
                     let points = List.map wgs84_of_kml_point points in
+                    (* remove a point if polygon (first in this case) since first and last are the same *)
+                    let points = if tag = "linearring" && List.length points > 0 then List.tl points else points in
                     ignore(display_lines ?group color geomap (Array.of_list points))
                 | _ -> failwith "coordinates expected"
             end
-
-        | "folder" ->
+        | "folder" | "placemark" | "polygon" | "outerboundaryis" ->
           List.iter loop (Xml.children child)
         | _ -> () in
     List.iter loop (Xml.children document)
@@ -264,7 +266,7 @@ class flight_plan = fun ?format_attribs ?editable ~show_moved geomap color fp_dt
     let waypoints = ExtXml.child xml "waypoints" in
     try
       List.fold_left (fun l x ->
-        match String.lowercase (Xml.tag x) with
+        match Compat.lowercase_ascii (Xml.tag x) with
             "kml" ->
               let file = ExtXml.attrib x "file" in
               display_kml ~group:wpts_group#group color geomap (ExtXml.parse_file (Env.flight_plans_path // file));

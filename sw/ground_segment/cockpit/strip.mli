@@ -29,7 +29,7 @@ type t = <
     connect_shift_alt : (float -> unit) -> unit;
     connect_shift_lateral : (float -> unit) -> unit;
     connect_launch : (float -> unit) -> unit;
-    connect_kill : (float -> unit) -> unit;
+    connect_kill : bool -> (float -> unit) -> unit;
     connect_mode : float -> (float -> unit) -> unit;
     connect_flight_time : (float -> unit) -> unit;
 
@@ -45,7 +45,7 @@ type t = <
     set_climb : float -> unit;
     set_color : string -> string -> unit;
     set_label : string -> string -> unit;
-    set_rc : int -> string -> unit;
+    set_rc : float -> string -> unit;
     hide_buttons : unit -> unit;
     show_buttons : unit -> unit;
     connect : (unit -> unit) -> unit
@@ -61,5 +61,5 @@ type strip_param = {
   icons_theme : string; }
 
 
-val add : Pprz.values -> strip_param -> GPack.box -> t
+val add : PprzLink.values -> strip_param -> GPack.box -> t
 (** [add config params] *)

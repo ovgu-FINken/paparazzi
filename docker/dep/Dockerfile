@@ -1,32 +1,36 @@
-#From inside this folder
-# docker build -t flixr/pprz-dep .
-# docker run -t -i flixr/pprz-dep /bin/bash
-# docker export pprz-dep | gzip -c > pprz-dep.tgz
-# docker import pprz-dep < pprz-dep.tgz
+FROM ubuntu:18.04
+LABEL maintainer="felix.ruess@gmail.com"
 
-# Use phusion/baseimage as base image.
-FROM phusion/baseimage:0.9.16
-MAINTAINER Felix Ruess <felix.ruess@gmail.com>
+# Add Tini
+ENV TINI_VERSION v0.8.4
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
 
-# Use baseimage-docker's init system.
-CMD ["/sbin/my_init"]
-
-# Set the env variable DEBIAN_FRONTEND to noninteractive
-ENV DEBIAN_FRONTEND noninteractive
+# setup environment
+ENV LANG C.UTF-8
 
 # add Paparazzi PPA
-RUN apt-get update && apt-get install -y software-properties-common
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y software-properties-common
 RUN add-apt-repository ppa:paparazzi-uav/ppa
+RUN add-apt-repository ppa:team-gcc-arm-embedded/ppa
+
+# setup tzdata
+ENV TZ=Etc/UTC
+RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install tzdata
 
 # install paparazzi-dev which pull in the dependencies
 # also install cross compiler and some stuff for X
-RUN apt-get update && apt-get install -y \
-    gcc-arm-none-eabi \
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && apt-get install -y \
+    cmake \
+    gcc-arm-embedded \
     libcanberra-gtk-module \
     paparazzi-dev \
     paparazzi-jsbsim \
     x11-apps \
-    gedit
+    gedit \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clean up APT when done.
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ENTRYPOINT ["/tini", "--"]
+CMD ["bash"]

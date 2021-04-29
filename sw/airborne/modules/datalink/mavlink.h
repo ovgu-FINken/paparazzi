@@ -40,6 +40,14 @@
 #endif
 #include "mcu_periph/uart.h"
 
+#ifndef MAVLINK_DEBUG
+#define MAVLINK_DEBUG(...) {}
+#endif
+
+#if MAVLINK_DEBUG == printf
+#include <stdio.h>
+#endif
+
 /*
  * MAVLink description before main MAVLink include
  */
@@ -53,16 +61,17 @@ extern mavlink_system_t mavlink_system;
  * The MAVLink link description
  */
 #define MAVLinkDev (&(MAVLINK_DEV).device)
-#define MAVLinkTransmit(c) MAVLinkDev->put_byte(MAVLinkDev->periph, c)
+#define MAVLinkTransmit(c) MAVLinkDev->put_byte(MAVLinkDev->periph, 0, c)
 #define MAVLinkChAvailable() MAVLinkDev->char_available(MAVLinkDev->periph)
 #define MAVLinkGetch() MAVLinkDev->get_byte(MAVLinkDev->periph)
-#define MAVLinkSendMessage() MAVLinkDev->send_message(MAVLinkDev->periph)
+#define MAVLinkSendMessage() MAVLinkDev->send_message(MAVLinkDev->periph, 0)
 
 /**
  * Module functions
  */
 void mavlink_init(void);
 void mavlink_periodic(void);
+void mavlink_periodic_telemetry(void);
 void mavlink_event(void);
 
 /**

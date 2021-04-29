@@ -6,15 +6,13 @@ import threading
 
 from os import path, getenv
 
-# if PAPARAZZI_SRC not set, then assume the tree containing this
+# if PAPARAZZI_HOME not set, then assume the tree containing this
 # file is a reasonable substitute
-PPRZ_SRC = getenv("PAPARAZZI_SRC", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
-sys.path.append(PPRZ_SRC + "/sw/lib/python")
+PPRZ_HOME = getenv("PAPARAZZI_HOME", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
+sys.path.append(PPRZ_HOME + "/var/lib/python") # pprzlink
 
-PPRZ_HOME = getenv("PAPARAZZI_HOME", PPRZ_SRC)
-
-from ivy_msg_interface import IvyMessagesInterface
-from pprz_msg.message import PprzMessage
+from pprzlink.ivy import IvyMessagesInterface
+from pprzlink.message import PprzMessage
 
 WIDTH = 450
 LABEL_WIDTH = 166
@@ -65,7 +63,7 @@ class MessagesFrame(wx.Frame):
         end = book.GetPageCount()
 
         while start < end:
-            if book.GetPageText(start) > name:
+            if book.GetPageText(start) >= name:
                 return start
             start += 1
         return start
@@ -133,8 +131,12 @@ class MessagesFrame(wx.Frame):
             size = value_control.GetSize()
             size.x = LABEL_WIDTH
             value_control.SetMinSize(size)
-            grid_sizer.Add(value_control, 1, wx.ALL|wx.EXPAND, BORDER)
-            grid_sizer.AddGrowableCol(1)
+            grid_sizer.Add(value_control, 1, wx.ALL | wx.EXPAND, BORDER)
+            if wx.MAJOR_VERSION > 2:
+                if grid_sizer.IsColGrowable(1):
+                    grid_sizer.AddGrowableCol(1)
+            else:
+                grid_sizer.AddGrowableCol(1)
             aircraft.messages[name].field_controls.append(value_control)
 
         field_panel.SetAutoLayout(True)
@@ -152,7 +154,7 @@ class MessagesFrame(wx.Frame):
         self.aircrafts[ac_id].messages[msg.name].last_seen = time.time()
 
         for index in range(0, len(msg.fieldvalues)):
-            aircraft.messages[msg.name].field_controls[index].SetLabel(msg.get_field(index))
+            aircraft.messages[msg.name].field_controls[index].SetLabel(str(msg.get_field(index)))
 
     def __init__(self, msg_class="telemetry"):
         wx.Frame.__init__(self, id=-1, parent=None, name=u'MessagesFrame', size=wx.Size(WIDTH, HEIGHT), style=wx.DEFAULT_FRAME_STYLE, title=u'Messages')
@@ -167,7 +169,9 @@ class MessagesFrame(wx.Frame):
         self.timer = threading.Timer(0.1, self.update_leds)
         self.timer.start()
         self.msg_class = msg_class
-        self.interface = IvyMessagesInterface(self.message_recv)
+        self.interface = IvyMessagesInterface("Paparazzi Messages Viewer")
+        self.interface.subscribe(self.message_recv)
+
 
     def OnClose(self, event):
         self.timer.cancel()

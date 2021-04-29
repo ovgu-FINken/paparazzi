@@ -38,7 +38,7 @@
 
 // Downlink
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 
@@ -63,7 +63,7 @@ struct MedianFilter3Int median_gyro, median_accel, median_mag;
 
 struct ImuNavgo imu_navgo;
 
-void imu_impl_init(void)
+void imu_navgo_init(void)
 {
   /////////////////////////////////////////////////////////////////////
   // ITG3200
@@ -84,13 +84,13 @@ void imu_impl_init(void)
 
 #if NAVGO_USE_MEDIAN_FILTER
   // Init median filters
-  InitMedianFilterRatesInt(median_gyro);
-  InitMedianFilterVect3Int(median_accel);
-  InitMedianFilterVect3Int(median_mag);
+  InitMedianFilterRatesInt(median_gyro, MEDIAN_DEFAULT_SIZE);
+  InitMedianFilterVect3Int(median_accel, MEDIAN_DEFAULT_SIZE);
+  InitMedianFilterVect3Int(median_mag, MEDIAN_DEFAULT_SIZE);
 #endif
 }
 
-void imu_periodic(void)
+void imu_navgo_periodic(void)
 {
   // Start reading the latest gyroscope data
   itg3200_periodic(&imu_navgo.itg);
@@ -128,7 +128,7 @@ void imu_navgo_event(void)
 #if NAVGO_USE_MEDIAN_FILTER
     UpdateMedianFilterRatesInt(median_gyro, imu.gyro_unscaled);
 #endif
-    imu_navgo.itg.data_available = FALSE;
+    imu_navgo.itg.data_available = false;
     imu_scale_gyro(&imu);
     AbiSendMsgIMU_GYRO_INT32(IMU_BOARD_ID, now_ts, &imu.gyro);
   }
@@ -140,7 +140,7 @@ void imu_navgo_event(void)
 #if NAVGO_USE_MEDIAN_FILTER
     UpdateMedianFilterVect3Int(median_accel, imu.accel_unscaled);
 #endif
-    imu_navgo.adxl.data_available = FALSE;
+    imu_navgo.adxl.data_available = false;
     imu_scale_accel(&imu);
     AbiSendMsgIMU_ACCEL_INT32(IMU_BOARD_ID, now_ts, &imu.accel);
   }
@@ -152,7 +152,7 @@ void imu_navgo_event(void)
 #if NAVGO_USE_MEDIAN_FILTER
     UpdateMedianFilterVect3Int(median_mag, imu.mag_unscaled);
 #endif
-    imu_navgo.hmc.data_available = FALSE;
+    imu_navgo.hmc.data_available = false;
     imu_scale_mag(&imu);
     AbiSendMsgIMU_MAG_INT32(IMU_BOARD_ID, now_ts, &imu.mag);
   }

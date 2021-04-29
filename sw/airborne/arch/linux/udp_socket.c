@@ -46,7 +46,7 @@
  * @param[in]  broadcast if TRUE enable broadcasting
  * @return -1 on error, otherwise 0
  */
-int udp_socket_create(struct UdpSocket *sock, char *host, int port_out, int port_in, bool_t broadcast)
+int udp_socket_create(struct UdpSocket *sock, char *host, int port_out, int port_in, bool broadcast)
 {
   if (sock == NULL) {
     return -1;
@@ -55,6 +55,7 @@ int udp_socket_create(struct UdpSocket *sock, char *host, int port_out, int port
 #ifndef LINUX_LINK_STATIC
   /* try to convert host ipv4 address to binary format */
   struct in_addr host_ip;
+  host_ip.s_addr = 0; // initialize to zero
   if (host[0] != '\0' && !inet_aton(host, &host_ip)) {
     /* not an IP address, try to resolve hostname */
     struct hostent *hp;
@@ -78,6 +79,10 @@ int udp_socket_create(struct UdpSocket *sock, char *host, int port_out, int port
   int one = 1;
   // Enable reusing of address
   setsockopt(sock->sockfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+#ifdef SO_REUSEPORT
+  // needed for OSX
+  setsockopt(sock->sockfd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+#endif
 
   // Enable broadcasting
   if (broadcast) {
@@ -112,7 +117,7 @@ int udp_socket_create(struct UdpSocket *sock, char *host, int port_out, int port
  * @param[in] len      buffer length in bytes
  * @return number of bytes sent (-1 on error)
  */
-int udp_socket_send(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
+int udp_socket_send(struct UdpSocket *sock, uint8_t *buffer, uint32_t len)
 {
   if (sock == NULL) {
     return -1;
@@ -120,7 +125,7 @@ int udp_socket_send(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
 
   ssize_t bytes_sent = sendto(sock->sockfd, buffer, len, 0,
                               (struct sockaddr *)&sock->addr_out, sizeof(sock->addr_out));
-  if (bytes_sent != len) {
+  if (bytes_sent != ((ssize_t)len)) {
     TRACE(TRACE_ERROR, "error sending to sock %d (%d)\n", (int)bytes_sent, strerror(errno));
   }
   return bytes_sent;
@@ -133,14 +138,14 @@ int udp_socket_send(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
  * @param[in] len      buffer length in bytes
  * @return number of bytes sent (-1 on error)
  */
-int udp_socket_send_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
+int udp_socket_send_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint32_t len)
 {
   if (sock == NULL) {
     return -1;
   }
 
   ssize_t bytes_sent = sendto(sock->sockfd, buffer, len, MSG_DONTWAIT,
-                       (struct sockaddr *)&sock->addr_out, sizeof(sock->addr_out));
+                              (struct sockaddr *)&sock->addr_out, sizeof(sock->addr_out));
   return bytes_sent;
 }
 
@@ -152,7 +157,7 @@ int udp_socket_send_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint16_t l
  * @param[in] len      buffer length in bytes
  * @return number of bytes received (-1 on error)
  */
-int udp_socket_recv_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
+int udp_socket_recv_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint32_t len)
 {
   socklen_t slen = sizeof(struct sockaddr_in);
   ssize_t bytes_read = recvfrom(sock->sockfd, buffer, len, MSG_DONTWAIT,
@@ -177,7 +182,7 @@ int udp_socket_recv_dontwait(struct UdpSocket *sock, uint8_t *buffer, uint16_t l
  * @param[in] len      buffer length in bytes (maximum bytes to read)
  * @return number of bytes received (-1 on error)
  */
-int udp_socket_recv(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
+int udp_socket_recv(struct UdpSocket *sock, uint8_t *buffer, uint32_t len)
 {
   socklen_t slen = sizeof(struct sockaddr_in);
   ssize_t bytes_read = recvfrom(sock->sockfd, buffer, len, 0,
@@ -186,7 +191,8 @@ int udp_socket_recv(struct UdpSocket *sock, uint8_t *buffer, uint16_t len)
   return (int)bytes_read;
 }
 
-int udp_socket_subscribe_multicast(struct UdpSocket *sock, const char* multicast_addr) {
+int udp_socket_subscribe_multicast(struct UdpSocket *sock, const char *multicast_addr)
+{
   // Create the request
   struct ip_mreq mreq;
   mreq.imr_multiaddr.s_addr = inet_addr(multicast_addr);
@@ -196,15 +202,33 @@ int udp_socket_subscribe_multicast(struct UdpSocket *sock, const char* multicast
   return setsockopt(sock->sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq));
 }
 
-int udp_socket_set_recvbuf(struct UdpSocket *sock, int buf_size) {
+int udp_socket_set_recvbuf(struct UdpSocket *sock, int buf_size)
+{
   // Set and check
   unsigned int optval_size = 4;
   int buf_ret;
   setsockopt(sock->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&buf_size, optval_size);
   getsockopt(sock->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&buf_ret, &optval_size);
 
-  if(buf_size != buf_ret)
+  if (buf_size != buf_ret) {
     return -1;
+  }
 
   return 0;
 }
+
+int udp_socket_set_sendbuf(struct UdpSocket *sock, int buf_size)
+{
+  // Set and check
+  unsigned int optval_size = 4;
+  int buf_ret;
+  setsockopt(sock->sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&buf_size, optval_size);
+  getsockopt(sock->sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&buf_ret, &optval_size);
+
+  if (buf_size != buf_ret) {
+    return -1;
+  }
+
+  return 0;
+}
+

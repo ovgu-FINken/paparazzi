@@ -36,6 +36,10 @@
 #include "peripherals/mpu9250.h"
 #include "peripherals/ak8963.h"
 
+#ifndef IMU_MPU9250_READ_MAG
+#define IMU_MPU9250_READ_MAG TRUE
+//the MPU6500 is the same as the 9250, except for that its lacking a magneto
+#endif
 
 #define MPU9250_BUFFER_EXT_LEN 16
 
@@ -55,7 +59,7 @@ enum Mpu9250I2cSlaveInitStatus {
 struct Mpu9250_I2c {
   struct i2c_periph *i2c_p;
   struct i2c_transaction i2c_trans;
-  volatile bool_t data_available;     ///< data ready flag
+  volatile bool data_available;     ///< data ready flag
   union {
     struct Int16Vect3 vect;           ///< accel data vector in accel coordinate system
     int16_t value[3];                 ///< accel data values accessible by channel index
@@ -67,7 +71,9 @@ struct Mpu9250_I2c {
   uint8_t data_ext[MPU9250_BUFFER_EXT_LEN];
   struct Mpu9250Config config;
   enum Mpu9250I2cSlaveInitStatus slave_init_status;
+#ifdef IMU_MPU9250_READ_MAG
   struct Ak8963 akm;                  ///< "internal" magnetometer
+#endif
 };
 
 // Functions

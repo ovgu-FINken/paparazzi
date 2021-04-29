@@ -1,6 +1,6 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
-<module name="nav_survey_poly" dir="nav">
+<module name="nav_survey_poly_osam" dir="nav">
   <doc>
     <description>
 Polygon survey from OSAM.
@@ -14,6 +14,7 @@ You can use:
     <define name="POLY_OSAM_DEFAULT_SWEEP" value="120" description="default distance in m between lines. Can be changed by telemetry"/>
     <define name="POLY_OSAM_MIN_RADIUS" value="30" description="min radius used in U-turns"/>
     <define name="POLY_OSAM_FIRST_SWEEP_DISTANCE" value="4" description="distante between the polygon border and first line.If 0 the distance well be equal to half sweep"/>
+    <define name="NAV_SURVEY_POLY_OSAM_DYNAMIC" value="FALSE|TRUE" description="Set to true to allow changing sweep distance mid polygon survey"/>
   </doc>
 
   <settings>
@@ -21,6 +22,8 @@ You can use:
       <dl_settings NAME="P_Survey">
         <dl_setting min="0" max="20" step="1" var="Poly_Size" type="uint8_t" shortname="Size" module="modules/nav/nav_survey_poly_osam"/>
         <dl_setting min="0" max="500" step="1" var="Poly_Sweep" type="float" shortname="Sweep" module="modules/nav/nav_survey_poly_osam"/>
+        <dl_setting min="0" max="1" step="1" values="FALSE|TRUE" var="Half_Sweep_Enabled" type="bool" shortname="Half Sweep" module="modules/nav/nav_survey_poly_osam"/>
+        <dl_setting min="0" max="1" step="1" values="FALSE|TRUE" var="Reset_Sweep" type="bool" shortname="Reset Sweep" module="modules/nav/nav_survey_poly_osam" handler="ResetSweepNumber"/>
       </dl_settings>
     </dl_settings>
   </settings>
@@ -28,7 +31,10 @@ You can use:
   <header>
     <file name="nav_survey_poly_osam.h"/>
   </header>
-  <makefile target="ap|sim|nps">
+  <makefile target="ap|sim|nps|hitl">
     <file name="nav_survey_poly_osam.c"/>
+    <test firmware="fixedwing">
+      <define name="CTRL_TYPE_H" value="firmwares/fixedwing/guidance/guidance_v.h" type="string"/>
+    </test>
   </makefile>
 </module>

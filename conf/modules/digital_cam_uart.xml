@@ -1,5 +1,5 @@
 <!DOCTYPE module SYSTEM "module.dtd">
-<module name="uart_cam_ctrl" dir="digital_cam">
+<module name="digital_cam_uart" dir="digital_cam">
   <doc>
     <description>
       Digital Photo Camera Triggering (using a UART link)
@@ -32,8 +32,8 @@
         </dl_setting>
 
         <dl_setting max="3" min="0" step="1" var="dc_autoshoot" values="STOP|PERIODIC|DISTANCE|EXT_TRIG">
-          <strip_button name="Start Autoshoot" icon="on.png" value="1" group="dcauto"/>
-          <strip_button name="Stop Autoshoot" icon="off.png" value="0" group="dcauto"/>
+          <strip_button name="Start Autoshoot" icon="dcstart.png" value="1" group="dcauto"/>
+          <strip_button name="Stop Autoshoot" icon="dcstop.png" value="0" group="dcauto"/>
         </dl_setting>
 
         <dl_setting max="60" min="0.1" step="0.5" var="dc_autoshoot_period" shortname="Periodic" param="DC_AUTOSHOOT_PERIOD" unit="sec"/>
@@ -53,7 +53,9 @@
       </dl_settings>
     </dl_settings>
   </settings>
-  <conflicts>digital_cam,digital_cam_servo,digital_cam_i2c</conflicts>
+  <dep>
+    <conflicts>digital_cam,digital_cam_servo,digital_cam_i2c</conflicts>
+  </dep>
   <header>
     <file name="uart_cam_ctrl.h"/>
     <file name="dc.h"/>
@@ -61,19 +63,19 @@
   <init fun="digital_cam_uart_init()"/>
   <periodic fun="digital_cam_uart_periodic()" freq="10" autorun="TRUE"/>
   <event fun="digital_cam_uart_event()"/>
-  <makefile target="sim">
+  <makefile target="sim|nps">
     <file name="catia/serial.c"/>
+    <define name="UART5_DEV" value="ttyUSB0"/>
   </makefile>
-  <makefile>
+  <makefile target="ap|sim|nps">
     <define name="DIGITAL_CAM" />
     <file name="uart_cam_ctrl.c"/>
     <file name="catia/protocol.c"/>
     <file name="dc.c"/>
-    <raw>
-$(TARGET).CFLAGS += -DCAMERA_LINK=$(CAMERA_PORT)
-$(TARGET).CFLAGS += -DUSE_$(CAMERA_PORT)
-$(TARGET).CFLAGS += -D$(CAMERA_PORT)_BAUD=B115200
-    </raw>
+    <configure name="CAMERA_PORT" case="upper|lower"/>
+    <define name="USE_$(CAMERA_PORT_UPPER)"/>
+    <define name="CAMERA_LINK" value="$(CAMERA_PORT_LOWER)"/>
+    <define name="$(CAMERA_PORT_UPPER)_BAUD" value="B115200"/>
   </makefile>
 </module>
 

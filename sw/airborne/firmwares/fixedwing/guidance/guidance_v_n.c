@@ -30,7 +30,7 @@
 #include "state.h"
 #include "firmwares/fixedwing/nav.h"
 #include "generated/airframe.h"
-#include "firmwares/fixedwing/autopilot.h"
+#include "autopilot.h"
 
 /* mode */
 uint8_t v_ctl_mode;
@@ -179,6 +179,44 @@ void v_ctl_init(void)
   v_ctl_throttle_setpoint = 0;
 }
 
+void v_ctl_guidance_loop(void)
+{
+  if (v_ctl_mode == V_CTL_MODE_AUTO_ALT) {
+    v_ctl_altitude_loop();
+  }
+#if CTRL_VERTICAL_LANDING
+  if (v_ctl_mode == V_CTL_MODE_LANDING) {
+    v_ctl_landing_loop();
+  } else {
+#endif
+    if (v_ctl_mode == V_CTL_MODE_AUTO_THROTTLE) {
+      v_ctl_throttle_setpoint = nav_throttle_setpoint;
+      v_ctl_pitch_setpoint = nav_pitch;
+    } else {
+      if (v_ctl_mode >= V_CTL_MODE_AUTO_CLIMB) {
+        v_ctl_climb_loop();
+      } /* v_ctl_mode >= V_CTL_MODE_AUTO_CLIMB */
+    } /* v_ctl_mode == V_CTL_MODE_AUTO_THROTTLE */
+#if CTRL_VERTICAL_LANDING
+  } /* v_ctl_mode == V_CTL_MODE_LANDING */
+#endif
+
+#if defined V_CTL_THROTTLE_IDLE
+  Bound(v_ctl_throttle_setpoint, TRIM_PPRZ(V_CTL_THROTTLE_IDLE * MAX_PPRZ), MAX_PPRZ);
+#endif
+
+#ifdef V_CTL_POWER_CTL_BAT_NOMINAL
+  if (ap_electrical.vsupply > 0.) {
+    v_ctl_throttle_setpoint *= V_CTL_POWER_CTL_BAT_NOMINAL / ap_electrical.vsupply;
+    v_ctl_throttle_setpoint = TRIM_UPPRZ(v_ctl_throttle_setpoint);
+  }
+#endif
+
+  if (autopilot.kill_throttle || (!autopilot.flight_time && !autopilot.launch)) {
+    v_ctl_throttle_setpoint = 0;
+  }
+}
+
 /**
  * outer loop
  * \brief Computes v_ctl_climb_setpoint and sets v_ctl_auto_throttle_submode
@@ -216,7 +254,7 @@ static inline void v_ctl_set_pitch(void)
 {
   static float last_err = 0.;
 
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     v_ctl_auto_pitch_sum_err = 0;
   }
 
@@ -244,7 +282,7 @@ static inline void v_ctl_set_throttle(void)
 {
   static float last_err = 0.;
 
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     v_ctl_auto_throttle_sum_err = 0;
   }
 
@@ -292,7 +330,7 @@ static inline void v_ctl_set_airspeed(void)
     BoundAbs(v_ctl_auto_pitch_sum_err, V_CTL_AUTO_PITCH_MAX_SUM_ERR / v_ctl_auto_pitch_igain);
   }
 
-  float err_airspeed = v_ctl_auto_airspeed_setpoint - *stateGetAirspeed_f();
+  float err_airspeed = v_ctl_auto_airspeed_setpoint - stateGetAirspeed_f();
   float d_err_airspeed = (err_airspeed - last_err_as) * AIRSPEED_LOOP_PERIOD;
   last_err_as = err_airspeed;
   if (v_ctl_auto_airspeed_throttle_igain > 0.) {
@@ -307,7 +345,7 @@ static inline void v_ctl_set_airspeed(void)
 
 
   // Reset integrators in manual or before flight
-  if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
+  if (autopilot_get_mode() == AP_MODE_MANUAL || autopilot.launch == false) {
     v_ctl_auto_throttle_sum_err = 0.;
     v_ctl_auto_pitch_sum_err = 0.;
     v_ctl_auto_airspeed_throttle_sum_err = 0.;
@@ -340,7 +378,7 @@ static inline void v_ctl_set_airspeed(void)
 static inline void v_ctl_set_groundspeed(void)
 {
   // Ground speed control loop (input: groundspeed error, output: airspeed controlled)
-  float err_groundspeed = v_ctl_auto_groundspeed_setpoint - *stateGetHorizontalSpeedNorm_f();
+  float err_groundspeed = v_ctl_auto_groundspeed_setpoint - stateGetHorizontalSpeedNorm_f();
   v_ctl_auto_groundspeed_sum_err += err_groundspeed;
   BoundAbs(v_ctl_auto_groundspeed_sum_err, V_CTL_AUTO_GROUNDSPEED_MAX_SUM_ERR);
   v_ctl_auto_airspeed_setpoint = err_groundspeed * v_ctl_auto_groundspeed_pgain + v_ctl_auto_groundspeed_sum_err *

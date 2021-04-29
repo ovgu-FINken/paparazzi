@@ -1,5 +1,5 @@
 (*
- * Syntax of expressions à la C
+ * Syntax of expressions ï¿½ la C
  *
  * Copyright (C) 2003-2010 Antoine Drouin, Pascal Brisset, ENAC
  *
@@ -23,6 +23,7 @@
  *)
 
 open Printf
+
 
 type ident = string
 
