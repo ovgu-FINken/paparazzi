@@ -16,7 +16,7 @@
     </target>
 
     <target name="nps" board="pc">
-	    <module name="fdm" type="vrep"/>
+	    <module name="fdm" type="jsbsim"/>
 	    
     </target>
 
