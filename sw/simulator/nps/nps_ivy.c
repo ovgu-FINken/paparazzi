@@ -28,6 +28,8 @@
 
 #include NPS_SENSORS_PARAMS
 
+bool nps_ivy_send_world_env;
+
 pthread_t th_ivy_main; // runs main Ivy loop
 static MsgRcvPtr ivyPtr = NULL;
 static int seq = 1;

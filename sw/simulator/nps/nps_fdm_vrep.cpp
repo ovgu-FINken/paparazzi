@@ -353,7 +353,7 @@ void nps_fdm_init(double dt) {
  * Main paparazzi control function, called once every simulation step. This calls for the data to be updated via
  * VRepClient::update. The Paparazzi counterpart of FinkenPlugin::action.
  */
-double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
+void nps_fdm_run_step(bool launch, double *commands, int commands_nb) {
 
   Clock::time_point now = Clock::now();
 
@@ -385,7 +385,6 @@ double nps_fdm_run_step(bool_t launch, double *commands, int commands_nb) {
   auto after = std::chrono::high_resolution_clock::now();
   //vrepLog << "[PPRZ] Client computation time: " << std::chrono::nanoseconds(after-then).count()/1000000 << "ms" << std::endl;
   runEnd = Clock::now();
-  return dt;
 }
 /** Currently unused function to set wind in the simulation */
 void nps_fdm_set_wind(double speed, double dir) {

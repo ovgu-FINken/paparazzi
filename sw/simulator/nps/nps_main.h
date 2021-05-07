@@ -21,13 +21,13 @@ void clock_get_current_time(struct timespec *ts);
 #define DISPLAY_DT (1./30.)
 #define HOST_TIMEOUT_MS 40
 
-pthread_t th_flight_gear; // sends/receives flight gear packets
-pthread_t th_display_ivy; // sends Ivy messages
-pthread_t th_main_loop; // handles simulation
+extern pthread_t th_flight_gear; // sends/receives flight gear packets
+extern pthread_t th_display_ivy; // sends Ivy messages
+extern pthread_t th_main_loop; // handles simulation
 
-pthread_mutex_t fdm_mutex; // mutex for fdm data
+extern pthread_mutex_t fdm_mutex; // mutex for fdm data
 
-int pauseSignal; // for catching SIGTSTP
+extern int pauseSignal; // for catching SIGTSTP
 
 bool nps_main_parse_options(int argc, char **argv);
 
@@ -67,6 +67,5 @@ struct NpsMain {
   bool nodisplay;
 };
 
-struct NpsMain nps_main;
-
+extern struct NpsMain nps_main;
 #endif /* NPS_MAIN_H */
