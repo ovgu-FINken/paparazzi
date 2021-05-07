@@ -58,7 +58,7 @@
     <file name="nps_electrical.c" dir="nps"/>
     <file name="nps_atmosphere.c" dir="nps"/>
     <file name="nps_ivy.c" dir="nps"/>
-    <file name="nps_flightgear.c" dir="nps"/>
+    <!--file name="nps_flightgear.c" dir="nps"/-->
     <file name="nps_radio_control.c" dir="nps"/>
     <file name="nps_radio_control_joystick.c" dir="nps"/>
     <file name="nps_radio_control_spektrum.c" dir="nps"/>
@@ -68,7 +68,6 @@
 
   <makefile target="nps">
     <flag name="MAKEFILE" value="nps"/>
-    <file name="nps_main.c" dir="nps"/>
     <file name="nps_fdm_vrep.cc" dir="nps"/>
   </makefile>
   <makefile target="hitl">
