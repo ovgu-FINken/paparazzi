@@ -24,6 +24,7 @@
       <message name="HOVER_LOOP"             period="0.01"/>
       <message name="ACTUATORS"              period="0.01"/>
       <message name="COMMANDS"               period="0.01"/>
+      <message name="LEADER"                 period="0.2"/>
     </mode>
 
     <mode name="ppm">

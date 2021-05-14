@@ -28,6 +28,7 @@
 #include "multi/follow.h"
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
+#include "subsystems/datalink/telemetry.h"
 
 #include "subsystems/navigation/waypoints.h"
 
@@ -54,7 +55,18 @@
 #error "Please define FOLLOW_WAYPOINT_ID"
 #endif
 
-void follow_init(void) {}
+static void send_leader_info(struct transport_tx *trans, struct link_device *dev) {
+  struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
+  float x, y, z;
+  x = POS_FLOAT_OF_BFP(ac->x);
+  y = POS_FLOAT_OF_BFP(ac->y);
+  z = POS_FLOAT_OF_BFP(ac->z);
+  pprz_msg_send_LEADER(trans, dev, AC_ID, &x, &y, &z);
+}
+
+void follow_init(void) {
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_LEADER, send_leader_info);
+}
 
 /*
  * follow_wp(void)
@@ -73,3 +85,4 @@ void follow_wp(void)
   // Move the waypoint
   waypoint_set_enu_i(FOLLOW_WAYPOINT_ID, &enu);
 }
+
