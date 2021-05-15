@@ -19,9 +19,6 @@
 [submodule "sw/ext/mavlink"]
 	path = sw/ext/mavlink
 	url = https://github.com/paparazzi/mavlink.git
-[submodule "sw/ext/pprzlink"]
-	path = sw/ext/pprzlink
-	url = https://github.com/paparazzi/pprzlink.git
 [submodule "sw/ext/opencv_bebop"]
 	path = sw/ext/opencv_bebop
 	url = https://github.com/tudelft/opencv_bebop.git
@@ -50,3 +47,6 @@
 [submodule "sw/ext/matrix"]
 	path = sw/ext/matrix
 	url = https://github.com/PX4/Matrix.git
+[submodule "sw/ext/pprzlink"]
+	path = sw/ext/pprzlink
+	url = https://git@github.com/ovgu-FINken/pprzlink
