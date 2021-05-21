@@ -5,8 +5,13 @@
 #include "autopilot.h"
   </header>
   <waypoints>
-    <waypoint name="FOLLOW" x="0.0" y="0.0"/>
     <waypoint name="HOME" x="0.0" y="0.0" alt="47"/>
+    <waypoint name="A" x="5" y="5"/>
+    <waypoint name="B" x="0.0" y="10.0"/>
+    <waypoint name="C" x="-5" y="5"/>
+    <waypoint name="D" x="5" y="-5"/>
+    <waypoint name="E" x="0.0" y="-10.0"/>
+    <waypoint name="F" x="-5" y="-5"/>
   </waypoints>
   <blocks>
     <block name="Wait GPS">
@@ -36,11 +41,31 @@
     </block>
      <block name="START">
       <go wp="HOME" approaching_time="0"/>
-      <deroute block="FOLLOWING"/>
+      <deroute block="A"/>
     </block>
-    <block name="FOLLOWING">
-      <go wp="FOLLOW" approaching_time="0"/>
-      <deroute block="FOLLOWING"/>
+    <block name="A">
+      <go wp="A" approaching_time="0"/>
+      <deroute block="B"/>
+    </block>
+    <block name="B">
+      <go wp="B" approaching_time="0"/>
+      <deroute block="C"/>
+    </block>
+    <block name="C">
+      <go wp="C" approaching_time="0"/>
+      <deroute block="D"/>
+    </block>
+    <block name="D">
+      <go wp="D" approaching_time="0"/>
+      <deroute block="E"/>
+    </block>
+    <block name="E">
+      <go wp="E" approaching_time="0"/>
+      <deroute block="F"/>
+    </block>
+    <block name="F">
+      <go wp="F" approaching_time="0"/>
+      <deroute block="START"/>
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>
