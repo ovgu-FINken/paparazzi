@@ -65,7 +65,7 @@ static void send_leader_info(struct transport_tx *trans, struct link_device *dev
 }
 
 void follow_init(void) {
-  register_periodic_telemetry(DefaultPeriodic, 37, send_leader_info);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_LEADER, send_leader_info);
 }
 
 /*

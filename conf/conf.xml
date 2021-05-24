@@ -33,6 +33,116 @@
    gui_color="#0000ffff3c3c"
   />
   <aircraft
+   name="Swarm_Member0"
+   ac_id="30"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="blue"
+  />
+  <aircraft
+   name="Swarm_Member1"
+   ac_id="31"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="red"
+  />
+  <aircraft
+   name="Swarm_Member2"
+   ac_id="32"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="green"
+  />
+  <aircraft
+   name="Swarm_Member3"
+   ac_id="33"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="cyan"
+  />
+  <aircraft
+   name="Swarm_Member4"
+   ac_id="34"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="pink"
+  />
+  <aircraft
+   name="Swarm_Member5"
+   ac_id="35"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="yellow"
+  />
+  <aircraft
+   name="Swarm_Member6"
+   ac_id="36"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="orange"
+  />
+  <aircraft
+   name="Swarm_Member7"
+   ac_id="37"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="grey"
+  />
+  <aircraft
+   name="Swarm_Member8"
+   ac_id="38"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="#8080e3e30606"
+  />
+  <aircraft
+   name="Swarm_Member9"
+   ac_id="39"
+   airframe="airframes/ovgu/npsSwarmCopter.xml"
+   radio="radios/spektrum.xml"
+   telemetry="telemetry/default_rotorcraft.xml"
+   flight_plan="flight_plans/ovgu_follow.xml"
+   settings="settings/rotorcraft_basic.xml settings/control/stabilization_att_int.xml"
+   settings_modules="modules/ahrs_int_cmpl_quat.xml modules/air_data.xml modules/geo_mag.xml modules/gps.xml modules/gps_ubx_ucenter.xml modules/guidance_rotorcraft.xml modules/imu_common.xml modules/nav_basic_rotorcraft.xml modules/stabilization_int_quat.xml"
+   gui_color="#ffff00009e9e"
+  />
+  <aircraft
    name="Test"
    ac_id="1"
    airframe="airframes/ovgu/npsCopter.xml"
@@ -54,4 +164,4 @@
    settings_modules=""
    gui_color="blue"
   />
-</conf> 
+</conf>
