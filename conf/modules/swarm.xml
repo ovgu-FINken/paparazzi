@@ -1,0 +1,25 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="swarm" dir="swarm">
+  <doc>
+    <description>
+      Execute swarm behaviour with multiple copters.
+    </description>
+    <define name="FOLLOW_AC_ID"               description="the aircraft ID which it has to follow"/>
+    <define name="FOLLOW_WAYPOINT_ID"         description="the waypoint ID which it has to change"/>
+    <define name="FOLLOW_OFFSET_X" value="0"  description="the x offset in ENU (meters) from the plane"/>
+    <define name="FOLLOW_OFFSET_Y" value="0"  description="the y offset in ENU (meters) from the plane"/>
+    <define name="FOLLOW_OFFSET_Z" value="0"  description="the z offset in ENU (meters) from the plane"/>
+  </doc>
+  <dep>
+    <depends>swarm_info</depends>
+  </dep>
+  <header>
+    <file name="swarm.h"/>
+  </header>
+  <init fun="swarm_init()"/>
+  <periodic fun="swarm_follow_wp()" freq="5" autorun="TRUE"/>
+  <makefile>
+    <file name="swarm.c"/>
+  </makefile>
+</module>
