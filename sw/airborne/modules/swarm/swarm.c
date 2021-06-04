@@ -68,72 +68,67 @@
 #error "Please define FOLLOW_WAYPOINT_ID"
 #endif
 
-/** Get position in local ENU coordinates (int).
+static struct EnuCoor_f acc =  {0.0f, 0.0f, 0.0f };
+/** Get position in local ENU coordinates (float).
  * @param[in] ac_id aircraft id of aircraft info to get
  */
-static struct EnuCoor_i *getPositionEnu_i(uint8_t ac_id)
+static struct EnuCoor_f *getPositionEnu_f(uint8_t ac_id)
 {
-  if (ti_acs[ti_acs_id[ac_id]].ac_id != ac_id) return NULL;
-  if (!bit_is_set(ti_acs[ti_acs_id[ac_id]].status, AC_INFO_POS_ENU_I)) {
-    acInfoCalcPositionEnu_i(ac_id);
-  }
-  return &ti_acs[ti_acs_id[ac_id]].enu_pos_i;
+  return (ti_acs[ti_acs_id[ac_id]].ac_id != ac_id)? NULL: acInfoGetPositionEnu_f(ac_id);
 }
 
 static void send_leader_info(struct transport_tx *trans, struct link_device *dev) {
-  struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
-  float x, y, z;
-  x = POS_FLOAT_OF_BFP(ac->x);
-  y = POS_FLOAT_OF_BFP(ac->y);
-  z = POS_FLOAT_OF_BFP(ac->z);
-  pprz_msg_send_LEADER(trans, dev, AC_ID, &x, &y, &z);
+	pprz_msg_send_LEADER(trans, dev, AC_ID, &acc.x, &acc.y, &acc.z);
 }
 
 void swarm_init(void) {
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_LEADER, send_leader_info);
 }
 
-static void attract(struct EnuCoor_i *own_pos, struct EnuCoor_i* pos_ac, struct EnuCoor_i* acc, float perlimiter)
+static void attract(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct EnuCoor_f* acc, float perlimiter)
 {
-  struct EnuCoor_i *force = (struct EnuCoor_i*)malloc(sizeof(struct EnuCoor_i));
-  force->x = pos_ac->x - own_pos->x;
-  force->y = pos_ac->y - own_pos->y;
-  force->z = pos_ac->z - own_pos->z;
-  float d = sqrt(force->x*force->x + force->y*force->y + force->z*force->z);
+  struct EnuCoor_f force = {
+  	pos_ac->x - own_pos->x,
+  	pos_ac->y - own_pos->y,
+  	pos_ac->z - own_pos->z
+  };
+  float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
   d = fmin(fmax(1, d),25);
   if(d>perlimiter)
   {
+    printf("attract %i %f %f %f %f\n", AC_ID, d, force.x, force.y, force.z);
     float strength = GRAVITY / (d * d);
-    force->x = force->x * (strength/d);
-    force->y = force->y * (strength/d);
-    force->z = force->z * (strength/d);
+    force.x = force.x * (strength);
+    force.y = force.y * (strength);
+    force.z = force.z * (strength);
 
-    acc->x += force->x;
-    acc->y += force->y;
-    acc->z += force->z;
+    acc->x += force.x;
+    acc->y += force.y;
+    acc->z += force.z; 
   }
 }
 
-static void repulse(struct EnuCoor_i *own_pos, struct EnuCoor_i* pos_ac, struct EnuCoor_i* acc, float perlimiter, uint8_t multiplier)
+static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct EnuCoor_f* acc, float perlimiter, uint8_t multiplier)
 {
-  struct EnuCoor_i *force = (struct EnuCoor_i*)malloc(sizeof(struct EnuCoor_i));
-  force->x = pos_ac->x - own_pos->x;
-  force->y = pos_ac->y - own_pos->y;
-  force->z = pos_ac->z - own_pos->z;
-  float d = sqrt(force->x*force->x + force->y*force->y + force->z*force->z);
+  struct EnuCoor_f force = {
+  	pos_ac->x - own_pos->x,
+  	pos_ac->y - own_pos->y,
+  	pos_ac->z - own_pos->z
+  };
+  float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
   d = fmin(fmax(1, d),25);
   if(d<perlimiter)
   {
+	  printf("repulse %i\n", AC_ID);
     float strength = (GRAVITY * multiplier) / (d * d);
-    force->x = force->x * (strength/d);
-    force->y = force->y * (strength/d);
-    force->z = force->z * (strength/d);
+    force.x = force.x * (strength/d);
+    force.y = force.y * (strength/d);
+    force.z = force.z * (strength/d);
 
-    acc->x -= force->x;
-    acc->y -= force->y;
-    acc->z -= force->z;
+    acc->x -= force.x;
+    acc->y -= force.y;
+    acc->z -= force.z;
   }
-  free(force);
 }
 
 /*
@@ -143,30 +138,26 @@ static void repulse(struct EnuCoor_i *own_pos, struct EnuCoor_i* pos_ac, struct 
  */
 void swarm_follow_wp(void)
 {
-  struct EnuCoor_i *acc = (struct EnuCoor_i*)malloc(sizeof(struct EnuCoor_i));
-  acc->x = POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
-  acc->y = POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
-  acc->z = POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
-
-  struct EnuCoor_i *own_pos = stateGetPositionEnu_i();
+  acc.x = 0.0f;
+  acc.y = 0.0f;
+  acc.z = 0.0f;
+  struct EnuCoor_f *own_pos = stateGetPositionEnu_f();
 
   for(int ac_id=30; ac_id<41; ++ac_id)
   {
-    struct EnuCoor_i *ac_pos = getPositionEnu_i(ac_id);
-    if(ac_pos != NULL)
-    //if(!(ac_pos->x==own_pos->x && ac_pos->y==own_pos->y && ac_pos->z==own_pos->z))
+    struct EnuCoor_f *ac_pos = getPositionEnu_f(ac_id);
+    if(ac_pos != NULL && ac_id != AC_ID)
     {
-      attract(own_pos,ac_pos,acc,PERLIMITER);
-      repulse(own_pos,ac_pos,acc,PERLIMITER,DRONE_REPULSION_MULTIPLIER);
+      attract(own_pos,ac_pos,&acc,PERLIMITER);
+      repulse(own_pos,ac_pos,&acc,PERLIMITER,DRONE_REPULSION_MULTIPLIER);
     }
   }
 
   struct EnuCoor_i enu = *stateGetPositionEnu_i();
-  enu.x = acc->x + POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
-  enu.y = acc->y + POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
-  enu.z = acc->z + POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
+  enu.x += POS_BFP_OF_REAL(acc.x) + POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
+  enu.y += POS_BFP_OF_REAL(acc.y) + POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
+  enu.z += POS_BFP_OF_REAL(acc.z) + POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
 
-  free(acc);
 
   // Move the waypoint
   waypoint_set_enu_i(SWARM_WAYPOINT_ID, &enu);
