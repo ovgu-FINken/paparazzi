@@ -47,110 +47,6 @@
     </program>
   </section>
   <section name="sessions">
-    <session name="CleanSwarm">
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member0"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member1"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member2"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member3"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member4"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member5"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member6"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member7"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member8"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member9"/>
-        <arg flag="" constant="clean_ac"/>
-      </program>
-    </session>
-    <session name="BuildSwarm">
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member0"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member1"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member2"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member3"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member4"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member5"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member6"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member7"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member8"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-      <program name="Make">
-        <arg flag="-f" constant="Makefile.ac"/>
-        <arg flag="" constant="AIRCRAFT=Swarm_Member9"/>
-        <arg flag="" constant="nps.compile"/>
-      </program>
-    </session>
     <session name="Scaled Sensors">
       <program name="Data Link">
         <arg flag="-d" constant="/dev/ttyUSB0"/>
@@ -227,57 +123,6 @@
       <program name="Messages"/>
       <program name="Settings">
         <arg flag="-ac" constant="@AIRCRAFT"/>
-      </program>
-    </session>
-    <session name="SwarmFormation">
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member0"/>
-        <arg flag="-t" constant="nps"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member1"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member2"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member3"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member4"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member5"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member6"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member7"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member8"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="Simulator">
-        <arg flag="-a" constant="Swarm_Member9"/>
-        <arg flag="--time_factor=0.5"/>
-      </program>
-      <program name="GCS"/>
-      <program name="Server">
-        <arg flag="-n"/>
-      </program>
-      <program name="Data Link">
-        <arg flag="-udp"/>
-        <arg flag="-udp_broadcast"/>
       </program>
     </session>
     <session name="DroneFormation">
@@ -357,6 +202,57 @@
         <arg flag="-c" constant="*:telemetry:BARO_RAW:abs"/>
       </program>
     </session>
+    <session name="SwarmFormation - slow">
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member0"/>
+        <arg flag="-t" constant="nps"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member1"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member2"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member3"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member4"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member5"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member6"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member7"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member8"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member9"/>
+        <arg flag="--time_factor=0.25"/>
+      </program>
+      <program name="GCS"/>
+      <program name="Server">
+        <arg flag="-n"/>
+      </program>
+      <program name="Data Link">
+        <arg flag="-udp"/>
+        <arg flag="-udp_broadcast"/>
+      </program>
+    </session>
     <session name="Flight USB-XBee-API@57600">
       <program name="Data Link">
         <arg flag="-d" constant="/dev/paparazzi/xbee"/>
@@ -365,6 +261,58 @@
       </program>
       <program name="Server"/>
       <program name="GCS"/>
+    </session>
+    <session name="CleanSwarm">
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member0"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member1"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member2"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member3"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member4"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member5"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member6"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member7"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member8"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member9"/>
+        <arg flag="" constant="clean_ac"/>
+      </program>
     </session>
     <session name="Flight USB-serial@57600">
       <program name="Data Link">
@@ -391,6 +339,110 @@
       <program name="GCS"/>
       <program name="Messages"/>
       <program name="Messages"/>
+    </session>
+    <session name="SwarmFormation">
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member0"/>
+        <arg flag="-t" constant="nps"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member1"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member2"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member3"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member4"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member5"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member6"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member7"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member8"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="Simulator">
+        <arg flag="-a" constant="Swarm_Member9"/>
+        <arg flag="--time_factor=1.0"/>
+      </program>
+      <program name="GCS"/>
+      <program name="Server">
+        <arg flag="-n"/>
+      </program>
+      <program name="Data Link">
+        <arg flag="-udp"/>
+        <arg flag="-udp_broadcast"/>
+      </program>
+      <program name="Messages"/>
+    </session>
+    <session name="BuildSwarm">
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member0"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member1"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member2"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member3"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member4"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member5"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member6"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member7"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member8"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
+      <program name="Make">
+        <arg flag="-f" constant="Makefile.ac"/>
+        <arg flag="" constant="AIRCRAFT=Swarm_Member9"/>
+        <arg flag="" constant="nps.compile"/>
+      </program>
     </session>
   </section>
 </control_panel>
