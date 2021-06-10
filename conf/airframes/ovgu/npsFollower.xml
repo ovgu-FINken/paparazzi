@@ -39,11 +39,11 @@
       <define name="AHRS_GRAVITY_HEURISTIC_FACTOR" value="30"/>
     </module>
     <module name="ins"/>
-    <module name="follow">
-      <define name="FOLLOW_AC_ID" value="21"/>
-      <define name="FOLLOW_WAYPOINT_ID" value="1"/>
-    </module>
-    <module name="traffic_info"/>
+				<module name="follow">
+					<define name="FOLLOW_AC_ID" value="21"/>
+					<define name="FOLLOW_WAYPOINT_ID" value="8"/>
+	</module>
+	<module name="traffic_info"/>
     
     <module name="gps" type="ubx_ucenter"/>
     <module name="geo_mag"/>
