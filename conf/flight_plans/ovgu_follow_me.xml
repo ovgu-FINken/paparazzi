@@ -1,0 +1,92 @@
+<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+
+<flight_plan alt="47" ground_alt="44" lat0="52 8 19" lon0="11 38 43" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="1">
+  <header>
+#include "autopilot.h"
+  </header>
+  <waypoints>
+    <waypoint name="HOME" x="0.0" y="0.0" alt="47"/>
+    <waypoint name="A" x="5" y="5"/>
+    <waypoint name="B" x="0.0" y="10.0"/>
+    <waypoint name="C" x="-5" y="5"/>
+    <waypoint name="D" x="5" y="-5"/>
+    <waypoint name="E" x="0.0" y="-10.0"/>
+		<waypoint name="F" x="-5" y="-5"/>
+		<waypoint name="FOLLOW" x="0.0" y="0.0"/>
+
+
+
+
+
+  </waypoints>
+  <blocks>
+    <block name="Wait GPS">
+      <call_once fun="NavKillThrottle()"/>
+      <while cond="!GpsFixValid()"/>
+    </block>
+    <block name="Geo init">
+      <while cond="LessThan(NavBlockTime(), 1)"/>
+      <call_once fun="NavSetGroundReferenceHere()"/>
+      <call_once fun="NavSetAltitudeReferenceHere()"/>
+    </block>
+    <block name="Holding point">
+      <call_once fun="NavKillThrottle()"/>
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+    </block>
+    <block name="Start Engine">
+      <call_once fun="NavResurrect()"/>
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+    </block>
+    <block name="Test">
+      <attitude pitch="0" roll="0" throttle="0.5" vmode="throttle" until="FALSE"/>
+		</block>
+		<block name="Follow">
+						<stay wp="FOLLOW"/>
+		</block>
+    <block name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
+      <exception cond="stateGetPositionEnu_f()->z > 1.0" deroute="Standby"/>
+      <call_once fun="NavSetWaypointHere(WP_HOME)"/>
+      <stay vmode="climb" climb="nav_climb_vspeed" wp="HOME"/>
+    </block>
+    <block name="Standby" strip_button="Standby" strip_icon="home.png">
+      <stay wp="HOME"/>
+    </block>
+     <block name="START">
+      <go wp="HOME" approaching_time="0"/>
+      <deroute block="A"/>
+    </block>
+    <block name="A">
+      <go wp="A" approaching_time="0"/>
+      <deroute block="B"/>
+    </block>
+    <block name="B">
+      <go wp="B" approaching_time="0"/>
+      <deroute block="C"/>
+    </block>
+    <block name="C">
+      <go wp="C" approaching_time="0"/>
+      <deroute block="D"/>
+    </block>
+    <block name="D">
+      <go wp="D" approaching_time="0"/>
+      <deroute block="E"/>
+    </block>
+    <block name="E">
+      <go wp="E" approaching_time="0"/>
+      <deroute block="F"/>
+    </block>
+    <block name="F">
+      <go wp="F" approaching_time="0"/>
+      <deroute block="START"/>
+    </block>
+    <block name="flare">
+      <exception cond="NavDetectGround()" deroute="Holding point"/>
+      <exception cond="!nav_is_in_flight()" deroute="landed"/>
+      <call_once fun="NavStartDetectGround()"/>
+      <stay climb="nav_descend_vspeed" vmode="climb" wp="HOME"/>
+    </block>
+    <block name="landed">
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+    </block>
+  </blocks>
+</flight_plan>

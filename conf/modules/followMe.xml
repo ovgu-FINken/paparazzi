@@ -1,0 +1,27 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="followMe" dir="multi">
+  <doc>
+    <description>
+      Follow a certain AC_ID using traffic_info.
+      Only for rotorcraft firmware.
+    </description>
+    <define name="FOLLOW_AC_ID"               description="the aircraft ID which it has to follow"/>
+    <define name="FOLLOW_WAYPOINT_ID"         description="the waypoint ID which it has to change"/>
+    <define name="FOLLOW_OFFSET_X" value="2"  description="the x offset in ENU (meters) from the plane"/>
+    <define name="FOLLOW_OFFSET_Y" value="2"  description="the y offset in ENU (meters) from the plane"/>
+    <define name="FOLLOW_OFFSET_Z" value="0"  description="the z offset in ENU (meters) from the plane"/>
+    <define name="DRONE_COUNT" value="2"      description="how many aircrafts are used in the simulation"/>
+  </doc>
+  <dep>
+    <depends>traffic_info</depends>
+  </dep>
+  <header>
+    <file name="followMe.h"/>
+  </header>
+  <init fun="follow_init()"/>
+  <periodic fun="follow_wp()" freq="5" autorun="TRUE"/>
+  <makefile>
+    <file name="followMe.c"/>
+  </makefile>
+</module>
