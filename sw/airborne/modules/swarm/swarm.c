@@ -25,7 +25,8 @@
  * Only for rotorcraft firmware.
  */
 
-#include "multi/follow.h"
+#include "swarm/swarm.h"
+#include "swarm/swarm_info.h"
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
 #include "subsystems/datalink/telemetry.h"
@@ -51,7 +52,7 @@
 #error "Please define FOLLOW_AC_ID"
 #endif
 
-#ifndef FOLLOW_WAYPOINT_ID
+#ifndef SWARM_WAYPOINT_ID
 #error "Please define FOLLOW_WAYPOINT_ID"
 #endif
 
@@ -64,16 +65,16 @@ static void send_leader_info(struct transport_tx *trans, struct link_device *dev
   pprz_msg_send_LEADER(trans, dev, AC_ID, &x, &y, &z);
 }
 
-void follow_init(void) {
+void swarm_init(void) {
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_LEADER, send_leader_info);
 }
 
 /*
- * follow_wp(void)
+ * swarm_follow_wp(void)
  * updates the FOLLOW_WAYPOINT_ID to a fixed offset from the last received location
  * of other aircraft with id FOLLOW_AC_ID
  */
-void follow_wp(void)
+void swarm_follow_wp(void)
 {
   struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
 
@@ -83,6 +84,6 @@ void follow_wp(void)
   enu.z = ac->z + POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
 
   // Move the waypoint
-  waypoint_set_enu_i(FOLLOW_WAYPOINT_ID, &enu);
+  waypoint_set_enu_i(SWARM_WAYPOINT_ID, &enu);
 }
 
