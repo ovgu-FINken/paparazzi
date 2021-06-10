@@ -73,6 +73,7 @@ struct EnuCoor_i *_debugVector_i={0,0,0};
 int *HighestInterestId=0;
 int choosenIndex=-1;
 
+float data[3];
 
 /*
 * Creating a new Vector who gets rotated by an angle(cw: +, ccw:-)
@@ -90,19 +91,19 @@ static void send_leader_info(struct transport_tx *trans, struct link_device *dev
   //struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
   int index = 2;
   int number = index * _angle;
-  float k= (float)cos(90);
+  float k= cosf(M_PI_2);
   float x, y, z;
   x = POS_FLOAT_OF_BFP(_debugVector_i->x);
   y = POS_FLOAT_OF_BFP(_debugVector_i->y);
   z = POS_FLOAT_OF_BFP(_debugVector_i->z);
   struct EnuCoor_f v={1,0,0};
   struct EnuCoor_f enu=rotate_2D_vector(v,(double)number);	
-  x= enu.x;
-  y= enu.y;
-  z= enu.z;
+  float dataF[] = {enu.x, enu.y, enu.z};
+  char dataC[] = "test";
+  int32_t dataI[] = {42};
   //pprz_msg_send_LEADER(trans, dev, AC_ID, &_debugVector_f->x, &_debugVector_f->y, &_debugVector_f->z, choosenIndex);
-  pprz_msg_send_LEADER(trans, dev, AC_ID, &x, &y, &k, &number);
-  //pprz_msg_send_LEADER(trans, dev, AC_ID, &_directionMap[2].x, &_directionMap[2].y, &_directionMap[2].z, &choosenIndex);
+  pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(dataF)/sizeof(float), dataF, sizeof(dataI)/4, dataI, sizeof(dataC)-1, dataC);
+  //pprz_msg_send_LEADER(trans, dev, AC_ID, &_directionMap[2].x, &_directionMap[2].y, &_diretionMap[2].z, &choosenIndex);
 }
 
 void follow_init(void) {
