@@ -49,4 +49,4 @@
 	url = https://github.com/PX4/Matrix.git
 [submodule "sw/ext/pprzlink"]
 	path = sw/ext/pprzlink
-	url = https://git@github.com/ovgu-FINken/pprzlink
+	url = git@github.com:ovgu-FINken/pprzlink
