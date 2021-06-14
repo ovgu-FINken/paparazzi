@@ -1,4 +1,4 @@
-<!DOCTYPE flight_plan SYSTEM "flight_plan.dtd">
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
 
 <flight_plan alt="47" ground_alt="44" lat0="52 8 24" lon0="11 38 43" max_dist_from_home="150" name="Rotorcraft Basic (Enac)" security_height="1">
   <header>
@@ -20,11 +20,11 @@
     </block>
     <block name="Holding point">
       <call_once fun="NavKillThrottle()"/>
-      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="NavBlockTime() > 20"/>
     </block>
     <block name="Start Engine">
       <call_once fun="NavResurrect()"/>
-      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="FALSE"/>
+      <attitude pitch="0" roll="0" throttle="0" vmode="throttle" until="NavBlockTime() > 5"/>
     </block>
     <block name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
       <exception cond="stateGetPositionEnu_f()->z > 1.0" deroute="START"/>

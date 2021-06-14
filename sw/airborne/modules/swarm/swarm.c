@@ -205,12 +205,23 @@ void swarm_follow_wp(void)
   vel->x += acc.x;
   vel->y += acc.y;
   vel->z += acc.z;
-  acInfoSetVelocityEnu_f(AC_ID,vel);
 
   struct EnuCoor_i enu = *stateGetPositionEnu_i();
   enu.x += POS_BFP_OF_REAL(vel->x)+POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
   enu.y += POS_BFP_OF_REAL(vel->y)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
   enu.z += POS_BFP_OF_REAL(vel->z)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
+
+  if(enu.z >= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+250.0f))
+  {
+    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+250.0f);
+    vel->z = -1.0f;
+  }
+  else if(enu.z <= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z))
+  {
+    enu.z = POS_BFP_OF_REAL(1.0f+FOLLOW_OFFSET_Z);
+    vel->z = 1.0f;
+  }
+  acInfoSetVelocityEnu_f(AC_ID,vel);
 
   // Move the waypoint
   waypoint_set_enu_i(SWARM_WAYPOINT_ID, &enu);
