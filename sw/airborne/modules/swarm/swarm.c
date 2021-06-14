@@ -37,23 +37,31 @@
 
 /* FOLLOW_OFFSET_ X Y and Z are all in ENU frame */
 #ifndef FOLLOW_OFFSET_X
-#define FOLLOW_OFFSET_X 0.0
+#define FOLLOW_OFFSET_X 0.0f
 #endif
 
 #ifndef FOLLOW_OFFSET_Y
-#define FOLLOW_OFFSET_Y 0.0
+#define FOLLOW_OFFSET_Y 0.0f
 #endif
 
 #ifndef FOLLOW_OFFSET_Z
-#define FOLLOW_OFFSET_Z 42.0
+#define FOLLOW_OFFSET_Z 42.0f
+#endif
+
+#ifndef MAX_HEIGHT
+#define MAX_HEIGHT 250.0f
+#endif
+
+#ifndef MIN_HEIGHT
+#define MIN_HEIGHT 1.0f
 #endif
 
 #ifndef GRAVITY
-#define GRAVITY 198
+#define GRAVITY 198.5f
 #endif
 
 #ifndef PERLIMITER
-#define PERLIMITER 1.5
+#define PERLIMITER 1.5f
 #endif
 
 #ifndef DRONE_REPULSION_MULTIPLIER
@@ -119,7 +127,7 @@ static void attract(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   msg.attraction_force = force;
   float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
   msg.attraction_d = d;
-  d = fmin(fmax(1, d),25);
+  d = fmin(fmax(1.0f, d),25.0f);
   msg.attraction_d = d;
   if(d>perlimiter)
   {
@@ -149,7 +157,7 @@ static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   msg.repulsion_force = force;
   float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
   msg.repulsion_d = d;
-  d = fmin(fmax(1, d),25);
+  d = fmin(fmax(1.0f, d),25.0f);
   msg.repulsion_d = d;
   if(d<perlimiter)
   {
@@ -211,14 +219,14 @@ void swarm_follow_wp(void)
   enu.y += POS_BFP_OF_REAL(vel->y)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
   enu.z += POS_BFP_OF_REAL(vel->z)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
 
-  if(enu.z >= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+250.0f))
+  if(enu.z >= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MAX_HEIGHT))
   {
-    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+250.0f);
+    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MAX_HEIGHT);
     vel->z = -1.0f;
   }
-  else if(enu.z <= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z))
+  else if(enu.z <= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MIN_HEIGHT))
   {
-    enu.z = POS_BFP_OF_REAL(1.0f+FOLLOW_OFFSET_Z);
+    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MIN_HEIGHT);
     vel->z = 1.0f;
   }
   acInfoSetVelocityEnu_f(AC_ID,vel);
