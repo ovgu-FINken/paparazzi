@@ -44,16 +44,8 @@
 #define FOLLOW_OFFSET_Y 0.0f
 #endif
 
-#ifndef FOLLOW_OFFSET_Z
-#define FOLLOW_OFFSET_Z 42.0f
-#endif
-
-#ifndef MAX_HEIGHT
-#define MAX_HEIGHT 250.0f
-#endif
-
-#ifndef MIN_HEIGHT
-#define MIN_HEIGHT 1.0f
+#ifndef FLIGHT_HEIGHT
+#define FLIGHT_HEIGHT 47.0f
 #endif
 
 #ifndef GRAVITY
@@ -122,10 +114,10 @@ static void attract(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   struct EnuCoor_f force = {
   	pos_ac->x - own_pos->x,
   	pos_ac->y - own_pos->y,
-  	pos_ac->z - own_pos->z
+  	0.0f
   };
   msg.attraction_force = force;
-  float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
+  float d = sqrtf(force.x*force.x + force.y*force.y);
   msg.attraction_d = d;
   d = fmin(fmax(1.0f, d),25.0f);
   msg.attraction_d = d;
@@ -137,12 +129,10 @@ static void attract(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
     msg.attraction_strength = strength;
     force.x = force.x * (strength/d);
     force.y = force.y * (strength/d);
-    force.z = force.z * (strength/d);
     msg.attraction_force = force;
 
     acc->x += force.x;
     acc->y += force.y;
-    acc->z += force.z;
   }
   else msg.attraction = false;
 }
@@ -152,10 +142,10 @@ static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   struct EnuCoor_f force = {
   	pos_ac->x - own_pos->x,
   	pos_ac->y - own_pos->y,
-  	pos_ac->z - own_pos->z
+  	0.0f
   };
   msg.repulsion_force = force;
-  float d = sqrtf(force.x*force.x + force.y*force.y + force.z*force.z);
+  float d = sqrtf(force.x*force.x + force.y*force.y);
   msg.repulsion_d = d;
   d = fmin(fmax(1.0f, d),25.0f);
   msg.repulsion_d = d;
@@ -167,12 +157,10 @@ static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
     msg.repulsion_strength = strength;
     force.x = force.x * (strength/d);
     force.y = force.y * (strength/d);
-    force.z = force.z * (strength/d);
     msg.repulsion_force = force;
 
     acc->x -= force.x;
     acc->y -= force.y;
-    acc->z -= force.z;
   }
   else msg.repulsion = false;
 }
@@ -191,7 +179,7 @@ void swarm_follow_wp(void)
   struct EnuCoor_f *own_pos = stateGetPositionEnu_f();
   msg.own_pos = *own_pos;
 
-  for(uint8_t ac_id=30; ac_id<41; ++ac_id)
+  for(uint8_t ac_id=30; ac_id<40; ++ac_id)
   {
     struct EnuCoor_f *ac_pos = getPositionEnu_f(ac_id);
     if(ac_pos != NULL && ac_id != AC_ID)
@@ -212,24 +200,12 @@ void swarm_follow_wp(void)
   struct EnuCoor_f* vel = acInfoGetVelocityEnu_f(AC_ID);
   vel->x += acc.x;
   vel->y += acc.y;
-  vel->z += acc.z;
+  acInfoSetVelocityEnu_f(AC_ID,vel);
 
   struct EnuCoor_i enu = *stateGetPositionEnu_i();
   enu.x += POS_BFP_OF_REAL(vel->x)+POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
   enu.y += POS_BFP_OF_REAL(vel->y)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
-  enu.z += POS_BFP_OF_REAL(vel->z)+POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
-
-  if(enu.z >= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MAX_HEIGHT))
-  {
-    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MAX_HEIGHT);
-    vel->z = -1.0f;
-  }
-  else if(enu.z <= POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MIN_HEIGHT))
-  {
-    enu.z = POS_BFP_OF_REAL(FOLLOW_OFFSET_Z+MIN_HEIGHT);
-    vel->z = 1.0f;
-  }
-  acInfoSetVelocityEnu_f(AC_ID,vel);
+  enu.z = POS_BFP_OF_REAL(FLIGHT_HEIGHT);
 
   // Move the waypoint
   waypoint_set_enu_i(SWARM_WAYPOINT_ID, &enu);

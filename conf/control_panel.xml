@@ -244,7 +244,11 @@
         <arg flag="-a" constant="Swarm_Member9"/>
         <arg flag="--time_factor=0.25"/>
       </program>
-      <program name="GCS"/>
+      <program name="GCS">
+        <arg flag="-track_size 10"/>
+        <arg flag="-zoom 1.5"/>
+        <arg flag="-maps_fill"/>
+      </program>
       <program name="Server">
         <arg flag="-n"/>
       </program>
@@ -382,7 +386,11 @@
         <arg flag="-a" constant="Swarm_Member9"/>
         <arg flag="--time_factor=1.0"/>
       </program>
-      <program name="GCS"/>
+      <program name="GCS">
+        <arg flag="-track_size 10"/>
+        <arg flag="-zoom 1.5"/>
+        <arg flag="-maps_fill"/>
+      </program>
       <program name="Server">
         <arg flag="-n"/>
       </program>
