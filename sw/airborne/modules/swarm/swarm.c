@@ -63,7 +63,16 @@
 #define DRONE_REPULSION_MULTIPLIER 2.5f
 #endif
 
-#ifndef FOLLOW_AC_ID
+// velocity limit parameter
+#ifndef VELOCITY_LIMIT
+#define VELOCITY_LIMIT 5.0f
+#endif
+
+#ifndef REPELL_POINT_ID
+#error "Please define FOLLOW_AC_ID"
+#endif
+
+#ifndef ATTRACTION_POINT_ID
 #error "Please define FOLLOW_AC_ID"
 #endif
 
@@ -138,7 +147,7 @@ static void attract(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   acc->y += force.y;
 }
 
-//repulsion_force = (kb*exp(-||distance||�/2r�))*distance
+//repulsion_force = (kb*exp(-||distance||²/2r²))*distance
 static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct EnuCoor_f* acc, float perlimiter, uint8_t multiplier)
 {
   struct EnuCoor_f force = {
@@ -163,7 +172,7 @@ static void repulse(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct 
   acc->y -= force.y;
 }
 
-//total_force = (ka - kb*exp(-||distance||�/c))*distance
+//total_force = (ka - kb*exp(-||distance||²/c))*distance
 static void attRep(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct EnuCoor_f* acc, float perlimiter, uint8_t multiplier)
 {
     struct EnuCoor_f force = {
@@ -172,6 +181,7 @@ static void attRep(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct E
             0.0f
     };
     msg.repulsion_force = force;
+    msg.attraction_force = force;
 
     float d = sqrtf(force.x*force.x + force.y*force.y);
     float c = (perlimiter * perlimiter)/logf(multiplier);
@@ -187,6 +197,7 @@ static void attRep(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct E
 
     force.x = force.x * (strength_att - strength_rep);
     force.y = force.y * (strength_att - strength_rep);
+    msg.attraction_force = force;
     msg.repulsion_force = force;
 
     acc->x += force.x;
@@ -226,8 +237,8 @@ void swarm_follow_wp(void)
   }
 
   struct EnuCoor_f* vel = acInfoGetVelocityEnu_f(AC_ID);
-  vel->x += acc.x;
-  vel->y += acc.y;
+  vel->x = VELOCITY_LIMIT * tanhf(vel->x+acc.x);
+  vel->y = VELOCITY_LIMIT * tanhf(vel->y+acc.y);
   acInfoSetVelocityEnu_f(AC_ID,vel);
 
   struct EnuCoor_i enu = *stateGetPositionEnu_i();

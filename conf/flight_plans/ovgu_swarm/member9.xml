@@ -6,6 +6,8 @@
   </header>
   <waypoints>
     <waypoint name="FOLLOW" x="0.0" y="0.0"/>
+    <waypoint name="ATTRECTION_POINT" x="0.0" y="0.0"/>
+    <waypoint name="REPELL_POINT" x="0.0" y="0.0"/>
     <waypoint name="HOME" x="0.0" y="0.0" alt="47"/>
   </waypoints>
   <blocks>
