@@ -27,12 +27,12 @@
 #ifndef FOLLOW_H
 #define FOLLOW_H
 
-extern void follow_init(void);
-extern void follow_wp(void);
-extern void create_direction_map(void);
-extern void create_ObjectIdx_Array(void);
-extern void update_ObjectIdx_Array(void);
-extern int chooseDirection(void);
-extern void calc_Interest_Map(void);
+void follow_init(void);
+void follow_wp(void);
+void create_direction_map(void);
+void create_ObjectIdx_Array(void);
+void update_ObjectIdx_Array(void);
+int chooseDirection(void);
+void calc_Interest_Map(void);
 
 #endif // FOLLOW

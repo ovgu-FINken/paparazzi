@@ -11,9 +11,16 @@
     <waypoint name="C" x="-5" y="5"/>
     <waypoint name="D" x="5" y="-5"/>
     <waypoint name="E" x="0.0" y="-10.0"/>
-		<waypoint name="F" x="-5" y="-5"/>
-		<waypoint name="FOLLOW" x="0.0" y="0.0"/>
-
+    <waypoint name="F" x="-5" y="-5"/>
+    <waypoint name="FOLLOW" x="0.0" y="0.0"/>
+<waypoint name="Debug10/0" x="10.0" y="0.0"/>
+<waypoint name="Debug20/0" x="20.0" y="0.0"/>
+<waypoint name="Debug-10/0" x="-10.0" y="0.0"/>
+<waypoint name="Debug-20/0" x="-20.0" y="0.0"/>
+<waypoint name="Debug0/10" x="0.0" y="10.0"/>
+<waypoint name="Debug0/20" x="0.0" y="20.0"/>
+<waypoint name="Debug0/-10" x="0.0" y="-10.0"/>
+<waypoint name="Debug0/-20" x="0.0" y="-20.0"/>
 
 
 
@@ -78,6 +85,38 @@
     <block name="F">
       <go wp="F" approaching_time="0"/>
       <deroute block="START"/>
+    </block>
+    <block name="10/0">
+      <go wp="Debug10/0" approaching_time="0"/>
+	<stay wp="Debug10/0"/>	
+    </block>
+    <block name="20/0">
+      <go wp="Debug20/0" approaching_time="0"/>
+	<stay wp="Debug20/0"/>
+    </block>
+    <block name="-10/0">
+      <go wp="Debug-10/0" approaching_time="0"/>
+	<stay wp="Debug-10/0"/>
+    </block>
+    <block name="-20/0">
+      <go wp="Debug-20/0" approaching_time="0"/>
+	<stay wp="Debug-20/0"/>
+    </block>
+    <block name="0/10">
+      <go wp="Debug0/10" approaching_time="0"/>
+	<stay wp="Debug0/10"/>
+    </block>
+    <block name="0/20">
+      <go wp="Debug0/20" approaching_time="0"/>
+	<stay wp="Debug0/20"/>
+    </block>
+    <block name="0/-10">
+      <go wp="Debug0/-10" approaching_time="0"/>
+	<stay wp="Debug0/-10"/>
+    </block>
+    <block name="0/-20">
+      <go wp="Debug0/-20" approaching_time="0"/>
+	<stay wp="Debug0/-20"/>
     </block>
     <block name="flare">
       <exception cond="NavDetectGround()" deroute="Holding point"/>

@@ -24,8 +24,8 @@
  *  @brief Follow a certain AC ID.
  * Only for rotorcraft firmware.
  */
-
-#include "multi/follow.h"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#include "multi/followMe.h"
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
 #include "subsystems/datalink/telemetry.h"
@@ -62,52 +62,74 @@
 struct EnuCoor_f _directionMap[CONTEXTMAP_LENGTH];
 float _interestMap[CONTEXTMAP_LENGTH]={0};
 //Array with stored AircraftIDX
-int *_objectIdx;
-int _maxObjectIdxLength=4;
+int _objectIdx[50]={0};
 int _objectIdxLength=0;
 //angle of directionMap-Vectors
-float _angle;
+float _angleInDegree;
 //debug_-stuff
-struct EnuCoor_f *_debugVector_f={0,0,0};
-struct EnuCoor_i *_debugVector_i={0,0,0};
+struct EnuCoor_f _debugVector_f={0};
+struct EnuCoor_f *_debugVector_f1={0};
+struct EnuCoor_f *_debugVector_f2={0};
+struct EnuCoor_i *_debugVector_i={0};
+float debugFloat=0;
+float debugArray_f[8]={-1,-1,-1,-1,-1,-1,-1,-1,};
 int *HighestInterestId=0;
 int choosenIndex=-1;
 
 float data[3];
 
 /*
-* Creating a new Vector who gets rotated by an angle(cw: +, ccw:-)
+* Creating a new Vector who gets rotated by an angle(cw: -, ccw:+)
 */
-static struct EnuCoor_f rotate_2D_vector(struct EnuCoor_f vector, double angle){
-	
-	double x= vector.x * (float) cos(angle) - vector.y*(float)sin(angle);
-	double y= vector.x * (float) sin(angle) + vector.y*(float)cos(angle);
+static struct EnuCoor_f rotate_2D_vector(struct EnuCoor_f vector, float angle){
+	angle= angle * M_PI/180;
+	float x= vector.x * cosf(angle) - vector.y * sinf(angle);
+	float y= vector.x * sinf(angle) + vector.y * cosf(angle);
 	struct EnuCoor_f Result= {x,y,vector.z};
 	return Result;
 }
-
+static float calc_Vector_Magnitude(struct EnuCoor_f v){
+	return sqrtf(powf(v.x,2)+powf(v.y,2));
+}
+static float calc_Angle_2DOLD(struct EnuCoor_f v1, struct EnuCoor_f v2){
+	float dotProduct=(v1.x * v2.x + v1.y * v2.y);
+	float vecMagnitudeProduct= calc_Vector_Magnitude(v1)*calc_Vector_Magnitude(v2);
+	float resultInRadiant= acosf(dotProduct/vecMagnitudeProduct);
+	return resultInRadiant*180/M_PI;
+}
+static float calc_Angle_2D(struct EnuCoor_f v1, struct EnuCoor_f v2){
+	float dotProduct=(v1.x * v2.x + v1.y * v2.y);
+	float determinant= (v1.x * v2.y - v1.y * v2.x);
+	float resultInRadiant= atan2f(determinant,dotProduct);
+	return resultInRadiant*180/M_PI;
+}	
 
 static void send_leader_info(struct transport_tx *trans, struct link_device *dev) {
   //struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
-  int index = 2;
-  int number = index * _angle;
+  int index = 3;
+  int number = index * _angleInDegree;
   float k= cosf(M_PI_2);
-  float x, y, z;
-  x = POS_FLOAT_OF_BFP(_debugVector_i->x);
-  y = POS_FLOAT_OF_BFP(_debugVector_i->y);
-  z = POS_FLOAT_OF_BFP(_debugVector_i->z);
-  struct EnuCoor_f v={1,0,0};
-  struct EnuCoor_f enu=rotate_2D_vector(v,(double)number);	
-  float dataF[] = {enu.x, enu.y, enu.z};
+  //x = POS_FLOAT_OF_BFP(_debugVector_i->x);
+  struct EnuCoor_f v= _directionMap[index];
+  struct EnuCoor_f d= _directionMap[0];
+  struct EnuCoor_f enu=rotate_2D_vector(v,number);
+  float debugAngle1= calc_Vector_Magnitude(v);
+  float debugAngle2= calc_Vector_Magnitude(d);
+  float debugAngle3= calc_Vector_Magnitude(_debugVector_f);			
+  float dataF[] = {_debugVector_f.x,_debugVector_f.y, _debugVector_f.z,8,8, debugAngle1, debugAngle2, debugFloat  };
+  float vectorArray[] = {_debugVector_f.x,_debugVector_f.y, _debugVector_f.z,_debugVector_f1->x,_debugVector_f1->y, _debugVector_f1->z,_debugVector_f2->x,_debugVector_f2->y, _debugVector_f2->z};	
   char dataC[] = "test";
-  int32_t dataI[] = {42};
-  //pprz_msg_send_LEADER(trans, dev, AC_ID, &_debugVector_f->x, &_debugVector_f->y, &_debugVector_f->z, choosenIndex);
-  pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(dataF)/sizeof(float), dataF, sizeof(dataI)/4, dataI, sizeof(dataC)-1, dataC);
-  //pprz_msg_send_LEADER(trans, dev, AC_ID, &_directionMap[2].x, &_directionMap[2].y, &_diretionMap[2].z, &choosenIndex);
+  int32_t dataI[] = {choosenIndex, _debugVector_i->x,_debugVector_i->y,_debugVector_i->z};
+  	
+  pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(_interestMap)/sizeof(float), _interestMap, sizeof(dataI)/4, dataI, sizeof(dataC)-1, dataC);
+  //pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(dataF)/sizeof(float), dataF, sizeof(_objectIdx)/4, _objectIdx, sizeof(dataC)-1, dataC);
+  //pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(_interestMap)/sizeof(float), _interestMap, sizeof(_objectIdx)/4, _objectIdx, sizeof(dataC)-1, dataC);
+  //pprz_msg_send_LEADER(trans, dev, AC_ID, sizeof(debugArray_f)/sizeof(float), debugArray_f, sizeof(_objectIdx)/4, _objectIdx, sizeof(dataC)-1, dataC);
+  
 }
 
 void follow_init(void) {
-  _angle= 360/CONTEXTMAP_LENGTH;
+  _angleInDegree= 360/CONTEXTMAP_LENGTH;
   create_direction_map();
   create_ObjectIdx_Array();
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_LEADER, send_leader_info);
@@ -115,71 +137,115 @@ void follow_init(void) {
 
 
 void create_direction_map(void) {
+	//rotate
 	struct EnuCoor_f defaultDirectionVector={1,0,0};
 	for(int i=0; i<CONTEXTMAP_LENGTH; i++){
-		_directionMap[i]=rotate_2D_vector(defaultDirectionVector,(double)_angle*i);
+		_directionMap[i]=rotate_2D_vector(defaultDirectionVector,_angleInDegree*i);
 	}
 	
 }
 
 void create_ObjectIdx_Array(void) {
-	_objectIdx=malloc(ti_acs_idx*sizeof(int));
-	for(int i=0; i<ti_acs_idx;i++){
-		_objectIdx[i]= FOLLOW_AC_ID+i;	
+	for(int i=0; i<50; i++){
+		_objectIdx[i]=-1;
+	}
+	for(int i=0; i<ti_acs_idx-1;i++){
+		_objectIdx[i]= ti_acs[i+1].ac_id ;	
 		_objectIdxLength++;
 	}
 }
 void update_ObjectIdx_Array(void) {
 	if(ti_acs_idx>_objectIdxLength){
-		if(_maxObjectIdxLength==_objectIdxLength){
-			_objectIdx=realloc(_objectIdx,2*_maxObjectIdxLength*sizeof(int));
-			_maxObjectIdxLength=2*_maxObjectIdxLength;
+		_objectIdxLength=0;
+		for(int i=0; i<50; i++){
+			_objectIdx[i]=-1;
 		}
-		for(int i=_objectIdxLength; i<ti_acs_idx;i++){
-			_objectIdx[i]= FOLLOW_AC_ID+i;	
+		for(int i=0; i<ti_acs_idx-1;i++){
+			_objectIdx[i]=ti_acs[i+1].ac_id;	
 			_objectIdxLength++;
 		}
 	}
 }
 
 
-static float calc_Vector_Magnitude(struct EnuCoor_f v){
-	return sqrt(pow((double)v.x,2)+pow((double)v.y,2));
-}
-static float calc_Angle_2D(struct EnuCoor_f v1, struct EnuCoor_f v2){
-	double dotProduct=(double)(v1.x * v2.x + v1.y * v2.y);
-	double vecMagnitudeProduct= calc_Vector_Magnitude(v1)*calc_Vector_Magnitude(v2);
-	return acos(dotProduct/vecMagnitudeProduct);
-}	
 
 void calc_Interest_Map(void){
+	for(int i=0;i<CONTEXTMAP_LENGTH;i++){	
+		_interestMap[i]=0;
+	}
 	struct EnuCoor_f *myPos= stateGetPositionEnu_f();
 	struct EnuCoor_f objectPos;
 	float threshold= 45;
 	float vMagnitude;
-	for(int i=0; i<ti_acs_idx;i++){
-		struct EnuCoor_f *position =acInfoGetPositionEnu_i(_objectIdx[i]);
-		objectPos.x = position->x - myPos->x;
-		objectPos.y = position->y - myPos->y;
-		objectPos.z = position->z - myPos->z;	
+	for(int i=0; i<ti_acs_idx-1;i++){
+		struct EnuCoor_f *position =acInfoGetPositionEnu_f(_objectIdx[i]);
+		_debugVector_f.x = position->x - myPos->x;
+		_debugVector_f.y = position->y - myPos->y;
+		_debugVector_f.z = position->z - myPos->z;
+		_debugVector_f1=position;
+		_debugVector_f2=myPos;
 		for(int j=0; j<CONTEXTMAP_LENGTH;j++){
-			_debugVector_f=&_directionMap[j];
-			float angleBetweenObjVecAndDirectionVec= calc_Angle_2D(objectPos,_directionMap[j]);
-			if(angleBetweenObjVecAndDirectionVec<threshold){
-				vMagnitude=calc_Vector_Magnitude(objectPos);
-				_interestMap[j]+=(threshold-angleBetweenObjVecAndDirectionVec)/angleBetweenObjVecAndDirectionVec * vMagnitude;	
+			//_debugVector_f=&_directionMap[j];
+			float angle= calc_Angle_2D(_debugVector_f,_directionMap[j]);
+			debugArray_f[j]=angle;
+			//debugFloat= angleBetweenObjVecAndDirectionVec;
+			if(angle<threshold && angle>-threshold){
+				vMagnitude=calc_Vector_Magnitude(_debugVector_f);
+				//debugFloat=vMagnitude;
+				if(angle>0){
+					_interestMap[j]+=(threshold-angle)/angle * vMagnitude;	
+				}
+				else {
+					_interestMap[j]+=(-threshold+angle)/angle * vMagnitude;
+				}
+			}
+		}
+	}	
+}
+static void calc_Interest_MapDebug(void){
+	for(int i=0;i<CONTEXTMAP_LENGTH;i++){	
+		_interestMap[i]=0;
+	}
+	struct EnuCoor_f *myPos= stateGetPositionEnu_f();
+	struct EnuCoor_f objectPos;
+	float threshold= 45;
+	float vMagnitude;
+	
+	struct EnuCoor_f *position =acInfoGetPositionEnu_f(_objectIdx[1]);
+	_debugVector_f.x = position->x - myPos->x;
+	_debugVector_f.y = position->y - myPos->y;
+	_debugVector_f.z = position->z - myPos->z;
+	//struct EnuCoor_f *obj = &objectPos;
+	//struct EnuCoor_f *obj ={x=objectPos.x, y=objectPos.y, z=objectPos.z};
+	//_debugVector_f=objectPos;
+	_debugVector_f1=position;
+	_debugVector_f2=myPos;
+	for(int j=0; j<CONTEXTMAP_LENGTH;j++){
+		//_debugVector_f=&_directionMap[j];
+		float angle= calc_Angle_2D(_debugVector_f,_directionMap[j]);
+		debugArray_f[j]=angle;
+		//debugFloat= angleBetweenObjVecAndDirectionVec;
+		if(angle<threshold && angle>-threshold){
+			vMagnitude=calc_Vector_Magnitude(_debugVector_f);
+			//debugFloat=vMagnitude;
+			if(angle>0){
+				_interestMap[j]+=(threshold-angle)/angle * vMagnitude;	
+			}
+			else {
+				_interestMap[j]+=(-threshold+angle)/angle * vMagnitude;
 			}
 		}
 	}
+	
 }
 int chooseDirection(void){
 	int value=0; 
-	int valueIndex;
+	int valueIndex=0;
 	for(int i=0;i<CONTEXTMAP_LENGTH;i++){
 		if(value<_interestMap[i]){
 			value=_interestMap[i];
 			valueIndex=i;
-			HighestInterestId=_objectIdx[i];
+			//HighestInterestId=&_objectIdx[i];
 			//_debugVector_f=acInfoGetPositionEnu_f(_objectIdx[i]);
 		}	
 	}
@@ -193,14 +259,15 @@ int chooseDirection(void){
 void follow_wp(void)
 {
   //struct EnuCoor_i *ac = acInfoGetPositionEnu_i(FOLLOW_AC_ID);
+  update_ObjectIdx_Array();
   calc_Interest_Map();
   int direction= chooseDirection();
   choosenIndex=direction;
-  struct EnuCoor_i *followPoint= acInfoGetPositionEnu_i(&HighestInterestId);
+  struct EnuCoor_i *myPos= stateGetPositionEnu_i();
   struct EnuCoor_i enu;
-  enu.x = _directionMap[direction].x * followPoint->x; //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
-  enu.y = _directionMap[direction].y * followPoint->y; //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
-  enu.z = _directionMap[direction].z * followPoint->z; //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
+  enu.x = myPos->x + (int) (_directionMap[direction].x * _interestMap[direction]); //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_X);
+  enu.y = myPos->y + (int) (_directionMap[direction].y * _interestMap[direction]); //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_Y);
+  enu.z = myPos->z + (int) (_directionMap[direction].z * _interestMap[direction]); //+ POS_BFP_OF_REAL(FOLLOW_OFFSET_Z);
   _debugVector_i= &enu;	
   // Move the waypoint
   waypoint_set_enu_i(FOLLOW_WAYPOINT_ID, &enu);
