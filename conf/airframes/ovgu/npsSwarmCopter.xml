@@ -43,6 +43,8 @@
       <define name="REPELL_POINT_ID" value="3"/>
       <define name="ATTRACTION_POINT_ID" value="2"/>
       <define name="SWARM_WAYPOINT_ID" value="1"/>
+      <define name="FIRST_SWARM_MEMBER_ID" value="30"/>
+      <define name="LAST_SWARM_MEMBER_ID" value="39"/>
     </module>
     <!--module name="traffic_info"/-->
     
